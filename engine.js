@@ -481,7 +481,83 @@
     return { n: n, today: today };
   }
 
+  /* ===== Varios dispositivos =====
+     Cada copia de un perfil en un dispositivo anota su propio aporte (estrellas, respuestas, intentos).
+     Al unir dos copias se toma el máximo de cada aporte y se suman: unir varias veces no cuenta nada doble. */
+  function normName(s) {
+    return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().replace(/\s+/g, ' ').toLowerCase();
+  }
+  const SUMS = ['stars', 'answered', 'practiceMs'];
+  function syncContrib(p, src) {
+    p.contrib = p.contrib || {};
+    const own = {};
+    for (const f of SUMS) {
+      let others = 0;
+      for (const d in p.contrib) if (d !== src) others += p.contrib[d][f] || 0;
+      own[f] = Math.max(0, (p[f] || 0) - others);
+    }
+    p.contrib[src] = own;
+    for (const k in p.facts) {
+      const f = p.facts[k];
+      f.c = f.c || {};
+      let oa = 0, oc = 0;
+      for (const d in f.c) if (d !== src) { oa += f.c[d][0]; oc += f.c[d][1]; }
+      const at = Math.max(0, f.attempts - oa), co = Math.max(0, f.correct - oc);
+      if (at || f.c[src]) f.c[src] = [at, co];
+    }
+    return p;
+  }
+  function lastActive(p) { let t = 0; for (const k in p.facts) t = Math.max(t, p.facts[k].lastAt || 0); return t; }
+  // Une el perfil b dentro de a. En cada multiplicación queda el estado más reciente.
+  function mergeProfiles(a, b) {
+    ensure(a); ensure(b);
+    if (!a.contrib || !Object.keys(a.contrib).length) syncContrib(a, 'x/' + a.id);
+    if (!b.contrib || !Object.keys(b.contrib).length) syncContrib(b, 'x/' + b.id);
+    const newer = lastActive(a) >= lastActive(b) ? a : b;
+    const q = Math.max(a.q, b.q);
+    const facts = {};
+    for (const k of new Set(Object.keys(a.facts).concat(Object.keys(b.facts)))) {
+      const fa = a.facts[k], fb = b.facts[k];
+      const useB = !fa || (fb && (fb.lastAt || 0) > (fa.lastAt || 0));
+      const base = useB ? fb : fa, src = useB ? b : a;
+      const f = JSON.parse(JSON.stringify(base));
+      f.lastSeen = base.lastSeen < 0 ? -1 : Math.max(0, q - (src.q - base.lastSeen));
+      const c = {};
+      for (const r of [fa, fb]) if (r && r.c) for (const d in r.c) {
+        c[d] = c[d] ? [Math.max(c[d][0], r.c[d][0]), Math.max(c[d][1], r.c[d][1])] : r.c[d].slice();
+      }
+      f.c = c;
+      if (Object.keys(c).length) {
+        f.attempts = Object.values(c).reduce((s, x) => s + x[0], 0);
+        f.correct = Object.values(c).reduce((s, x) => s + x[1], 0);
+      }
+      f.okDays = Array.from(new Set((fa ? fa.okDays : []).concat(fb ? fb.okDays : []))).sort().slice(-6);
+      facts[k] = f;
+    }
+    const contrib = {};
+    for (const p of [a, b]) for (const d in p.contrib) {
+      const x = p.contrib[d], y = contrib[d];
+      contrib[d] = {};
+      for (const f of SUMS) contrib[d][f] = Math.max(x[f] || 0, y ? y[f] || 0 : 0);
+    }
+    const total = f => Object.values(contrib).reduce((s, x) => s + (x[f] || 0), 0);
+    const won = [a.masteredAll, b.masteredAll].filter(Boolean);
+    const merged = {
+      facts: facts, contrib: contrib, q: q,
+      stars: total('stars'), answered: total('answered'), practiceMs: total('practiceMs'),
+      bestStreak: Math.max(a.bestStreak, b.bestStreak),
+      days: Array.from(new Set(a.days.concat(b.days))).sort(),
+      medals: Array.from(new Set(a.medals.concat(b.medals))).sort((x, y) => x - y),
+      masteredAll: won.length ? Math.min.apply(null, won) : 0,
+      createdAt: Math.min(a.createdAt || Date.now(), b.createdAt || Date.now()),
+      recent: newer.recent.slice(), lastKeys: newer.lastKeys.slice(),
+      settings: JSON.parse(JSON.stringify(newer.settings))
+    };
+    return ensure(Object.assign(a, merged));
+  }
+
   const MT = {
+    normName, syncContrib, mergeProfiles,
     CONFIG, TABLES, LEVELS, key, parse, universe, group, defaultSettings, boostKeys, newFact, newProfile, ensure, resetProgress,
     newSession, closeRound, ackBreak, allowed, pickNext, grade, hint, confusion,
     summary, tables, weaknesses, avgOkMs, dayStreak, ymd

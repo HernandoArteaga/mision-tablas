@@ -393,6 +393,8 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
 .note { font-size: 14px; color: var(--ink-2); font-weight: 600; }
 .msg { font-weight: 800; color: var(--ok-edge); min-height: 1.4em; }
 .msg.bad { color: var(--warm); }
+.code { width: 100%; min-height: 84px; border: 2px solid var(--line); border-radius: 14px; padding: 10px 12px; background: var(--card); color: var(--ink); font: 13px/1.35 ui-monospace, "SF Mono", Menlo, Consolas, monospace; word-break: break-all; resize: vertical; }
+.code:focus { border-color: var(--stamp); outline: none; box-shadow: 0 0 0 4px var(--stamp-soft); }
 
 /* ---------- Ventanas ---------- */
 .overlay {
@@ -630,6 +632,23 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
       </div>
       <button type="button" class="switch" role="switch" id="setOne" aria-checked="false"><span>Incluir ×1</span><span class="track" aria-hidden="true"></span></button>
       <button type="button" class="switch" role="switch" id="setSound" aria-checked="true"><span>Sonidos</span><span class="track" aria-hidden="true"></span></button>
+    </div>
+
+    <div class="panel" id="syncPanel">
+      <h2>Unir con otro dispositivo</h2>
+      <p class="sub">Cada dispositivo guarda su propio progreso. Si juega en dos, únelos así:</p>
+      <ol class="how">
+        <li>En el otro dispositivo, abre este panel y toca <b>Copiar código</b>.</li>
+        <li>Mándate ese código (por WhatsApp, por ejemplo) y pégalo aquí abajo.</li>
+        <li>Toca <b>Unir progreso</b>.</li>
+      </ol>
+      <div class="row"><button type="button" class="btn" id="btnCode">Copiar código</button></div>
+      <textarea id="codeOut" class="code" readonly hidden aria-label="Código de este dispositivo"></textarea>
+      <label for="codeIn" class="label">Código del otro dispositivo</label>
+      <textarea id="codeIn" class="code" rows="3" placeholder="Pega aquí el código"></textarea>
+      <div class="row"><button type="button" class="btn go" id="btnMerge">Unir progreso</button></div>
+      <p id="syncMsg" class="msg" aria-live="polite"></p>
+      <p class="note">Se juntan estrellas y respuestas, y en cada multiplicación queda lo más reciente. Puedes unir las veces que quieras: nada se cuenta dos veces. Para que los dos dispositivos queden iguales, haz lo mismo en el otro sentido.</p>
     </div>
 
     <div class="panel">
@@ -1208,7 +1227,83 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     return { n: n, today: today };
   }
 
+  /* ===== Varios dispositivos =====
+     Cada copia de un perfil en un dispositivo anota su propio aporte (estrellas, respuestas, intentos).
+     Al unir dos copias se toma el máximo de cada aporte y se suman: unir varias veces no cuenta nada doble. */
+  function normName(s) {
+    return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().replace(/\s+/g, ' ').toLowerCase();
+  }
+  const SUMS = ['stars', 'answered', 'practiceMs'];
+  function syncContrib(p, src) {
+    p.contrib = p.contrib || {};
+    const own = {};
+    for (const f of SUMS) {
+      let others = 0;
+      for (const d in p.contrib) if (d !== src) others += p.contrib[d][f] || 0;
+      own[f] = Math.max(0, (p[f] || 0) - others);
+    }
+    p.contrib[src] = own;
+    for (const k in p.facts) {
+      const f = p.facts[k];
+      f.c = f.c || {};
+      let oa = 0, oc = 0;
+      for (const d in f.c) if (d !== src) { oa += f.c[d][0]; oc += f.c[d][1]; }
+      const at = Math.max(0, f.attempts - oa), co = Math.max(0, f.correct - oc);
+      if (at || f.c[src]) f.c[src] = [at, co];
+    }
+    return p;
+  }
+  function lastActive(p) { let t = 0; for (const k in p.facts) t = Math.max(t, p.facts[k].lastAt || 0); return t; }
+  // Une el perfil b dentro de a. En cada multiplicación queda el estado más reciente.
+  function mergeProfiles(a, b) {
+    ensure(a); ensure(b);
+    if (!a.contrib || !Object.keys(a.contrib).length) syncContrib(a, 'x/' + a.id);
+    if (!b.contrib || !Object.keys(b.contrib).length) syncContrib(b, 'x/' + b.id);
+    const newer = lastActive(a) >= lastActive(b) ? a : b;
+    const q = Math.max(a.q, b.q);
+    const facts = {};
+    for (const k of new Set(Object.keys(a.facts).concat(Object.keys(b.facts)))) {
+      const fa = a.facts[k], fb = b.facts[k];
+      const useB = !fa || (fb && (fb.lastAt || 0) > (fa.lastAt || 0));
+      const base = useB ? fb : fa, src = useB ? b : a;
+      const f = JSON.parse(JSON.stringify(base));
+      f.lastSeen = base.lastSeen < 0 ? -1 : Math.max(0, q - (src.q - base.lastSeen));
+      const c = {};
+      for (const r of [fa, fb]) if (r && r.c) for (const d in r.c) {
+        c[d] = c[d] ? [Math.max(c[d][0], r.c[d][0]), Math.max(c[d][1], r.c[d][1])] : r.c[d].slice();
+      }
+      f.c = c;
+      if (Object.keys(c).length) {
+        f.attempts = Object.values(c).reduce((s, x) => s + x[0], 0);
+        f.correct = Object.values(c).reduce((s, x) => s + x[1], 0);
+      }
+      f.okDays = Array.from(new Set((fa ? fa.okDays : []).concat(fb ? fb.okDays : []))).sort().slice(-6);
+      facts[k] = f;
+    }
+    const contrib = {};
+    for (const p of [a, b]) for (const d in p.contrib) {
+      const x = p.contrib[d], y = contrib[d];
+      contrib[d] = {};
+      for (const f of SUMS) contrib[d][f] = Math.max(x[f] || 0, y ? y[f] || 0 : 0);
+    }
+    const total = f => Object.values(contrib).reduce((s, x) => s + (x[f] || 0), 0);
+    const won = [a.masteredAll, b.masteredAll].filter(Boolean);
+    const merged = {
+      facts: facts, contrib: contrib, q: q,
+      stars: total('stars'), answered: total('answered'), practiceMs: total('practiceMs'),
+      bestStreak: Math.max(a.bestStreak, b.bestStreak),
+      days: Array.from(new Set(a.days.concat(b.days))).sort(),
+      medals: Array.from(new Set(a.medals.concat(b.medals))).sort((x, y) => x - y),
+      masteredAll: won.length ? Math.min.apply(null, won) : 0,
+      createdAt: Math.min(a.createdAt || Date.now(), b.createdAt || Date.now()),
+      recent: newer.recent.slice(), lastKeys: newer.lastKeys.slice(),
+      settings: JSON.parse(JSON.stringify(newer.settings))
+    };
+    return ensure(Object.assign(a, merged));
+  }
+
   const MT = {
+    normName, syncContrib, mergeProfiles,
     CONFIG, TABLES, LEVELS, key, parse, universe, group, defaultSettings, boostKeys, newFact, newProfile, ensure, resetProgress,
     newSession, closeRound, ackBreak, allowed, pickNext, grade, hint, confusion,
     summary, tables, weaknesses, avgOkMs, dayStreak, ymd
@@ -1276,11 +1371,65 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
   let data = Store.load();
   if (!data || !Array.isArray(data.profiles)) data = { profiles: [], current: null };
   data.profiles = data.profiles.filter(p => p && p.id && p.name).map(p => MT.ensure(p));
+  // Identificador de este dispositivo: sirve para unir el progreso de varios sin contar nada doble.
+  if (!data.device) data.device = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const ckey = p => data.device + '/' + p.id;
+  // Un solo perfil por nombre: si hay dos iguales en este dispositivo, se unen.
+  (function dedupe() {
+    const seen = {};
+    data.profiles = data.profiles.filter(p => {
+      const n = MT.normName(p.name);
+      const keep = seen[n];
+      if (!keep) { seen[n] = p; return true; }
+      MT.syncContrib(keep, ckey(keep)); MT.syncContrib(p, ckey(p));
+      MT.mergeProfiles(keep, p);
+      if (data.current === p.id) data.current = keep.id;
+      return false;
+    });
+  })();
   let P = data.profiles.find(p => p.id === data.current) || null;
   let S = null;     // sesión
   let Q = null;     // pregunta en curso
   let dl = null;    // capacidad para guardar archivos
-  function persist() { data.current = P ? P.id : null; Store.save(data); }
+  function persist() { if (P) MT.syncContrib(P, ckey(P)); data.current = P ? P.id : null; Store.save(data); }
+  // Une perfiles que llegan de otro dispositivo (código o archivo) con los de aquí, por nombre.
+  function mergeIncoming(list) {
+    const names = [];
+    for (const raw of list) {
+      const inc = MT.ensure(JSON.parse(JSON.stringify(raw)));
+      inc.name = String(inc.name).slice(0, 14);
+      const local = data.profiles.find(p => MT.normName(p.name) === MT.normName(inc.name));
+      if (local) { MT.syncContrib(local, ckey(local)); MT.mergeProfiles(local, inc); names.push(local.name); }
+      else { data.profiles.push(inc); names.push(inc.name); }
+    }
+    if (!P) P = data.profiles[0] || null;
+    S = null; persist();
+    return names;
+  }
+  // Código para pasar un perfil a otro dispositivo (comprimido cuando el navegador lo permite).
+  async function makeCode(p) {
+    MT.syncContrib(p, ckey(p)); Store.save(data);
+    let bytes = new TextEncoder().encode(JSON.stringify({ app: 'mision-tablas', v: 1, profiles: [p] })), tag = 'MT1.';
+    if (window.CompressionStream) {
+      try { bytes = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()); tag = 'MTZ.'; }
+      catch (e) { tag = 'MT1.'; bytes = new TextEncoder().encode(JSON.stringify({ app: 'mision-tablas', v: 1, profiles: [p] })); }
+    }
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+    return tag + btoa(bin);
+  }
+  async function readCode(text) {
+    const code = String(text || '').replace(/\s+/g, '');
+    const tag = code.slice(0, 4);
+    if (tag !== 'MT1.' && tag !== 'MTZ.') throw new Error('formato');
+    const bin = atob(code.slice(4));
+    let bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    if (tag === 'MTZ.') bytes = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
+    const j = JSON.parse(new TextDecoder().decode(bytes));
+    if (!j || j.app !== 'mision-tablas' || !Array.isArray(j.profiles)) throw new Error('formato');
+    return j.profiles.filter(p => p && p.id && typeof p.name === 'string' && p.facts);
+  }
 
   function inClaude() { return !!(window.claude && typeof window.claude.use === 'function'); }
   function canSave() { return inClaude() ? !!dl : true; }
@@ -1435,6 +1584,9 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     e.preventDefault();
     const name = $('#newName').value.trim().replace(/\s+/g, ' ');
     if (!name) { $('#newErr').textContent = 'Escribe tu nombre para empezar.'; $('#newName').focus(); return; }
+    // Un solo perfil por nombre: si ya existe (sin importar mayúsculas o tildes), se entra a ese.
+    const same = data.profiles.find(x => MT.normName(x.name) === MT.normName(name));
+    if (same) { P = same; S = null; persist(); goHome(); return; }
     const p = MT.newProfile(name.slice(0, 14), chosenAvatar, Date.now());
     data.profiles.push(p); P = p; S = null; persist(); goHome();
   });
@@ -1937,6 +2089,24 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
       m.className = 'msg bad'; m.textContent = e && e.code === 'declined' ? 'No se guardó la copia.' : 'No se pudo guardar la copia aquí.';
     }
   });
+  $('#btnCode').addEventListener('click', async () => {
+    const m = $('#syncMsg'), out = $('#codeOut');
+    const code = await makeCode(P);
+    out.value = code; out.hidden = false;
+    m.className = 'msg';
+    try { await navigator.clipboard.writeText(code); m.textContent = `Código de ${P.name} copiado. Pégalo en el otro dispositivo.`; }
+    catch (e) { out.focus(); out.select(); m.textContent = 'Copia el código de arriba (ya está seleccionado) y pégalo en el otro dispositivo.'; }
+  });
+  $('#btnMerge').addEventListener('click', async () => {
+    const m = $('#syncMsg');
+    let list = null;
+    try { list = await readCode($('#codeIn').value); } catch (e) { list = null; }
+    if (!list || !list.length) { m.className = 'msg bad'; m.textContent = 'Ese código no es de Misión Tablas. Cópialo completo e inténtalo de nuevo.'; return; }
+    const names = mergeIncoming(list);
+    $('#codeIn').value = '';
+    renderAdult();
+    m.className = 'msg'; m.textContent = `Listo: se unió el progreso de ${names.join(' y ')}.`;
+  });
   $('#btnRestore').addEventListener('click', () => { $('#restoreFile').value = ''; $('#restoreFile').click(); });
   $('#restoreFile').addEventListener('change', () => {
     const file = $('#restoreFile').files[0]; if (!file) return;
@@ -1949,18 +2119,12 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
         if (j && j.app === 'mision-tablas' && Array.isArray(j.profiles)) incoming = j.profiles.filter(p => p && p.id && typeof p.name === 'string' && p.facts);
       } catch (e) { incoming = null; }
       if (!incoming || !incoming.length) { m.className = 'msg bad'; m.textContent = 'Ese archivo no es una copia de Misión Tablas.'; return; }
-      box.innerHTML = `<p>Se cargarán ${incoming.length === 1 ? '1 perfil' : incoming.length + ' perfiles'}: ${incoming.map(p => esc(p.name)).join(', ')}. Si alguno ya existe en este dispositivo, se reemplazará.</p><div class="row"><button type="button" class="btn go" id="restoreYes">Cargar copia</button><button type="button" class="btn" id="restoreNo">Cancelar</button></div>`;
+      box.innerHTML = `<p>Se cargarán ${incoming.length === 1 ? '1 perfil' : incoming.length + ' perfiles'}: ${incoming.map(p => esc(p.name)).join(', ')}. Si alguno ya existe aquí con el mismo nombre, se unirá su progreso.</p><div class="row"><button type="button" class="btn go" id="restoreYes">Cargar copia</button><button type="button" class="btn" id="restoreNo">Cancelar</button></div>`;
       box.hidden = false;
       $('#restoreNo').onclick = () => { box.hidden = true; };
       $('#restoreYes').onclick = () => {
-        for (const raw of incoming) {
-          const p = MT.ensure(JSON.parse(JSON.stringify(raw)));
-          p.name = String(p.name).slice(0, 14);
-          const i = data.profiles.findIndex(x => x.id === p.id);
-          if (i >= 0) data.profiles[i] = p; else data.profiles.push(p);
-        }
-        P = data.profiles.find(x => x.id === P.id) || data.profiles[0];
-        S = null; persist(); renderAdult();
+        mergeIncoming(incoming);
+        renderAdult();
         m.className = 'msg'; m.textContent = 'Copia cargada.';
       };
     };

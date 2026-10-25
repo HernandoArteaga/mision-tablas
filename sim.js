@@ -184,6 +184,34 @@ out.push('\n7) Refuerzo puntual de multiplicaciones marcadas por el adulto');
     `Niño por rachas con refuerzo: ${B.length} de ${runs.boost.log.length} preguntas fueron de refuerzo, todas de las marcadas`);
 }
 
+out.push('\n8) Unir el mismo perfil jugado en dos dispositivos');
+{
+  const clone = x => JSON.parse(JSON.stringify(x));
+  const A = simulate(kidFast, 90, 21, 60).p; A.name = 'Julieta';
+  const B = simulate(kidA, 70, 22, 60).p; B.name = 'julieta ';
+  MT.syncContrib(A, 'cel/' + A.id); MT.syncContrib(B, 'lap/' + B.id);
+  const M = MT.mergeProfiles(clone(A), clone(B));
+  check(MT.normName(A.name) === MT.normName(B.name) && M.stars === A.stars + B.stars && M.answered === A.answered + B.answered,
+    `"Julieta" y "julieta ": ${A.stars} + ${B.stars} estrellas → ${M.stars}; ${A.answered} + ${B.answered} respuestas → ${M.answered}`);
+  const again = MT.mergeProfiles(clone(M), clone(B));
+  const back = MT.mergeProfiles(clone(B), clone(M));
+  check(again.stars === M.stars && back.stars === M.stars && back.answered === M.answered && back.facts['7x8'].attempts === M.facts['7x8'].attempts,
+    'Unir otra vez lo mismo, o al revés en el otro dispositivo, no cuenta nada doble');
+  let latest = true;
+  for (const k of Object.keys(M.facts)) {
+    const fa = A.facts[k], fb = B.facts[k];
+    const exp = (fb.lastAt || 0) > (fa.lastAt || 0) ? fb.level : fa.level;
+    if (M.facts[k].level !== exp) latest = false;
+  }
+  check(latest, 'En cada multiplicación queda el nivel más reciente de los dos dispositivos');
+  // Sigue jugando en el celular después de unir y vuelve a unir con el laptop.
+  const cel = clone(M), rng = rngFrom(5); let s = MT.newSession(cel, Date.now());
+  for (let i = 0; i < 15; i++) { const pk = MT.pickNext(cel, s, rng); MT.grade(cel, s, pk.key, pk.a * pk.b, 1500, Date.now(), pk); }
+  MT.syncContrib(cel, 'cel/' + A.id);
+  const lap = MT.mergeProfiles(clone(back), clone(cel));
+  check(lap.stars === cel.stars && lap.answered === M.answered + 15, `Tras 15 preguntas más en el celular y otra unión: ${lap.answered} respuestas en total, sin duplicar`);
+}
+
 out.push('\nExtras');
 {
   let viol = 0, total = 0;

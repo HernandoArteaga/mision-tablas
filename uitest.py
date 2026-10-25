@@ -113,7 +113,7 @@ with sync_playwright() as pw:
     ok(dinfo.value.suggested_filename.startswith('mision-tablas-copia-'), f'Fuera de Claude, "Guardar copia" descarga {dinfo.value.suggested_filename}')
     for k in ['7x8', '9x7', '6x9', '6x8']:
         page.tap(f'#boostGrid .pc[data-k="{k}"]'); page.wait_for_timeout(120)
-    note = page.inner_text('#setBoostNote')
+    note = page.inner_text('#setBoostNote').replace('\xa0', ' ')
     ok(page.get_attribute('#setBoost', 'aria-checked') == 'true' and all(t in note for t in ['6 × 8', '6 × 9', '7 × 8', '9 × 7']),
        f'Al marcar 4 multiplicaciones, el refuerzo se activa: "{note}"')
     page.tap('#boostGrid .pc[data-k="9x7"]'); page.wait_for_timeout(120)
@@ -126,7 +126,7 @@ with sync_playwright() as pw:
     page.locator('#boostPanel').screenshot(path=f'{SHOTS}/p8-boost.png')
     page.tap('#s-adult .back'); page.wait_for_timeout(250)
     page.reload(); page.wait_for_timeout(600)
-    hb = page.inner_text('#homeBoost') if page.is_visible('#homeBoost') else ''
+    hb = page.inner_text('#homeBoost').replace('\xa0', ' ') if page.is_visible('#homeBoost') else ''
     ok('6 × 8' in hb and '9 × 7' in hb, f'Tras recargar, el inicio muestra "{hb}"')
     page.screenshot(path=f'{SHOTS}/p9-home-boost.png')
     ctx.close()
@@ -184,6 +184,41 @@ with sync_playwright() as pw:
     ok(page.is_visible('#s-home'), 'Con Tab y Enter se sale de la práctica')
     page.screenshot(path=f'{SHOTS}/d1-home.png')
     ctx.close()
+    # ---------- Dos dispositivos: unir a Julieta ----------
+    def new_profile(pg, name):
+        pg.tap('#newName'); pg.keyboard.type(name); pg.tap('#newForm button[type=submit]'); pg.wait_for_timeout(300)
+
+    def open_adult(pg):
+        pg.tap('#btnAdult'); pg.wait_for_timeout(250)
+        x, y = [int(t) for t in pg.inner_text('#gateQ').split('×')]
+        pg.fill('#gateInput', str(x * y)); pg.tap('#gateForm button[type=submit]'); pg.wait_for_timeout(300)
+
+    count_js = "() => JSON.parse(localStorage.getItem('mision-tablas-v1')).profiles.length"
+    devs = []
+    for name, n in [('Julieta', 4), ('julieta', 3)]:
+        c = br.new_context(viewport={'width': 390, 'height': 844}, has_touch=True, is_mobile=True)
+        pg = c.new_page(); watch(pg); pg.goto(URL); pg.wait_for_timeout(500)
+        new_profile(pg, name)
+        pg.tap('#btnPlay'); pg.wait_for_function(READY); play_touch(pg, n, 99)
+        pg.tap('#btnExit'); pg.wait_for_timeout(300)
+        devs.append((c, pg, int(pg.inner_text('#homeStars'))))
+    (c1, p1, s1), (c2, p2, s2) = devs
+    open_adult(p1); p1.tap('#btnCode'); p1.wait_for_timeout(600)
+    code = p1.input_value('#codeOut')
+    p1.locator('#syncPanel').screenshot(path=f'{SHOTS}/p10-sync.png')
+    open_adult(p2); p2.fill('#codeIn', code); p2.tap('#btnMerge'); p2.wait_for_timeout(600)
+    msg = p2.inner_text('#syncMsg')
+    p2.tap('#s-adult .back'); p2.wait_for_timeout(250)
+    stars = int(p2.inner_text('#homeStars'))
+    ok('Listo' in msg and stars == s1 + s2 and p2.evaluate(count_js) == 1,
+       f'Código del celular ({len(code)} caracteres) pegado en el laptop: {s1} + {s2} estrellas = {stars}, un solo perfil')
+    open_adult(p2); p2.fill('#codeIn', code); p2.tap('#btnMerge'); p2.wait_for_timeout(500)
+    p2.tap('#s-adult .back'); p2.wait_for_timeout(250)
+    ok(int(p2.inner_text('#homeStars')) == s1 + s2, 'Pegar el mismo código otra vez no duplica nada')
+    p2.tap('#btnSwitch'); p2.wait_for_timeout(200); p2.tap('#btnNewProfile'); p2.wait_for_timeout(200)
+    new_profile(p2, 'JULIETA')
+    ok(p2.evaluate(count_js) == 1 and 'julieta' in p2.inner_text('#homeHello').lower(), 'Crear "JULIETA" otra vez entra al perfil que ya existe')
+    c1.close(); c2.close()
     br.close()
 
 srv.terminate()
