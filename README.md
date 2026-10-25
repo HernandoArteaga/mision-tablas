@@ -37,6 +37,7 @@ El botón **Para adultos** está protegido con una multiplicación de dos cifras
 
 - mapa de calor de aciertos y tiempos por multiplicación;
 - las 10 mayores falencias, con sus confusiones frecuentes ("7 × 8: respondió 54, tres veces");
+- refuerzo puntual: marca multiplicaciones concretas (por ejemplo 7 × 8, 9 × 7 o 6 × 9) para que salgan más seguido, más o menos 1 de cada 5 preguntas, sin dejar de practicar las demás; se activa y se quita cuando quieras;
 - progreso por tabla;
 - ajustes: umbral de rapidez, preguntas por ronda, tablas activas, incluir ×1 y sonido;
 - copia de seguridad para pasar el progreso a otro dispositivo.

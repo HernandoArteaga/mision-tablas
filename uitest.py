@@ -111,6 +111,24 @@ with sync_playwright() as pw:
     with page.expect_download() as dinfo:
         page.tap('#btnBackup')
     ok(dinfo.value.suggested_filename.startswith('mision-tablas-copia-'), f'Fuera de Claude, "Guardar copia" descarga {dinfo.value.suggested_filename}')
+    for k in ['7x8', '9x7', '6x9', '6x8']:
+        page.tap(f'#boostGrid .pc[data-k="{k}"]'); page.wait_for_timeout(120)
+    note = page.inner_text('#setBoostNote')
+    ok(page.get_attribute('#setBoost', 'aria-checked') == 'true' and all(t in note for t in ['6 × 8', '6 × 9', '7 × 8', '9 × 7']),
+       f'Al marcar 4 multiplicaciones, el refuerzo se activa: "{note}"')
+    page.tap('#boostGrid .pc[data-k="9x7"]'); page.wait_for_timeout(120)
+    page.tap('#boostGrid .pc[data-k="9x7"]'); page.wait_for_timeout(120)
+    page.tap('#setBoost'); page.wait_for_timeout(150)
+    off_ok = page.get_attribute('#setBoost', 'aria-checked') == 'false' and 'Apagado' in page.inner_text('#setBoostNote')
+    page.tap('#setBoost'); page.wait_for_timeout(150)
+    ok(off_ok and len(page.query_selector_all('#boostGrid .pc[aria-pressed="true"]')) == 4,
+       'Se puede desmarcar una, y el interruptor lo apaga y prende sin perder las marcadas')
+    page.locator('#boostPanel').screenshot(path=f'{SHOTS}/p8-boost.png')
+    page.tap('#s-adult .back'); page.wait_for_timeout(250)
+    page.reload(); page.wait_for_timeout(600)
+    hb = page.inner_text('#homeBoost') if page.is_visible('#homeBoost') else ''
+    ok('6 × 8' in hb and '9 × 7' in hb, f'Tras recargar, el inicio muestra "{hb}"')
+    page.screenshot(path=f'{SHOTS}/p9-home-boost.png')
     ctx.close()
 
     # ---------- Tablet horizontal ----------

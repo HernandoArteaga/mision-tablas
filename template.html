@@ -170,6 +170,10 @@ body.playing #app { height: 100%; }
 .stats-row { display: flex; gap: 10px 18px; flex-wrap: wrap; font-weight: 800; color: var(--ink-2); }
 .stats-row span { display: inline-flex; align-items: center; gap: 6px; }
 .home-note { text-align: center; color: var(--ink-2); font-weight: 700; }
+.home-note.boost { justify-self: center; align-self: center; padding: 4px 14px; border-radius: 999px; background: var(--stamp-soft); color: var(--stamp); font-weight: 800; }
+.pc { padding: 0; border: 2px solid var(--line); background: var(--card); color: var(--ink-2); }
+.pc[aria-pressed="true"] { background: var(--stamp); border-color: var(--stamp); color: #fff; }
+.pick-grid.off .pc[aria-pressed="true"] { background: var(--ink-3); border-color: var(--ink-3); }
 .home-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
 .tile {
   display: grid; gap: 12px; align-content: start; text-align: left; width: 100%;
@@ -479,6 +483,7 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     </div>
     <button id="btnPlay" class="btn primary big" type="button">¡A jugar!</button>
     <p id="homeNote" class="home-note"></p>
+    <p id="homeBoost" class="home-note boost" hidden></p>
     <div class="home-grid">
       <button id="btnMap" class="tile" type="button">
         <h2>Mapa de las Tablas <span class="go" aria-hidden="true">›</span></h2>
@@ -578,6 +583,15 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
       <h2>Mayores falencias</h2>
       <p class="sub">Ordenadas por errores y lentitud. Son las que la app repite más.</p>
       <ul id="weakList" class="weak"></ul>
+    </div>
+
+    <div class="panel" id="boostPanel">
+      <h2>Refuerzo puntual</h2>
+      <p class="sub">Toca las multiplicaciones que quieres reforzar. Saldrán más seguido, mezcladas con las demás: más o menos 1 de cada 5 preguntas. La app sigue su lógica de siempre.</p>
+      <button type="button" class="switch" role="switch" id="setBoost" aria-checked="false"><span>Refuerzo activado</span><span class="track" aria-hidden="true"></span></button>
+      <div style="overflow-x:auto"><div id="boostGrid" class="heat pick-grid" role="group" aria-label="Multiplicaciones para reforzar"></div></div>
+      <p class="note" id="setBoostNote"></p>
+      <div class="row"><button type="button" class="chip" id="boostClear">Quitar todas</button></div>
     </div>
 
     <div class="panel">
@@ -950,6 +964,16 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     const mm = $('#miniMap'); mm.style.setProperty('--cols', F.length);
     mm.innerHTML = F.map(a => F.map(b => { const k = MT.key(a, b); return U.has(k) ? `<i style="background:var(--lv${P.facts[k].level})"></i>` : '<i style="background:transparent"></i>'; }).join('')).join('');
     $('#btnDiploma').hidden = !P.masteredAll;
+    const bk = MT.boostKeys(P.settings).filter(k => U.has(k));
+    $('#homeBoost').hidden = !bk.length;
+    $('#homeBoost').textContent = bk.length ? 'Refuerzo activo: ' + factsPhrase(bk, 4) : '';
+  }
+  // "7 × 8, 9 × 7 y 6 × 9"; con más de `max`, "7 × 8, 9 × 7, 6 × 9 y 2 más".
+  function factsPhrase(keys, max) {
+    const t = keys.slice().sort((x, y) => { const a = MT.parse(x), b = MT.parse(y); return a.a - b.a || a.b - b.b; })
+      .map(k => { const u = MT.parse(k); return `${u.a} × ${u.b}`; }); // sin cortes dentro de una multiplicación
+    if (max && t.length > max) return t.slice(0, max - 1).join(', ') + ` y ${t.length - max + 1} más`;
+    return t.length > 1 ? t.slice(0, -1).join(', ') + ' y ' + t[t.length - 1] : t[0];
   }
   function goHome() {
     clearTimers();
@@ -1296,6 +1320,25 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     $$('#setFast button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === st.fastMs)));
     $$('#setRound button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === st.roundSize)));
     $('#setTables').innerHTML = MT.TABLES.map(n => `<button type="button" class="tchip" data-n="${n}" aria-pressed="${st.tables.includes(n)}" aria-label="Tabla del ${n}">${n}</button>`).join('');
+    const bo = st.boost, F = factors(), U = new Set(MT.universe(st));
+    const sel = bo.keys.filter(k => U.has(k)), selSet = new Set(sel);
+    $('#setBoost').setAttribute('aria-checked', String(bo.on));
+    const bg = $('#boostGrid');
+    bg.classList.toggle('off', !bo.on);
+    bg.style.setProperty('--cols', F.length + 1);
+    let gh = '<div class="hc h">×</div>' + F.map(b => `<div class="hc h">${b}</div>`).join('');
+    for (const a of F) {
+      gh += `<div class="hc h">${a}</div>`;
+      for (const b of F) {
+        const k = MT.key(a, b);
+        gh += U.has(k) ? `<button type="button" class="hc pc" data-k="${k}" aria-pressed="${selSet.has(k)}" aria-label="${a} × ${b}">${a * b}</button>` : '<div class="hc off"></div>';
+      }
+    }
+    bg.innerHTML = gh;
+    $('#setBoostNote').textContent = !bo.on
+      ? (sel.length ? `Apagado. Quedan guardadas: ${factsPhrase(sel)}.` : 'Apagado.')
+      : sel.length ? `Activo con ${sel.length === 1 ? '1 multiplicación' : sel.length + ' multiplicaciones'}: ${factsPhrase(sel)}.` : 'Toca al menos una multiplicación para reforzarla.';
+    $('#boostClear').hidden = !sel.length;
     $('#setOne').setAttribute('aria-checked', String(!!st.includeOne));
     $('#setSound').setAttribute('aria-checked', String(!!st.sound));
     $('#btnBackup').hidden = !canSave();
@@ -1350,6 +1393,18 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     changed(true);
   });
   $('#setOne').addEventListener('click', () => { P.settings.includeOne = !P.settings.includeOne; changed(true); });
+  // Refuerzo: al apagarlo se guardan las marcadas; marcar una con el refuerzo apagado lo prende.
+  $('#setBoost').addEventListener('click', () => { P.settings.boost.on = !P.settings.boost.on; changed(false); $('#setBoost').focus({ preventScroll: true }); });
+  $('#boostGrid').addEventListener('click', e => {
+    const b = e.target.closest('.pc'); if (!b) return;
+    const k = b.dataset.k, bo = P.settings.boost;
+    bo.keys = bo.keys.includes(k) ? bo.keys.filter(x => x !== k) : bo.keys.concat(k);
+    if (bo.keys.length && !bo.on) bo.on = true;
+    changed(false);
+    const nb = document.querySelector(`#boostGrid .pc[data-k="${k}"]`);
+    if (nb) nb.focus({ preventScroll: true });
+  });
+  $('#boostClear').addEventListener('click', () => { P.settings.boost.keys = []; changed(false); $('#setBoost').focus({ preventScroll: true }); });
   $('#setSound').addEventListener('click', () => { P.settings.sound = !P.settings.sound; changed(false); });
 
   // Reiniciar o borrar: dos confirmaciones.

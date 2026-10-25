@@ -22,6 +22,7 @@
     MIN_GAP_LEVEL_UP: 3,           // preguntas intermedias necesarias para subir de nivel
     MAX_DIFFICULT: 4,              // con 4 o más en nivel 1 no entran nuevas
     WARMUP: 3,                     // preguntas fáciles al empezar cada sesión
+    BOOST_SHARE: 0.2,              // refuerzo: proporción de preguntas de las multiplicaciones que marca el adulto
     MAX_SAME_FIRST: 2,             // máximo de seguidas con el mismo primer factor
     SLOW_STRIKES_TO_DROP: 2,       // aciertos lentos seguidos que bajan una Dominada a Casi
     REVIEW_BASE: 10,               // intervalo base de repaso de una Dominada (en preguntas)
@@ -39,7 +40,11 @@
   function parse(k) { const i = k.indexOf('x'); return { a: +k.slice(0, i), b: +k.slice(i + 1) }; }
 
   function defaultSettings() {
-    return { fastMs: CONFIG.FAST_MS, tables: TABLES.slice(), includeOne: false, sound: true, roundSize: CONFIG.ROUND_SIZE };
+    return { fastMs: CONFIG.FAST_MS, tables: TABLES.slice(), includeOne: false, sound: true, roundSize: CONFIG.ROUND_SIZE, boost: { on: false, keys: [] } };
+  }
+  /* Multiplicaciones de refuerzo activas (vacío si el refuerzo está apagado). */
+  function boostKeys(st) {
+    return st.boost && st.boost.on ? (st.boost.keys || []).slice() : [];
   }
   function activeTables(st) {
     const t = (st.tables || []).filter(n => TABLES.includes(n));
@@ -76,6 +81,11 @@
   function ensure(p) {
     p.settings = Object.assign(defaultSettings(), p.settings || {});
     p.settings.tables = activeTables(p.settings);
+    const bo = p.settings.boost;
+    p.settings.boost = {
+      on: !!(bo && bo.on),
+      keys: bo && Array.isArray(bo.keys) ? bo.keys.filter(k => typeof k === 'string' && /^[1-9]x[1-9]$/.test(k)) : []
+    };
     p.facts = p.facts || {};
     for (const k of universe(p.settings)) if (!p.facts[k]) p.facts[k] = newFact();
     for (const f of ['recent', 'lastKeys', 'medals', 'days']) if (!Array.isArray(p[f])) p[f] = [];
@@ -187,6 +197,18 @@
     for (const k of c) { const t = parse(k); g = Math.min(g, group(t.a, t.b)); }
     return anyOf(c.filter(k => { const t = parse(k); return group(t.a, t.b) === g; }), rng);
   }
+  // Refuerzo: una al azar de las multiplicaciones marcadas, con algo más de peso para las menos dominadas.
+  // Respeta el bloqueo de nuevas cuando hay 4 o más difíciles.
+  function pickBoost(p, avail, rng, blocked, bk) {
+    const want = new Set(bk);
+    const c = avail.filter(k => want.has(k) && !(blocked && p.facts[k].level === 0));
+    if (!c.length) return null;
+    return wpick(c, c.map(k => {
+      const f = p.facts[k];
+      const fresh = f.lastSeen >= 0 && p.q - f.lastSeen - 1 < CONFIG.MIN_GAP_LEVEL_UP ? 0.2 : 1;
+      return (1 + (4 - f.level)) * fresh;
+    }), rng);
+  }
   function mixFor(p) {
     const r = p.recent.slice(-CONFIG.RECENT_WINDOW);
     if (r.length < CONFIG.RECENT_MIN) return ['base', CONFIG.MIX_BASE];
@@ -227,6 +249,12 @@
       if (s.asked < CONFIG.WARMUP) {
         const k = pickConfianza(p, avail, rng, now, blocked);
         if (k) return make(k, 'warmup');
+      }
+      // 3. Refuerzo marcado por el adulto: de vez en cuando, una de esas multiplicaciones.
+      const bk = boostKeys(p.settings);
+      if (bk.length && rng() < CONFIG.BOOST_SHARE) {
+        const k = pickBoost(p, avail, rng, blocked, bk);
+        if (k) return make(k, 'refuerzo');
       }
       // 3. Sorteo con la mezcla del momento; si el tipo está vacío o bloqueado, el siguiente.
       const drawn = wpick(['reto', 'confianza', 'nueva'], [mix.reto, mix.confianza, mix.nueva], rng);
@@ -454,7 +482,7 @@
   }
 
   const MT = {
-    CONFIG, TABLES, LEVELS, key, parse, universe, group, defaultSettings, newFact, newProfile, ensure, resetProgress,
+    CONFIG, TABLES, LEVELS, key, parse, universe, group, defaultSettings, boostKeys, newFact, newProfile, ensure, resetProgress,
     newSession, closeRound, ackBreak, allowed, pickNext, grade, hint, confusion,
     summary, tables, weaknesses, avgOkMs, dayStreak, ymd
   };

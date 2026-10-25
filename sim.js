@@ -16,10 +16,11 @@ function rngFrom(seed) {
 }
 const inv = k => { const t = MT.parse(k); return MT.key(t.b, t.a); };
 
-function simulate(kid, n, seed, sessionLen) {
+function simulate(kid, n, seed, sessionLen, setup) {
   const rng = rngFrom(seed);
   let now = new Date(2026, 9, 19, 16, 0, 0).getTime();
   const p = MT.newProfile(kid.name, '🦊', now);
+  if (setup) { setup(p); MT.ensure(p); }
   let s = MT.newSession(p, now), session = 0, idx = 0;
   const log = [];
   for (let i = 0; i < n; i++) {
@@ -57,8 +58,10 @@ const runs = {
   slow: simulate(kidSlow, 600, 12, 60),
   fast: simulate(kidFast, 700, 13, 60),
   once: simulate(kidOnce, 400, 14, 1000),
-  mood: simulate(kidMood, 820, 15, 60)
+  mood: simulate(kidMood, 820, 15, 60),
+  boost: simulate(kidMood, 600, 16, 60, p => { p.settings.boost = { on: true, keys: ['7x8', '9x7', '6x9', '6x8'] }; })
 };
+const pct = x => (100 * x).toFixed(0) + ' %';
 
 out.push('\n1) Un error reaparece tras 3 preguntas intermedias y otra vez unas 8 después');
 {
@@ -131,7 +134,6 @@ out.push('\n5) Con muchos errores aumentan las fáciles; con muchos aciertos, lo
     return { n: X.length, easy: X.filter(e => e.lb >= 3).length / X.length, hard: X.filter(e => e.lb <= 2).length / X.length };
   };
   const low = stat('low'), base = stat('base'), high = stat('high');
-  const pct = x => (100 * x).toFixed(0) + ' %';
   out.push(`  (info) En la partida simulada: tras errores ${pct(low.easy)} fáciles, normal ${pct(base.easy)}, tras aciertos ${pct(high.hard)} retos`);
   // Experimento controlado: mismo estado del niño, solo cambia cómo le ha ido en las últimas 10.
   const p0 = JSON.stringify(simulate(kidMood, 268, 15, 60).p); // a mitad de una mala racha: niveles mezclados
@@ -161,6 +163,25 @@ out.push('\n6) Las preguntas nunca se acaban, aunque todo esté dominado');
   check(at >= 0 && !L.includes(null) && after.length >= 300 && after.every(e => e.kind === 'mantenimiento' || e.kind === 'retry'),
     `Niño rápido: domina las 64 en la pregunta ${at + 1}; luego sigue ${after.length} preguntas de mantenimiento sin cortarse`);
   check(distinct >= 60, `En mantenimiento repasa ${distinct} multiplicaciones distintas`);
+}
+
+out.push('\n7) Refuerzo puntual de multiplicaciones marcadas por el adulto');
+{
+  const SEL = ['7x8', '9x7', '6x9', '6x8'];
+  const measure = boost => {
+    const r = simulate(kidFast, 200, 17, 60, boost ? p => { p.settings.boost = { on: true, keys: SEL }; } : null);
+    const L = r.log.slice(3);
+    const firsts = SEL.map(k => r.log.findIndex(e => e.key === k));
+    return { share: L.filter(e => SEL.includes(e.key)).length / L.length, last: Math.max(...firsts), missing: firsts.filter(x => x < 0).length };
+  };
+  const off = measure(false), on = measure(true);
+  check(on.share > off.share + 0.08 && on.share < 0.35,
+    `Las 4 marcadas (7×8, 9×7, 6×9, 6×8): sin refuerzo son el ${pct(off.share)} de las preguntas; con refuerzo, el ${pct(on.share)}. El resto sigue saliendo`);
+  check(on.missing === 0 && (off.missing > 0 || on.last < off.last),
+    `Con refuerzo, las 4 ya salieron antes de la pregunta ${on.last + 1}; sin refuerzo, ${off.missing ? off.missing + ' de ellas no salieron en 200 preguntas' : 'la última salió en la ' + (off.last + 1)}`);
+  const B = runs.boost.log.filter(e => e.kind === 'refuerzo');
+  check(B.length > 0 && B.every(e => SEL.includes(e.key)),
+    `Niño por rachas con refuerzo: ${B.length} de ${runs.boost.log.length} preguntas fueron de refuerzo, todas de las marcadas`);
 }
 
 out.push('\nExtras');
