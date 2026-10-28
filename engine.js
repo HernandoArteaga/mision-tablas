@@ -7,6 +7,8 @@
   /* ===== Constantes ajustables ===== */
   const CONFIG = {
     FAST_MS: 4000,                 // umbral de rapidez por defecto (ms)
+    FAST_MS_DIV: 5000,             // en división el recuerdo es más lento al comienzo
+    UNKNOWN_MUL_PENALTY: 2.5,      // división nueva cuya multiplicación aún no sabe: entra más tarde
     ROUND_SIZE: 10,                // preguntas por ronda
     MIX_BASE: { reto: 0.5, confianza: 0.3, nueva: 0.2 },
     MIX_LOW: { reto: 0.35, confianza: 0.55, nueva: 0.1 },  // aciertos recientes < 70 %
@@ -39,9 +41,20 @@
   const key = (a, b) => a + 'x' + b;
   function parse(k) { const i = k.indexOf('x'); return { a: +k.slice(0, i), b: +k.slice(i + 1) }; }
 
-  function defaultSettings() {
-    return { fastMs: CONFIG.FAST_MS, tables: TABLES.slice(), includeOne: false, sound: true, roundSize: CONFIG.ROUND_SIZE, boost: { on: false, keys: [] } };
+  /* Cada perfil tiene dos pistas con su propio progreso: multiplicar (el perfil mismo) y dividir (p.div).
+     Una división se guarda como el par (divisor, resultado): 'axb' es (a × b) ÷ a = b. */
+  function defaultSettings(op) {
+    const div = op === 'div';
+    const s = { op: div ? 'div' : 'mul', fastMs: div ? CONFIG.FAST_MS_DIV : CONFIG.FAST_MS, tables: TABLES.slice(), includeOne: false, roundSize: CONFIG.ROUND_SIZE, boost: { on: false, keys: [] } };
+    if (!div) s.sound = true;
+    return s;
   }
+  const isDiv = st => !!st && st.op === 'div';
+  /* Respuesta esperada: el producto al multiplicar, el resultado al dividir. */
+  function expected(st, a, b) { return isDiv(st) ? b : a * b; }
+  /* "Tabla del n": al multiplicar, donde aparece n; al dividir, las que dividen entre n. */
+  function inTable(st, k, n) { const t = parse(k); return isDiv(st) ? t.a === n : t.a === n || t.b === n; }
+  function track(p, op) { return op === 'div' ? p.div : p; }
   /* Multiplicaciones de refuerzo activas (vacío si el refuerzo está apagado). */
   function boostKeys(st) {
     return st.boost && st.boost.on ? (st.boost.keys || []).slice() : [];
@@ -50,12 +63,15 @@
     const t = (st.tables || []).filter(n => TABLES.includes(n));
     return t.length ? t.sort((x, y) => x - y) : TABLES.slice();
   }
-  /* Multiplicaciones en juego: una entra si al menos uno de sus factores es una tabla activa. */
+  /* En juego: una multiplicación entra si alguno de sus factores es una tabla activa;
+     una división, si divide entre una tabla activa (o entre 1, si se incluye el 1). */
   function universe(st) {
     const F = st.includeOne ? [1, 2, 3, 4, 5, 6, 7, 8, 9] : TABLES;
-    const act = activeTables(st);
+    const act = activeTables(st), div = isDiv(st);
     const out = [];
-    for (const a of F) for (const b of F) if (act.includes(a) || act.includes(b)) out.push(key(a, b));
+    for (const a of F) for (const b of F) {
+      if (div ? act.includes(a) || a === 1 : act.includes(a) || act.includes(b)) out.push(key(a, b));
+    }
     return out;
   }
   /* Dificultad natural: ×1 → ×2 y ×5 → ×3, ×4, ×9 y cuadrados → 6, 7 y 8 combinados. */
@@ -75,11 +91,13 @@
       v: 1,
       id: 'p' + now.toString(36) + Math.floor(Math.random() * 1e6).toString(36),
       name: name, avatar: avatar, createdAt: now,
-      settings: defaultSettings()
+      settings: defaultSettings('mul')
     });
   }
-  function ensure(p) {
-    p.settings = Object.assign(defaultSettings(), p.settings || {});
+  function ensureTrack(p, op) {
+    p.settings = Object.assign(defaultSettings(op), p.settings || {});
+    p.settings.op = op === 'div' ? 'div' : 'mul';
+    if (op === 'div') delete p.settings.sound;
     p.settings.tables = activeTables(p.settings);
     const bo = p.settings.boost;
     p.settings.boost = {
@@ -92,8 +110,16 @@
     for (const f of ['q', 'answered', 'stars', 'bestStreak', 'practiceMs', 'masteredAll']) if (typeof p[f] !== 'number') p[f] = 0;
     return p;
   }
-  function resetProgress(p) {
-    const keep = { v: 1, id: p.id, name: p.name, avatar: p.avatar, createdAt: p.createdAt, settings: p.settings };
+  function ensure(p) {
+    ensureTrack(p, 'mul');
+    p.div = ensureTrack(p.div && typeof p.div === 'object' ? p.div : {}, 'div');
+    p.mode = p.mode === 'div' ? 'div' : 'mul';
+    return p;
+  }
+  /* Reinicia el progreso de un modo; el perfil, los ajustes y el otro modo se quedan. */
+  function resetProgress(p, op) {
+    if (op === 'div') { p.div = ensureTrack({ settings: p.div.settings }, 'div'); return p; }
+    const keep = { v: 1, id: p.id, name: p.name, avatar: p.avatar, createdAt: p.createdAt, settings: p.settings, div: p.div, mode: p.mode };
     for (const k of Object.keys(p)) delete p[k];
     return ensure(Object.assign(p, keep));
   }
@@ -189,13 +215,19 @@
     return c.length ? anyOf(c, rng) : null;
   }
   // Nueva: nivel 0, en orden de dificultad natural. Bloqueada con 4 o más difíciles.
-  function pickNueva(p, avail, rng, blocked) {
+  // Al dividir (known = multiplicaciones que ya sabe), primero las divisiones cuya multiplicación conoce.
+  function pickNueva(p, avail, rng, blocked, known) {
     if (blocked) return null;
     const c = avail.filter(k => p.facts[k].level === 0);
     if (!c.length) return null;
-    let g = 9;
-    for (const k of c) { const t = parse(k); g = Math.min(g, group(t.a, t.b)); }
-    return anyOf(c.filter(k => { const t = parse(k); return group(t.a, t.b) === g; }), rng);
+    const rank = k => {
+      const t = parse(k);
+      const unknown = known && !known.has(key(t.a, t.b)) && !known.has(key(t.b, t.a));
+      return group(t.a, t.b) + (unknown ? CONFIG.UNKNOWN_MUL_PENALTY : 0);
+    };
+    let g = Infinity;
+    for (const k of c) g = Math.min(g, rank(k));
+    return anyOf(c.filter(k => rank(k) === g), rng);
   }
   // Refuerzo: una al azar de las multiplicaciones marcadas, con algo más de peso para las menos dominadas.
   // Respeta el bloqueo de nuevas cuando hay 4 o más difíciles.
@@ -261,7 +293,7 @@
       for (const kind of [drawn].concat(['reto', 'confianza', 'nueva'].filter(x => x !== drawn))) {
         const k = kind === 'reto' ? pickReto(p, avail, rng, mode)
           : kind === 'confianza' ? pickConfianza(p, avail, rng, now, blocked)
-            : pickNueva(p, avail, rng, blocked);
+            : pickNueva(p, avail, rng, blocked, s.known || null);
         if (k) return make(k, kind, 0, drawn);
       }
     }
@@ -276,9 +308,9 @@
     opts = opts || {};
     now = now || Date.now();
     const f = p.facts[k] || (p.facts[k] = newFact());
-    const t = parse(k), a = t.a, b = t.b;
-    const P = a * b, q = p.q;
-    const correct = answer === P;
+    const t = parse(k), a = t.a, b = t.b, st = p.settings, div = isDiv(st);
+    const P = a * b, E = expected(st, a, b), q = p.q;
+    const correct = answer === E;
     const fast = correct && ms <= p.settings.fastMs;
     const prev = f.level, first = f.attempts === 0;
     const gap = f.lastSeen < 0 ? Infinity : q - f.lastSeen - 1;
@@ -367,20 +399,20 @@
     let allMastered = false;
     if (mastered) {
       const keys = universe(p.settings);
-      for (const n of new Set([a, b])) {
+      for (const n of new Set(div ? [a] : [a, b])) {
         if (!p.settings.tables.includes(n) || p.medals.includes(n)) continue;
-        const ks = keys.filter(x => { const u = parse(x); return u.a === n || u.b === n; });
+        const ks = keys.filter(x => inTable(st, x, n));
         if (ks.length && ks.every(x => p.facts[x].level === 4)) { p.medals.push(n); newMedals.push(n); }
       }
       if (!p.masteredAll && keys.every(x => p.facts[x].level === 4)) { p.masteredAll = now; allMastered = true; }
     }
 
     return {
-      key: k, a: a, b: b, product: P, answer: answer, correct: correct, fast: fast, first: first,
+      key: k, a: a, b: b, op: st.op, product: P, expected: E, answer: answer, correct: correct, fast: fast, first: first,
       prev: prev, level: level, up: up, mastered: mastered, stars: stars, streak: s.streak,
       assisted: assisted, retryStage: stage, sessionErrors: s.errors[k] || 0,
       newMedals: newMedals, allMastered: allMastered,
-      confusion: correct ? null : confusion(a, b, answer),
+      confusion: correct ? null : confusionFor(st, a, b, answer),
       roundDone: R.answered >= p.settings.roundSize,
       breakDue: s.activeMs >= s.breakAt
     };
@@ -414,7 +446,50 @@
     return { full: full, cue: st.cue, swap: swap };
   }
 
+  /* Pistas de división: (d × q) ÷ d = q. La división se apoya en la multiplicación que ya conoce. */
+  function divHint(d, q) {
+    const D = d * q;
+    const fam = d !== q && d !== 1 && q !== 1 ? `Si ${D} ÷ ${d} = ${q}, entonces ${D} ÷ ${q} = ${d}.` : null;
+    const back = `${d} × ${q} = ${D}`;
+    if ((d === 7 && q === 8) || (d === 8 && q === 7)) {
+      return { full: `Recuerda la escalera 5, 6, 7, 8: 56 = 7 × 8. Entonces 56 ÷ ${d} = ${q}.`, cue: 'Recuerda la escalera: 5, 6, 7, 8…', swap: fam };
+    }
+    if (d === 1) return { full: `Dividir entre 1 deja el número igual: ${D} ÷ 1 = ${D}.`, cue: 'Dividir entre 1 deja el número igual…', swap: null };
+    if (q === 1) return { full: `Un número dividido entre sí mismo da 1: ${D} ÷ ${d} = 1.`, cue: `¿Cuántas veces cabe el ${d} en ${D}?`, swap: null };
+    let h;
+    switch (d) {
+      case 2: h = { full: `Es la mitad de ${D}: ${q}, porque ${q} + ${q} = ${D}.`, cue: `Busca la mitad de ${D}…` }; break;
+      case 4: h = { full: `Es la mitad de la mitad: ${D} → ${D / 2} → ${q}. Comprueba: ${back}.`, cue: `La mitad de la mitad: ${D} → ${D / 2} → …` }; break;
+      case 8: h = { full: `Mitad, mitad, mitad: ${D} → ${D / 2} → ${D / 4} → ${q}. Comprueba: ${back}.`, cue: `Mitad, mitad, mitad: ${D} → ${D / 2} → ${D / 4} → …` }; break;
+      case 5: {
+        const steps = [];
+        for (let i = 1; i <= q; i++) steps.push(5 * i);
+        h = { full: `Cuenta de 5 en 5 hasta ${D}: ${steps.join(', ')}. Son ${q} saltos.`, cue: `Cuenta de 5 en 5 hasta ${D}. ¿Cuántos saltos?` };
+        break;
+      }
+      case 9: h = { full: `Truco del 9: la primera cifra de ${D} es ${q - 1}; súmale 1 y da ${q}. Comprueba: ${back}.`, cue: `Truco del 9: mira la primera cifra de ${D} y súmale 1…` }; break;
+      default: h = { full: `Piensa en la tabla del ${d}: ${back}. Entonces ${D} ÷ ${d} = ${q}.`, cue: `¿Qué número por ${d} da ${D}?` };
+    }
+    h.swap = fam;
+    return h;
+  }
+  function hintFor(st, a, b) { return isDiv(st) ? divHint(a, b) : hint(a, b); }
+
   /* ===== Confusiones típicas ===== */
+  function divConfusion(d, q, ans) {
+    const D = d * q;
+    if (typeof ans !== 'number' || !isFinite(ans) || ans === q) return null;
+    if (ans === d) return { type: 'divisor', text: `${d} es el número entre el que divides. Busca cuántas veces cabe el ${d} en ${D}.` };
+    if (ans === D - d) return { type: 'resta', text: `${D} − ${d} = ${ans}: eso es restar. Dividir es ver cuántas veces cabe el ${d} en ${D}.` };
+    if (ans === D) return { type: 'dividendo', text: `${D} es el número que repartes. ¿Cuántos grupos de ${d} caben en él?` };
+    if (ans >= 1 && ans <= 9) {
+      const diff = Math.abs(q - ans), many = diff > 1;
+      const verb = ans < q ? (many ? 'faltaron' : 'faltó') : (many ? 'sobraron' : 'sobró');
+      return { type: 'grupo', text: `${d} × ${ans} = ${d * ans}, no ${D}: te ${verb} ${many ? diff + ' grupos' : 'un grupo'} de ${d}.` };
+    }
+    return null;
+  }
+  function confusionFor(st, a, b, ans) { return isDiv(st) ? divConfusion(a, b, ans) : confusion(a, b, ans); }
   function confusion(a, b, ans) {
     const P = a * b;
     if (typeof ans !== 'number' || !isFinite(ans) || ans === P) return null;
@@ -447,7 +522,7 @@
   function tables(p) {
     const keys = universe(p.settings);
     return activeTables(p.settings).map(n => {
-      const ks = keys.filter(k => { const t = parse(k); return t.a === n || t.b === n; });
+      const ks = keys.filter(k => inTable(p.settings, k, n));
       return { n: n, done: ks.filter(k => p.facts[k].level === 4).length, total: ks.length, medal: p.medals.includes(n) };
     });
   }
@@ -488,7 +563,7 @@
     return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().replace(/\s+/g, ' ').toLowerCase();
   }
   const SUMS = ['stars', 'answered', 'practiceMs'];
-  function syncContrib(p, src) {
+  function syncTrack(p, src) {
     p.contrib = p.contrib || {};
     const own = {};
     for (const f of SUMS) {
@@ -507,12 +582,10 @@
     }
     return p;
   }
+  function syncContrib(p, src) { syncTrack(p, src); if (p.div) syncTrack(p.div, src); return p; }
   function lastActive(p) { let t = 0; for (const k in p.facts) t = Math.max(t, p.facts[k].lastAt || 0); return t; }
-  // Une el perfil b dentro de a. En cada multiplicación queda el estado más reciente.
-  function mergeProfiles(a, b) {
-    ensure(a); ensure(b);
-    if (!a.contrib || !Object.keys(a.contrib).length) syncContrib(a, 'x/' + a.id);
-    if (!b.contrib || !Object.keys(b.contrib).length) syncContrib(b, 'x/' + b.id);
+  // Une la pista b con la a (multiplicar o dividir). En cada pregunta queda el estado más reciente.
+  function mergeTrack(a, b) {
     const newer = lastActive(a) >= lastActive(b) ? a : b;
     const q = Math.max(a.q, b.q);
     const facts = {};
@@ -549,16 +622,28 @@
       days: Array.from(new Set(a.days.concat(b.days))).sort(),
       medals: Array.from(new Set(a.medals.concat(b.medals))).sort((x, y) => x - y),
       masteredAll: won.length ? Math.min.apply(null, won) : 0,
-      createdAt: Math.min(a.createdAt || Date.now(), b.createdAt || Date.now()),
       recent: newer.recent.slice(), lastKeys: newer.lastKeys.slice(),
       settings: JSON.parse(JSON.stringify(newer.settings))
     };
-    return ensure(Object.assign(a, merged));
+    return merged;
+  }
+  // Une el perfil b dentro de a: las dos pistas.
+  function mergeProfiles(a, b) {
+    ensure(a); ensure(b);
+    for (const [t, id] of [[a, a.id], [b, b.id], [a.div, a.id], [b.div, b.id]]) {
+      if (!t.contrib || !Object.keys(t.contrib).length) syncTrack(t, 'x/' + id);
+    }
+    const mul = mergeTrack(a, b), div = mergeTrack(a.div, b.div);
+    mul.createdAt = Math.min(a.createdAt || Date.now(), b.createdAt || Date.now());
+    Object.assign(a, mul);
+    Object.assign(a.div, div);
+    return ensure(a);
   }
 
   const MT = {
     normName, syncContrib, mergeProfiles,
     CONFIG, TABLES, LEVELS, key, parse, universe, group, defaultSettings, boostKeys, newFact, newProfile, ensure, resetProgress,
+    expected, inTable, track, hintFor, confusionFor, divHint, divConfusion,
     newSession, closeRound, ackBreak, allowed, pickNext, grade, hint, confusion,
     summary, tables, weaknesses, avgOkMs, dayStreak, ymd
   };

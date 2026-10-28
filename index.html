@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Práctica adaptativa de las tablas de multiplicar del 2 al 9 para niños de 9 años.">
+<meta name="description" content="Práctica adaptativa de las tablas de multiplicar y de dividir del 2 al 9 para niños de 9 años.">
 <meta name="theme-color" content="#FCFDFF">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20x%3D%224%22%20y%3D%224%22%20width%3D%2256%22%20height%3D%2256%22%20rx%3D%2216%22%20fill%3D%22%23FFC53D%22%20stroke%3D%22%23D99B00%22%20stroke-width%3D%224%22%2F%3E%3Cpath%20d%3D%22M22%2022l20%2020M42%2022L22%2042%22%20stroke%3D%22%231D2A57%22%20stroke-width%3D%227%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
@@ -151,6 +151,17 @@ body.playing #app { height: 100%; }
 .home-top .who { display: flex; align-items: center; gap: 14px; flex: 1 1 260px; min-width: 0; }
 .home-top h1 { font-size: clamp(28px, 6vw, 40px); font-weight: 800; overflow-wrap: anywhere; }
 .home-top .tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mode {
+  display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 64px; padding: 8px 12px;
+  border-radius: 20px; border: 2px solid var(--key-edge); background: var(--card); box-shadow: 0 4px 0 var(--key-edge);
+  font-family: var(--font-display); font-weight: 800; font-size: clamp(19px, 5vw, 26px); color: var(--ink-2); touch-action: manipulation;
+}
+.mode .sym { flex: none; display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: var(--lv0); color: var(--ink); font-size: 28px; line-height: 1; }
+.mode[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; box-shadow: 0 4px 0 rgba(29, 42, 87, .45); }
+.mode[aria-pressed="true"] .sym { background: var(--sun); }
+.mode:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-edge); }
+.ad-ops button { min-height: 52px; font-size: 17px; }
 .mission {
   background: var(--card); border: 2px solid var(--line); border-radius: 26px;
   box-shadow: 0 6px 0 var(--key-edge); padding: 20px; display: grid; gap: 14px;
@@ -237,6 +248,7 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
   box-shadow: 0 6px 0 var(--key-edge); padding: 20px 16px;
   transition: background-color .2s ease, border-color .2s ease;
 }
+.q-card > * { flex-shrink: 0; } /* si no cabe, la tarjeta se desplaza; nada se encima */
 .q-card.enter { animation: cardIn .28s ease; }
 .q-card.good { background: var(--ok-soft); border-color: var(--ok); }
 .q-card.fixing { justify-content: flex-start; background: var(--warm-soft); border-color: var(--warm-line); }
@@ -278,11 +290,11 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
 }
 .fix-grid { display: flex; gap: 16px; align-items: center; justify-content: center; flex-wrap: wrap; }
 .dots { margin: 0; display: grid; justify-items: center; gap: 4px; flex: none; }
-.dots svg { display: block; width: var(--w); max-width: 100%; height: auto; }
+.dots svg { display: block; width: min(var(--w), 34vw); max-width: 100%; height: auto; }
 .dots .d1 { fill: var(--dot-a); }
 .dots .d2 { fill: var(--dot-b); }
-.dots figcaption { font-weight: 800; font-size: 14px; color: var(--ink-2); }
-.hint { flex: 1 1 170px; min-width: 0; display: grid; gap: 6px; font-weight: 700; font-size: 18px; }
+.dots figcaption { font-weight: 800; font-size: 14px; color: var(--ink-2); max-width: 9em; text-align: center; line-height: 1.25; }
+.hint { flex: 1 1 160px; min-width: 0; display: grid; gap: 6px; font-weight: 700; font-size: 18px; }
 .hint .swap { font-size: 15px; color: var(--ink-2); }
 .stamp {
   position: absolute; top: 12px; right: 12px; width: 98px; height: 98px; border-radius: 50%;
@@ -483,8 +495,12 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
         <button id="btnAdult" class="chip" type="button"><span aria-hidden="true">🔒</span> Para adultos</button>
       </div>
     </div>
+    <div class="modes" role="group" aria-label="¿Qué practicamos?">
+      <button type="button" class="mode" data-op="mul" aria-pressed="true"><span class="sym" aria-hidden="true">×</span>Multiplicar</button>
+      <button type="button" class="mode" data-op="div" aria-pressed="false"><span class="sym" aria-hidden="true">÷</span>Dividir</button>
+    </div>
     <div class="mission">
-      <div class="count"><b id="homeCount">0</b><span>de <span id="homeTotal">64</span></span><small>multiplicaciones dominadas</small></div>
+      <div class="count"><b id="homeCount">0</b><span>de <span id="homeTotal">64</span></span><small id="homeCountLabel">multiplicaciones dominadas</small></div>
       <div class="ruler" id="ruler" role="img" aria-label=""><div class="fill" id="rulerFill" style="width:0"></div><div class="ticks"></div></div>
       <div class="stats-row">
         <span><span aria-hidden="true">⭐</span> <span id="homeStars">0</span> estrellas</span>
@@ -524,7 +540,7 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
         <div id="stamp" class="stamp" hidden></div>
         <p id="preHint" class="prehint" hidden></p>
         <p id="feedback" class="feedback" aria-live="polite"></p>
-        <div class="q" id="qText"><span id="qa">7</span><span class="op">×</span><span id="qb">8</span><span class="op">=</span><span id="slot" class="slot empty">?</span></div>
+        <div class="q" id="qText"><span id="qa">7</span><span class="op" id="qop">×</span><span id="qb">8</span><span class="op">=</span><span id="slot" class="slot empty">?</span></div>
         <div id="fixBox" class="fix" hidden></div>
       </div>
       <div id="keypad" class="keypad" aria-label="Teclado numérico">
@@ -548,7 +564,7 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
   <section id="s-map" class="screen" hidden>
     <button class="chip back" type="button" data-go="home">← Volver</button>
     <h1 class="title" tabindex="-1" data-focus>Mapa de las Tablas</h1>
-    <p class="lead">Cada casilla es una multiplicación. Tócala para ver cómo vas.</p>
+    <p class="lead" id="mapLead">Cada casilla es una multiplicación. Tócala para ver cómo vas.</p>
     <div class="map-wrap">
       <div id="mapGrid" class="map-grid"></div>
       <p id="mapInfo" class="map-info" aria-live="polite"></p>
@@ -569,6 +585,9 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     <button class="chip back" type="button" data-go="home">← Volver al juego</button>
     <h1 class="title" tabindex="-1" data-focus>Panel para adultos</h1>
     <p class="lead" id="adWho"></p>
+    <div class="seg ad-ops" role="group" aria-label="Qué revisar" id="adOps">
+      <button type="button" data-op="mul" aria-pressed="true">× Multiplicar</button><button type="button" data-op="div" aria-pressed="false">÷ Dividir</button>
+    </div>
     <p id="adStorage" class="confirm" hidden>Este navegador no deja guardar datos: el progreso se perderá al cerrar la página.</p>
 
     <div class="panel">
@@ -598,7 +617,7 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
 
     <div class="panel" id="boostPanel">
       <h2>Refuerzo puntual</h2>
-      <p class="sub">Toca las multiplicaciones que quieres reforzar. Saldrán más seguido, mezcladas con las demás: más o menos 1 de cada 5 preguntas. La app sigue su lógica de siempre.</p>
+      <p class="sub">Toca las que quieres reforzar. Saldrán más seguido, mezcladas con las demás: más o menos 1 de cada 5 preguntas. La app sigue su lógica de siempre.</p>
       <button type="button" class="switch" role="switch" id="setBoost" aria-checked="false"><span>Refuerzo activado</span><span class="track" aria-hidden="true"></span></button>
       <div style="overflow-x:auto"><div id="boostGrid" class="heat pick-grid" role="group" aria-label="Multiplicaciones para reforzar"></div></div>
       <p class="note" id="setBoostNote"></p>
@@ -630,7 +649,7 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
         <div class="tchips" id="setTables"></div>
         <span class="note" id="setTablesNote">Una multiplicación entra si tiene al menos una tabla activa.</span>
       </div>
-      <button type="button" class="switch" role="switch" id="setOne" aria-checked="false"><span>Incluir ×1</span><span class="track" aria-hidden="true"></span></button>
+      <button type="button" class="switch" role="switch" id="setOne" aria-checked="false"><span id="setOneLabel">Incluir ×1</span><span class="track" aria-hidden="true"></span></button>
       <button type="button" class="switch" role="switch" id="setSound" aria-checked="true"><span>Sonidos</span><span class="track" aria-hidden="true"></span></button>
     </div>
 
@@ -675,7 +694,7 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     <div class="panel">
       <h2>¿Cómo decide qué preguntar?</h2>
       <ol class="how">
-        <li>Cada multiplicación tiene un nivel (Nueva, Difícil, En práctica, Casi, Dominada). Sube con aciertos y vuelve a Difícil con un error.</li>
+        <li>Cada multiplicación o división tiene un nivel (Nueva, Difícil, En práctica, Casi, Dominada). Sube con aciertos y vuelve a Difícil con un error.</li>
         <li>Lo que falla vuelve a salir tras 3 preguntas y otra vez unas 8 después, siempre con una pista visual.</li>
         <li>Mezcla retos, repasos de lo ya dominado y algunas nuevas. Si viene fallando pone más fáciles; si acierta todo, más retos.</li>
         <li>Solo cuenta como Dominada si la responde bien y rápido. Las dominadas vuelven cada vez más espaciadas para no olvidarlas.</li>
@@ -753,6 +772,8 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
   /* ===== Constantes ajustables ===== */
   const CONFIG = {
     FAST_MS: 4000,                 // umbral de rapidez por defecto (ms)
+    FAST_MS_DIV: 5000,             // en división el recuerdo es más lento al comienzo
+    UNKNOWN_MUL_PENALTY: 2.5,      // división nueva cuya multiplicación aún no sabe: entra más tarde
     ROUND_SIZE: 10,                // preguntas por ronda
     MIX_BASE: { reto: 0.5, confianza: 0.3, nueva: 0.2 },
     MIX_LOW: { reto: 0.35, confianza: 0.55, nueva: 0.1 },  // aciertos recientes < 70 %
@@ -785,9 +806,20 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
   const key = (a, b) => a + 'x' + b;
   function parse(k) { const i = k.indexOf('x'); return { a: +k.slice(0, i), b: +k.slice(i + 1) }; }
 
-  function defaultSettings() {
-    return { fastMs: CONFIG.FAST_MS, tables: TABLES.slice(), includeOne: false, sound: true, roundSize: CONFIG.ROUND_SIZE, boost: { on: false, keys: [] } };
+  /* Cada perfil tiene dos pistas con su propio progreso: multiplicar (el perfil mismo) y dividir (p.div).
+     Una división se guarda como el par (divisor, resultado): 'axb' es (a × b) ÷ a = b. */
+  function defaultSettings(op) {
+    const div = op === 'div';
+    const s = { op: div ? 'div' : 'mul', fastMs: div ? CONFIG.FAST_MS_DIV : CONFIG.FAST_MS, tables: TABLES.slice(), includeOne: false, roundSize: CONFIG.ROUND_SIZE, boost: { on: false, keys: [] } };
+    if (!div) s.sound = true;
+    return s;
   }
+  const isDiv = st => !!st && st.op === 'div';
+  /* Respuesta esperada: el producto al multiplicar, el resultado al dividir. */
+  function expected(st, a, b) { return isDiv(st) ? b : a * b; }
+  /* "Tabla del n": al multiplicar, donde aparece n; al dividir, las que dividen entre n. */
+  function inTable(st, k, n) { const t = parse(k); return isDiv(st) ? t.a === n : t.a === n || t.b === n; }
+  function track(p, op) { return op === 'div' ? p.div : p; }
   /* Multiplicaciones de refuerzo activas (vacío si el refuerzo está apagado). */
   function boostKeys(st) {
     return st.boost && st.boost.on ? (st.boost.keys || []).slice() : [];
@@ -796,12 +828,15 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     const t = (st.tables || []).filter(n => TABLES.includes(n));
     return t.length ? t.sort((x, y) => x - y) : TABLES.slice();
   }
-  /* Multiplicaciones en juego: una entra si al menos uno de sus factores es una tabla activa. */
+  /* En juego: una multiplicación entra si alguno de sus factores es una tabla activa;
+     una división, si divide entre una tabla activa (o entre 1, si se incluye el 1). */
   function universe(st) {
     const F = st.includeOne ? [1, 2, 3, 4, 5, 6, 7, 8, 9] : TABLES;
-    const act = activeTables(st);
+    const act = activeTables(st), div = isDiv(st);
     const out = [];
-    for (const a of F) for (const b of F) if (act.includes(a) || act.includes(b)) out.push(key(a, b));
+    for (const a of F) for (const b of F) {
+      if (div ? act.includes(a) || a === 1 : act.includes(a) || act.includes(b)) out.push(key(a, b));
+    }
     return out;
   }
   /* Dificultad natural: ×1 → ×2 y ×5 → ×3, ×4, ×9 y cuadrados → 6, 7 y 8 combinados. */
@@ -821,11 +856,13 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
       v: 1,
       id: 'p' + now.toString(36) + Math.floor(Math.random() * 1e6).toString(36),
       name: name, avatar: avatar, createdAt: now,
-      settings: defaultSettings()
+      settings: defaultSettings('mul')
     });
   }
-  function ensure(p) {
-    p.settings = Object.assign(defaultSettings(), p.settings || {});
+  function ensureTrack(p, op) {
+    p.settings = Object.assign(defaultSettings(op), p.settings || {});
+    p.settings.op = op === 'div' ? 'div' : 'mul';
+    if (op === 'div') delete p.settings.sound;
     p.settings.tables = activeTables(p.settings);
     const bo = p.settings.boost;
     p.settings.boost = {
@@ -838,8 +875,16 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     for (const f of ['q', 'answered', 'stars', 'bestStreak', 'practiceMs', 'masteredAll']) if (typeof p[f] !== 'number') p[f] = 0;
     return p;
   }
-  function resetProgress(p) {
-    const keep = { v: 1, id: p.id, name: p.name, avatar: p.avatar, createdAt: p.createdAt, settings: p.settings };
+  function ensure(p) {
+    ensureTrack(p, 'mul');
+    p.div = ensureTrack(p.div && typeof p.div === 'object' ? p.div : {}, 'div');
+    p.mode = p.mode === 'div' ? 'div' : 'mul';
+    return p;
+  }
+  /* Reinicia el progreso de un modo; el perfil, los ajustes y el otro modo se quedan. */
+  function resetProgress(p, op) {
+    if (op === 'div') { p.div = ensureTrack({ settings: p.div.settings }, 'div'); return p; }
+    const keep = { v: 1, id: p.id, name: p.name, avatar: p.avatar, createdAt: p.createdAt, settings: p.settings, div: p.div, mode: p.mode };
     for (const k of Object.keys(p)) delete p[k];
     return ensure(Object.assign(p, keep));
   }
@@ -935,13 +980,19 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     return c.length ? anyOf(c, rng) : null;
   }
   // Nueva: nivel 0, en orden de dificultad natural. Bloqueada con 4 o más difíciles.
-  function pickNueva(p, avail, rng, blocked) {
+  // Al dividir (known = multiplicaciones que ya sabe), primero las divisiones cuya multiplicación conoce.
+  function pickNueva(p, avail, rng, blocked, known) {
     if (blocked) return null;
     const c = avail.filter(k => p.facts[k].level === 0);
     if (!c.length) return null;
-    let g = 9;
-    for (const k of c) { const t = parse(k); g = Math.min(g, group(t.a, t.b)); }
-    return anyOf(c.filter(k => { const t = parse(k); return group(t.a, t.b) === g; }), rng);
+    const rank = k => {
+      const t = parse(k);
+      const unknown = known && !known.has(key(t.a, t.b)) && !known.has(key(t.b, t.a));
+      return group(t.a, t.b) + (unknown ? CONFIG.UNKNOWN_MUL_PENALTY : 0);
+    };
+    let g = Infinity;
+    for (const k of c) g = Math.min(g, rank(k));
+    return anyOf(c.filter(k => rank(k) === g), rng);
   }
   // Refuerzo: una al azar de las multiplicaciones marcadas, con algo más de peso para las menos dominadas.
   // Respeta el bloqueo de nuevas cuando hay 4 o más difíciles.
@@ -1007,7 +1058,7 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
       for (const kind of [drawn].concat(['reto', 'confianza', 'nueva'].filter(x => x !== drawn))) {
         const k = kind === 'reto' ? pickReto(p, avail, rng, mode)
           : kind === 'confianza' ? pickConfianza(p, avail, rng, now, blocked)
-            : pickNueva(p, avail, rng, blocked);
+            : pickNueva(p, avail, rng, blocked, s.known || null);
         if (k) return make(k, kind, 0, drawn);
       }
     }
@@ -1022,9 +1073,9 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     opts = opts || {};
     now = now || Date.now();
     const f = p.facts[k] || (p.facts[k] = newFact());
-    const t = parse(k), a = t.a, b = t.b;
-    const P = a * b, q = p.q;
-    const correct = answer === P;
+    const t = parse(k), a = t.a, b = t.b, st = p.settings, div = isDiv(st);
+    const P = a * b, E = expected(st, a, b), q = p.q;
+    const correct = answer === E;
     const fast = correct && ms <= p.settings.fastMs;
     const prev = f.level, first = f.attempts === 0;
     const gap = f.lastSeen < 0 ? Infinity : q - f.lastSeen - 1;
@@ -1113,20 +1164,20 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     let allMastered = false;
     if (mastered) {
       const keys = universe(p.settings);
-      for (const n of new Set([a, b])) {
+      for (const n of new Set(div ? [a] : [a, b])) {
         if (!p.settings.tables.includes(n) || p.medals.includes(n)) continue;
-        const ks = keys.filter(x => { const u = parse(x); return u.a === n || u.b === n; });
+        const ks = keys.filter(x => inTable(st, x, n));
         if (ks.length && ks.every(x => p.facts[x].level === 4)) { p.medals.push(n); newMedals.push(n); }
       }
       if (!p.masteredAll && keys.every(x => p.facts[x].level === 4)) { p.masteredAll = now; allMastered = true; }
     }
 
     return {
-      key: k, a: a, b: b, product: P, answer: answer, correct: correct, fast: fast, first: first,
+      key: k, a: a, b: b, op: st.op, product: P, expected: E, answer: answer, correct: correct, fast: fast, first: first,
       prev: prev, level: level, up: up, mastered: mastered, stars: stars, streak: s.streak,
       assisted: assisted, retryStage: stage, sessionErrors: s.errors[k] || 0,
       newMedals: newMedals, allMastered: allMastered,
-      confusion: correct ? null : confusion(a, b, answer),
+      confusion: correct ? null : confusionFor(st, a, b, answer),
       roundDone: R.answered >= p.settings.roundSize,
       breakDue: s.activeMs >= s.breakAt
     };
@@ -1160,7 +1211,50 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     return { full: full, cue: st.cue, swap: swap };
   }
 
+  /* Pistas de división: (d × q) ÷ d = q. La división se apoya en la multiplicación que ya conoce. */
+  function divHint(d, q) {
+    const D = d * q;
+    const fam = d !== q && d !== 1 && q !== 1 ? `Si ${D} ÷ ${d} = ${q}, entonces ${D} ÷ ${q} = ${d}.` : null;
+    const back = `${d} × ${q} = ${D}`;
+    if ((d === 7 && q === 8) || (d === 8 && q === 7)) {
+      return { full: `Recuerda la escalera 5, 6, 7, 8: 56 = 7 × 8. Entonces 56 ÷ ${d} = ${q}.`, cue: 'Recuerda la escalera: 5, 6, 7, 8…', swap: fam };
+    }
+    if (d === 1) return { full: `Dividir entre 1 deja el número igual: ${D} ÷ 1 = ${D}.`, cue: 'Dividir entre 1 deja el número igual…', swap: null };
+    if (q === 1) return { full: `Un número dividido entre sí mismo da 1: ${D} ÷ ${d} = 1.`, cue: `¿Cuántas veces cabe el ${d} en ${D}?`, swap: null };
+    let h;
+    switch (d) {
+      case 2: h = { full: `Es la mitad de ${D}: ${q}, porque ${q} + ${q} = ${D}.`, cue: `Busca la mitad de ${D}…` }; break;
+      case 4: h = { full: `Es la mitad de la mitad: ${D} → ${D / 2} → ${q}. Comprueba: ${back}.`, cue: `La mitad de la mitad: ${D} → ${D / 2} → …` }; break;
+      case 8: h = { full: `Mitad, mitad, mitad: ${D} → ${D / 2} → ${D / 4} → ${q}. Comprueba: ${back}.`, cue: `Mitad, mitad, mitad: ${D} → ${D / 2} → ${D / 4} → …` }; break;
+      case 5: {
+        const steps = [];
+        for (let i = 1; i <= q; i++) steps.push(5 * i);
+        h = { full: `Cuenta de 5 en 5 hasta ${D}: ${steps.join(', ')}. Son ${q} saltos.`, cue: `Cuenta de 5 en 5 hasta ${D}. ¿Cuántos saltos?` };
+        break;
+      }
+      case 9: h = { full: `Truco del 9: la primera cifra de ${D} es ${q - 1}; súmale 1 y da ${q}. Comprueba: ${back}.`, cue: `Truco del 9: mira la primera cifra de ${D} y súmale 1…` }; break;
+      default: h = { full: `Piensa en la tabla del ${d}: ${back}. Entonces ${D} ÷ ${d} = ${q}.`, cue: `¿Qué número por ${d} da ${D}?` };
+    }
+    h.swap = fam;
+    return h;
+  }
+  function hintFor(st, a, b) { return isDiv(st) ? divHint(a, b) : hint(a, b); }
+
   /* ===== Confusiones típicas ===== */
+  function divConfusion(d, q, ans) {
+    const D = d * q;
+    if (typeof ans !== 'number' || !isFinite(ans) || ans === q) return null;
+    if (ans === d) return { type: 'divisor', text: `${d} es el número entre el que divides. Busca cuántas veces cabe el ${d} en ${D}.` };
+    if (ans === D - d) return { type: 'resta', text: `${D} − ${d} = ${ans}: eso es restar. Dividir es ver cuántas veces cabe el ${d} en ${D}.` };
+    if (ans === D) return { type: 'dividendo', text: `${D} es el número que repartes. ¿Cuántos grupos de ${d} caben en él?` };
+    if (ans >= 1 && ans <= 9) {
+      const diff = Math.abs(q - ans), many = diff > 1;
+      const verb = ans < q ? (many ? 'faltaron' : 'faltó') : (many ? 'sobraron' : 'sobró');
+      return { type: 'grupo', text: `${d} × ${ans} = ${d * ans}, no ${D}: te ${verb} ${many ? diff + ' grupos' : 'un grupo'} de ${d}.` };
+    }
+    return null;
+  }
+  function confusionFor(st, a, b, ans) { return isDiv(st) ? divConfusion(a, b, ans) : confusion(a, b, ans); }
   function confusion(a, b, ans) {
     const P = a * b;
     if (typeof ans !== 'number' || !isFinite(ans) || ans === P) return null;
@@ -1193,7 +1287,7 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
   function tables(p) {
     const keys = universe(p.settings);
     return activeTables(p.settings).map(n => {
-      const ks = keys.filter(k => { const t = parse(k); return t.a === n || t.b === n; });
+      const ks = keys.filter(k => inTable(p.settings, k, n));
       return { n: n, done: ks.filter(k => p.facts[k].level === 4).length, total: ks.length, medal: p.medals.includes(n) };
     });
   }
@@ -1234,7 +1328,7 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().replace(/\s+/g, ' ').toLowerCase();
   }
   const SUMS = ['stars', 'answered', 'practiceMs'];
-  function syncContrib(p, src) {
+  function syncTrack(p, src) {
     p.contrib = p.contrib || {};
     const own = {};
     for (const f of SUMS) {
@@ -1253,12 +1347,10 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     }
     return p;
   }
+  function syncContrib(p, src) { syncTrack(p, src); if (p.div) syncTrack(p.div, src); return p; }
   function lastActive(p) { let t = 0; for (const k in p.facts) t = Math.max(t, p.facts[k].lastAt || 0); return t; }
-  // Une el perfil b dentro de a. En cada multiplicación queda el estado más reciente.
-  function mergeProfiles(a, b) {
-    ensure(a); ensure(b);
-    if (!a.contrib || !Object.keys(a.contrib).length) syncContrib(a, 'x/' + a.id);
-    if (!b.contrib || !Object.keys(b.contrib).length) syncContrib(b, 'x/' + b.id);
+  // Une la pista b con la a (multiplicar o dividir). En cada pregunta queda el estado más reciente.
+  function mergeTrack(a, b) {
     const newer = lastActive(a) >= lastActive(b) ? a : b;
     const q = Math.max(a.q, b.q);
     const facts = {};
@@ -1295,16 +1387,28 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
       days: Array.from(new Set(a.days.concat(b.days))).sort(),
       medals: Array.from(new Set(a.medals.concat(b.medals))).sort((x, y) => x - y),
       masteredAll: won.length ? Math.min.apply(null, won) : 0,
-      createdAt: Math.min(a.createdAt || Date.now(), b.createdAt || Date.now()),
       recent: newer.recent.slice(), lastKeys: newer.lastKeys.slice(),
       settings: JSON.parse(JSON.stringify(newer.settings))
     };
-    return ensure(Object.assign(a, merged));
+    return merged;
+  }
+  // Une el perfil b dentro de a: las dos pistas.
+  function mergeProfiles(a, b) {
+    ensure(a); ensure(b);
+    for (const [t, id] of [[a, a.id], [b, b.id], [a.div, a.id], [b.div, b.id]]) {
+      if (!t.contrib || !Object.keys(t.contrib).length) syncTrack(t, 'x/' + id);
+    }
+    const mul = mergeTrack(a, b), div = mergeTrack(a.div, b.div);
+    mul.createdAt = Math.min(a.createdAt || Date.now(), b.createdAt || Date.now());
+    Object.assign(a, mul);
+    Object.assign(a.div, div);
+    return ensure(a);
   }
 
   const MT = {
     normName, syncContrib, mergeProfiles,
     CONFIG, TABLES, LEVELS, key, parse, universe, group, defaultSettings, boostKeys, newFact, newProfile, ensure, resetProgress,
+    expected, inTable, track, hintFor, confusionFor, divHint, divConfusion,
     newSession, closeRound, ackBreak, allowed, pickNext, grade, hint, confusion,
     summary, tables, weaknesses, avgOkMs, dayStreak, ymd
   };
@@ -1540,10 +1644,10 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     const list = $('#profileList');
     list.innerHTML = '';
     for (const p of data.profiles) {
-      const sm = MT.summary(p);
+      const sm = MT.summary(p), sd = MT.summary(p.div);
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'profile';
-      b.innerHTML = `<span class="ava" aria-hidden="true">${esc(p.avatar)}</span><span class="pinfo"><span class="pname">${esc(p.name)}</span><span class="psub">Dominas ${sm.mastered} de ${sm.total}</span></span><span class="chev" aria-hidden="true">›</span>`;
+      b.innerHTML = `<span class="ava" aria-hidden="true">${esc(p.avatar)}</span><span class="pinfo"><span class="pname">${esc(p.name)}</span><span class="psub">${p.div.answered ? `× ${sm.mastered} de ${sm.total} · ÷ ${sd.mastered} de ${sd.total}` : `Dominas ${sm.mastered} de ${sm.total}`}</span></span><span class="chev" aria-hidden="true">›</span>`;
       b.addEventListener('click', () => { P = p; S = null; persist(); goHome(); });
       list.appendChild(b);
     }
@@ -1591,11 +1695,36 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     data.profiles.push(p); P = p; S = null; persist(); goHome();
   });
 
+  /* ===== Multiplicar o dividir =====
+     El perfil guarda multiplicar en sí mismo y dividir en P.div, cada uno con su progreso. */
+  const curOp = () => (P && P.mode === 'div' ? 'div' : 'mul');
+  const trk = op => MT.track(P, op);
+  const opSym = op => (op === 'div' ? '÷' : '×');
+  // 'axb' al dividir es (a × b) ÷ a = b.
+  function fmtFact(op, a, b, nb) { const s = nb ? '\u00A0' : ' '; return op === 'div' ? `${a * b}${s}÷${s}${a}` : `${a}${s}×${s}${b}`; }
+  function noun(op, n) { return op === 'div' ? (n === 1 ? 'división' : 'divisiones') : (n === 1 ? 'multiplicación' : 'multiplicaciones'); }
+  function tableName(op, n) { return op === 'div' ? `Dividir entre ${n}` : `Tabla del ${n}`; }
+  const totalStars = () => P.stars + P.div.stars;
+  const allDays = () => Array.from(new Set(P.days.concat(P.div.days)));
+  const knownMul = () => new Set(Object.keys(P.facts).filter(k => P.facts[k].level >= 3));
+  // Encabezados de las cuadrículas. Al dividir: filas = entre cuánto se divide, columnas = resultado.
+  function gridHead(op, F, cls) {
+    return `<div class="${cls}" aria-hidden="true">${opSym(op)}</div>` + F.map(b => `<div class="${cls}" aria-hidden="true">${op === 'div' ? '=' + b : b}</div>`).join('');
+  }
+  const rowHead = (op, a, cls) => `<div class="${cls}" aria-hidden="true">${op === 'div' ? '÷' + a : a}</div>`;
+
   /* ===== Inicio ===== */
-  function medalHtml(t, extra) { return `<span class="medal ${t.medal ? 'on' : ''} ${extra || ''}" title="Tabla del ${t.n}" aria-label="Tabla del ${t.n}: ${t.medal ? 'medalla ganada' : 'sin medalla todavía'}">${t.n}</span>`; }
-  function factors() { return P.settings.includeOne ? [1, 2, 3, 4, 5, 6, 7, 8, 9] : [2, 3, 4, 5, 6, 7, 8, 9]; }
+  function medalHtml(t, op, extra) {
+    const name = tableName(op, t.n);
+    return `<span class="medal ${t.medal ? 'on' : ''} ${extra || ''}" title="${name}" aria-label="${name}: ${t.medal ? 'medalla ganada' : 'sin medalla todavía'}">${op === 'div' ? '÷' : ''}${t.n}</span>`;
+  }
+  function factors(T) { return T.settings.includeOne ? [1, 2, 3, 4, 5, 6, 7, 8, 9] : [2, 3, 4, 5, 6, 7, 8, 9]; }
+  $$('#s-home .mode').forEach(b => b.addEventListener('click', () => { P.mode = b.dataset.op; persist(); renderHome(); }));
   function renderHome() {
-    const sm = MT.summary(P), ds = MT.dayStreak(P, Date.now()), tb = MT.tables(P);
+    const op = curOp(), T = trk(op);
+    const sm = MT.summary(T), ds = MT.dayStreak({ days: allDays() }, Date.now()), tb = MT.tables(T);
+    $$('#s-home .mode').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.op === op)));
+    $('#homeCountLabel').textContent = noun(op, 2) + ' dominadas';
     $('#homeAva').textContent = P.avatar;
     $('#homeHello').textContent = `¡Hola, ${P.name}!`;
     $('#homeCount').textContent = sm.mastered;
@@ -1603,26 +1732,26 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     $('#ruler').style.setProperty('--n', sm.total);
     $('#rulerFill').style.width = (100 * sm.mastered / sm.total) + '%';
     $('#ruler').setAttribute('aria-label', `Regla de progreso: ${sm.mastered} de ${sm.total}`);
-    $('#homeStars').textContent = P.stars;
+    $('#homeStars').textContent = totalStars();
     $('#homeDays').textContent = ds.n ? (ds.n === 1 ? '1 día de racha' : `${ds.n} días seguidos`) : 'Hoy empieza tu racha';
     const won = tb.filter(t => t.medal).length;
     $('#homeMedals').textContent = won === 1 ? '1 medalla' : `${won} medallas`;
-    $('#homeNote').textContent = !P.answered ? 'Vamos a descubrir qué tablas ya sabes.'
+    $('#homeNote').textContent = !T.answered ? (op === 'div' ? 'Vamos a descubrir qué divisiones ya sabes.' : 'Vamos a descubrir qué tablas ya sabes.')
       : sm.maintenance ? '¡Dominas todas! Ahora a mantenerlas en forma.'
         : `Te ${sm.total - sm.mastered === 1 ? 'falta 1' : 'faltan ' + (sm.total - sm.mastered)} para dominarlas todas.`;
-    $('#homeMedalRow').innerHTML = tb.map(t => medalHtml(t)).join('');
-    const F = factors(), U = new Set(MT.universe(P.settings));
+    $('#homeMedalRow').innerHTML = tb.map(t => medalHtml(t, op)).join('');
+    const F = factors(T), U = new Set(MT.universe(T.settings));
     const mm = $('#miniMap'); mm.style.setProperty('--cols', F.length);
-    mm.innerHTML = F.map(a => F.map(b => { const k = MT.key(a, b); return U.has(k) ? `<i style="background:var(--lv${P.facts[k].level})"></i>` : '<i style="background:transparent"></i>'; }).join('')).join('');
-    $('#btnDiploma').hidden = !P.masteredAll;
-    const bk = MT.boostKeys(P.settings).filter(k => U.has(k));
+    mm.innerHTML = F.map(a => F.map(b => { const k = MT.key(a, b); return U.has(k) ? `<i style="background:var(--lv${T.facts[k].level})"></i>` : '<i style="background:transparent"></i>'; }).join('')).join('');
+    $('#btnDiploma').hidden = !T.masteredAll;
+    const bk = MT.boostKeys(T.settings).filter(k => U.has(k));
     $('#homeBoost').hidden = !bk.length;
-    $('#homeBoost').textContent = bk.length ? 'Refuerzo activo: ' + factsPhrase(bk, 4) : '';
+    $('#homeBoost').textContent = bk.length ? 'Refuerzo activo: ' + factsPhrase(op, bk, 4) : '';
   }
   // "7 × 8, 9 × 7 y 6 × 9"; con más de `max`, "7 × 8, 9 × 7, 6 × 9 y 2 más".
-  function factsPhrase(keys, max) {
+  function factsPhrase(op, keys, max) {
     const t = keys.slice().sort((x, y) => { const a = MT.parse(x), b = MT.parse(y); return a.a - b.a || a.b - b.b; })
-      .map(k => { const u = MT.parse(k); return `${u.a} × ${u.b}`; }); // sin cortes dentro de una multiplicación
+      .map(k => { const u = MT.parse(k); return fmtFact(op, u.a, u.b, true); }); // sin cortes dentro de una operación // sin cortes dentro de una multiplicación
     if (max && t.length > max) return t.slice(0, max - 1).join(', ') + ` y ${t.length - max + 1} más`;
     return t.length > 1 ? t.slice(0, -1).join(', ') + ' y ' + t[t.length - 1] : t[0];
   }
@@ -1632,28 +1761,29 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     renderHome(); show('home');
   }
   $('#btnMap').addEventListener('click', () => { renderMap(); show('map'); });
-  $('#btnDiploma').addEventListener('click', () => openDiploma(false));
-  $('#btnAdult').addEventListener('click', () => openGate(() => { renderAdult(); show('adult'); }));
+  $('#btnDiploma').addEventListener('click', () => openDiploma(false, null, curOp()));
+  $('#btnAdult').addEventListener('click', () => openGate(() => { adOp = curOp(); renderAdult(); show('adult'); }));
 
   /* ===== Práctica ===== */
   $('#btnPlay').addEventListener('click', startPlay);
   function startPlay() {
     Sound.unlock();
     const now = Date.now();
-    if (!S || S.pid !== P.id || now - S.last > MT.CONFIG.SESSION_RESUME_MS) { S = MT.newSession(P, now); S.pid = P.id; S.dots = []; }
+    const op = curOp();
+    if (!S || S.pid !== P.id || S.op !== op || now - S.last > MT.CONFIG.SESSION_RESUME_MS) { S = MT.newSession(trk(op), now); S.pid = P.id; S.op = op; S.dots = []; }
     show('play');
     renderHud(); renderSound();
     nextQuestion();
   }
   function renderHud(res) {
-    $('#hudStarsN').textContent = P.stars;
+    $('#hudStarsN').textContent = totalStars();
     $('#hudStreakN').textContent = S ? S.streak : 0;
     if (res && res.correct) {
       ['#hudStars', '#hudStreak'].forEach(s => { const el = $(s); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); });
     }
   }
   function renderDots() {
-    const n = P.settings.roundSize, d = S.dots;
+    const n = trk(S.op).settings.roundSize, d = S.dots;
     let h = '';
     for (let i = 0; i < n; i++) h += `<i class="rd ${d[i] ? 'rd-' + d[i] : ''} ${i === d.length && Q && Q.phase === 'ask' ? 'rd-now' : ''}"></i>`;
     $('#roundDots').innerHTML = h;
@@ -1675,25 +1805,32 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
   function nextQuestion() {
     clearTimers();
     if (current !== 'play') return;
-    const pick = MT.pickNext(P, S, Math.random, Date.now());
+    const op = S.op, T = trk(op);
+    S.known = op === 'div' ? knownMul() : null; // al dividir, primero las que ya sabe multiplicar
+    const pick = MT.pickNext(T, S, Math.random, Date.now());
     Q = { pick: pick, typed: '', phase: 'ask', start: performance.now(), hiddenAt: null, res: null };
     const card = $('#qCard');
     card.className = 'q-card';
     void card.offsetWidth;
     if (!reduceMotion) card.classList.add('enter');
-    $('#qa').textContent = pick.a; $('#qb').textContent = pick.b;
-    $('#qText').setAttribute('aria-label', `¿Cuánto es ${pick.a} por ${pick.b}?`);
+    if (op === 'div') {
+      $('#qa').textContent = pick.a * pick.b; $('#qop').textContent = '÷'; $('#qb').textContent = pick.a;
+      $('#qText').setAttribute('aria-label', `¿Cuánto es ${pick.a * pick.b} entre ${pick.a}?`);
+    } else {
+      $('#qa').textContent = pick.a; $('#qop').textContent = '×'; $('#qb').textContent = pick.b;
+      $('#qText').setAttribute('aria-label', `¿Cuánto es ${pick.a} por ${pick.b}?`);
+    }
     setFeedback('', '');
     $('#fixBox').hidden = true; $('#fixBox').innerHTML = '';
     $('#stamp').hidden = true;
     const ph = $('#preHint');
-    if (pick.preHint) { ph.hidden = false; ph.innerHTML = '<b>Pista:</b> ' + esc(MT.hint(pick.a, pick.b).cue); } else ph.hidden = true;
+    if (pick.preHint) { ph.hidden = false; ph.innerHTML = '<b>Pista:</b> ' + esc(MT.hintFor(T.settings, pick.a, pick.b).cue); } else ph.hidden = true;
     renderSlot(); renderDots(); renderHud();
   }
   function renderSlot() {
     const slot = $('#slot');
     if (Q.phase === 'fix' || (Q.phase === 'right' && Q.res && !Q.res.correct)) {
-      const P2 = String(Q.res.product);
+      const P2 = String(Q.res.expected);
       slot.className = 'slot';
       slot.innerHTML = esc(Q.typed) + `<span class="ghost">${P2.slice(Q.typed.length)}</span>`;
     } else {
@@ -1710,12 +1847,12 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     if (!/^\d$/.test(k)) return;
     if (Q.typed.length >= 2 || (!Q.typed && k === '0')) { nudge(); return; }
     Q.typed += k; renderSlot();
-    if (Q.phase === 'fix' && Q.typed.length >= String(Q.res.product).length) checkFix(false);
+    if (Q.phase === 'fix' && Q.typed.length >= String(Q.res.expected).length) checkFix(false);
   }
   function submit() {
     if (!Q.typed) { nudge(); return; }
     const ms = Math.max(0, performance.now() - Q.start);
-    const res = MT.grade(P, S, Q.pick.key, parseInt(Q.typed, 10), ms, Date.now(),
+    const res = MT.grade(trk(S.op), S, Q.pick.key, parseInt(Q.typed, 10), ms, Date.now(),
       { kind: Q.pick.kind, stage: Q.pick.stage, assisted: Q.pick.preHint });
     Q.res = res;
     S.dots.push(res.correct ? 'ok' : 'fix');
@@ -1746,33 +1883,34 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     // A una multiplicación fácil no se le dice "difícil".
     const easy = MT.group(res.a, res.b) <= 1;
     setFeedback(esc(pickOne(easy ? ERR_MSGS.filter(m => !/difícil/.test(m)) : ERR_MSGS)), 'soft');
-    const h = MT.hint(res.a, res.b);
+    const h = MT.hintFor({ op: res.op }, res.a, res.b);
+    const cap = res.op === 'div' ? `${res.product} en ${res.a} filas: ${res.b} en cada una` : `${res.a} filas de ${res.b}`;
     $('#fixBox').innerHTML =
-      `<p class="copy-tip">Escribe <b>${res.product}</b> para seguir.</p>` +
+      `<p class="copy-tip">Escribe <b>${res.expected}</b> para seguir.</p>` +
       (res.confusion ? `<p class="confusion">${esc(res.confusion.text)}</p>` : '') +
       `<div class="fix-grid"><div class="hint"><p><span aria-hidden="true">💡</span> ${esc(h.full)}</p>${h.swap ? `<p class="swap">${esc(h.swap)}</p>` : ''}</div>` +
-      `<figure class="dots">${dotsSvg(res.a, res.b)}<figcaption>${res.a} filas de ${res.b}</figcaption></figure></div>`;
+      `<figure class="dots">${dotsSvg(res.a, res.b)}<figcaption>${cap}</figcaption></figure></div>`;
     $('#fixBox').hidden = false;
     card.scrollTop = 0;
     renderSlot();
     Sound.soft();
   }
   function checkFix(explicit) {
-    if (Q.typed === String(Q.res.product)) {
+    if (Q.typed === String(Q.res.expected)) {
       Q.phase = 'right';
       $('#qCard').classList.remove('fixing'); $('#qCard').classList.add('good');
       renderSlot();
       setFeedback('✓ ' + esc(pickOne(COPY_MSGS)), 'good');
       Sound.ok(false);
       later(() => afterAnswer(Q.res), 900);
-    } else if (explicit || Q.typed.length >= String(Q.res.product).length) {
+    } else if (explicit || Q.typed.length >= String(Q.res.expected).length) {
       nudge(); Q.typed = ''; later(renderSlot, 250);
     }
   }
   function afterAnswer(res) {
     const queue = [];
-    res.newMedals.forEach(n => queue.push(done => openMedal(n, done)));
-    if (res.allMastered) queue.push(done => openDiploma(true, done));
+    res.newMedals.forEach(n => queue.push(done => openMedal(n, res.op, done)));
+    if (res.allMastered) queue.push(done => openDiploma(true, done, res.op));
     if (res.roundDone) queue.push(done => openRound(MT.closeRound(S), res.breakDue, done));
     (function run() {
       if (current !== 'play') return;
@@ -1825,9 +1963,9 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
   function openRound(r, breakDue, done) {
     $('#roundStars').textContent = `+${r.stars} ⭐`;
     const lines = [];
-    if (r.ups) lines.push(r.ups === 1 ? '1 multiplicación subió de nivel' : `${r.ups} multiplicaciones subieron de nivel`);
+    if (r.ups) lines.push(r.ups === 1 ? `1 ${noun(S.op, 1)} subió de nivel` : `${r.ups} ${noun(S.op, 2)} subieron de nivel`);
     if (r.mastered.length) {
-      const names = r.mastered.map(k => { const t = MT.parse(k); return `${t.a} × ${t.b}`; });
+      const names = r.mastered.map(k => { const t = MT.parse(k); return fmtFact(S.op, t.a, t.b); });
       lines.push('Dominaste: ' + (names.length > 1 ? names.slice(0, -1).join(', ') + ' y ' + names[names.length - 1] : names[0]));
     }
     if (!lines.length) lines.push('Cada respuesta te hace más fuerte.');
@@ -1843,18 +1981,22 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     $('#roundRest').onclick = () => finish(true);
     openOverlay('o-round');
   }
-  function openMedal(n, done) {
-    $('#medalBig').textContent = n;
-    $('#medalTitle').textContent = `¡Medalla de la tabla del ${n}!`;
-    $('#medalText').textContent = `Dominas todas las multiplicaciones con el ${n}.`;
+  function openMedal(n, op, done) {
+    $('#medalBig').textContent = (op === 'div' ? '÷' : '') + n;
+    $('#medalTitle').textContent = op === 'div' ? `¡Medalla de dividir entre ${n}!` : `¡Medalla de la tabla del ${n}!`;
+    $('#medalText').textContent = op === 'div' ? `Dominas todas las divisiones entre ${n}.` : `Dominas todas las multiplicaciones con el ${n}.`;
     confetti(); Sound.medal();
     $('#medalOk').onclick = () => { closeOverlay('o-medal'); done(); };
     openOverlay('o-medal');
   }
-  function openDiploma(fresh, done) {
+  let dipOp = 'mul';
+  const dipVerb = op => (op === 'div' ? 'dividir' : 'multiplicar');
+  function openDiploma(fresh, done, op) {
+    dipOp = op || curOp();
+    const T = trk(dipOp);
     $('#dipName').textContent = P.name;
-    $('#dipWhy').textContent = `por dominar las tablas de multiplicar ${tablesPhrase(P.settings)}.`;
-    $('#dipDate').textContent = fmtDate(P.masteredAll || Date.now());
+    $('#dipWhy').textContent = `por dominar las tablas de ${dipVerb(dipOp)} ${tablesPhrase(T.settings)}.`;
+    $('#dipDate').textContent = fmtDate(T.masteredAll || Date.now());
     $('#dipSave').hidden = !canSave();
     $('#dipNote').textContent = canSave() ? '' : 'Puedes tomarle una foto o una captura de pantalla para guardarlo.';
     $('#dipMsg').textContent = '';
@@ -1882,9 +2024,10 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
       x.fillStyle = '#47527F'; x.font = '700 46px Nunito, sans-serif'; x.fillText('Se entrega con orgullo a', W / 2, 470);
       x.fillStyle = '#5E43C7'; x.font = '800 120px "Baloo 2", sans-serif'; x.fillText(P.name, W / 2, 620);
       x.fillStyle = '#1D2A57'; x.font = '700 50px Nunito, sans-serif';
-      x.fillText('por dominar las tablas de multiplicar', W / 2, 730);
-      x.fillText(tablesPhrase(P.settings) + '.', W / 2, 800);
-      x.fillStyle = '#47527F'; x.font = '700 38px Nunito, sans-serif'; x.fillText(fmtDate(P.masteredAll || Date.now()), W / 2, 900);
+      const DT = trk(dipOp);
+      x.fillText('por dominar las tablas de ' + dipVerb(dipOp), W / 2, 730);
+      x.fillText(tablesPhrase(DT.settings) + '.', W / 2, 800);
+      x.fillStyle = '#47527F'; x.font = '700 38px Nunito, sans-serif'; x.fillText(fmtDate(DT.masteredAll || Date.now()), W / 2, 900);
       x.save(); x.translate(W - 290, H - 270); x.rotate(-0.22);
       x.strokeStyle = '#5E43C7'; x.lineWidth = 9; x.beginPath(); x.arc(0, 0, 125, 0, Math.PI * 2); x.stroke();
       x.lineWidth = 4; x.beginPath(); x.arc(0, 0, 108, 0, Math.PI * 2); x.stroke();
@@ -1902,33 +2045,38 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
 
   /* ===== Mapa ===== */
   function renderMap() {
-    const F = factors(), U = new Set(MT.universe(P.settings));
+    const op = curOp(), T = trk(op);
+    const F = factors(T), U = new Set(MT.universe(T.settings));
     const grid = $('#mapGrid');
     grid.style.setProperty('--cols', F.length + 1);
-    let h = '<div class="cell h" aria-hidden="true">×</div>' + F.map(b => `<div class="cell h" aria-hidden="true">${b}</div>`).join('');
+    $('#mapLead').textContent = op === 'div'
+      ? 'Cada fila es dividir entre un número y cada columna, el resultado. La casilla muestra el número que se divide. Tócala para ver cómo vas.'
+      : 'Cada casilla es una multiplicación. Tócala para ver cómo vas.';
+    let h = gridHead(op, F, 'cell h');
     for (const a of F) {
-      h += `<div class="cell h" aria-hidden="true">${a}</div>`;
+      h += rowHead(op, a, 'cell h');
       for (const b of F) {
         const k = MT.key(a, b);
         if (!U.has(k)) { h += '<div class="cell off" aria-hidden="true"></div>'; continue; }
-        const f = P.facts[k], L = f.level;
+        const f = T.facts[k], L = f.level;
         const mark = L === 4 ? '<span class="star" aria-hidden="true">★</span>' : L > 0 ? `<span class="mk" aria-hidden="true">${'•'.repeat(L)}</span>` : '';
-        h += `<button type="button" class="cell lv${L}" data-k="${k}" aria-label="${a} por ${b}: ${MT.LEVELS[L]}">${f.attempts ? a * b : '?'}${mark}</button>`;
+        h += `<button type="button" class="cell lv${L}" data-k="${k}" aria-label="${op === 'div' ? `${a * b} entre ${a}` : `${a} por ${b}`}: ${MT.LEVELS[L]}">${f.attempts ? a * b : '?'}${mark}</button>`;
       }
     }
     grid.innerHTML = h;
     $('#mapInfo').textContent = '';
-    $('#tableList').innerHTML = MT.tables(P).map(t =>
-      `<div class="trow">${medalHtml(t)}<div><div class="tname">Tabla del ${t.n}</div><div class="bar"><i style="width:${100 * t.done / t.total}%"></i></div></div><span class="num">${t.done} de ${t.total}</span></div>`).join('');
+    $('#tableList').innerHTML = MT.tables(T).map(t =>
+      `<div class="trow">${medalHtml(t, op)}<div><div class="tname">${tableName(op, t.n)}</div><div class="bar"><i style="width:${100 * t.done / t.total}%"></i></div></div><span class="num">${t.done} de ${t.total}</span></div>`).join('');
   }
   $('#mapGrid').addEventListener('click', e => {
     const c = e.target.closest('.cell[data-k]'); if (!c) return;
     $$('#mapGrid .sel').forEach(x => x.classList.remove('sel'));
     c.classList.add('sel');
-    const t = MT.parse(c.dataset.k), f = P.facts[c.dataset.k];
+    const op = curOp(), T = trk(op);
+    const t = MT.parse(c.dataset.k), f = T.facts[c.dataset.k], name = fmtFact(op, t.a, t.b);
     $('#mapInfo').textContent = f.attempts
-      ? `${t.a} × ${t.b} = ${t.a * t.b} · ${MT.LEVELS[f.level]}. ${LEVEL_TEXT[f.level]}`
-      : `${t.a} × ${t.b} · ${LEVEL_TEXT[0]}`;
+      ? `${name} = ${MT.expected(T.settings, t.a, t.b)} · ${MT.LEVELS[f.level]}. ${LEVEL_TEXT[f.level]}`
+      : `${name} · ${LEVEL_TEXT[0]}`;
   });
 
   /* ===== Barrera para adultos ===== */
@@ -1949,73 +2097,78 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#o-gate').hidden) closeOverlay('o-gate'); });
 
   /* ===== Panel del adulto ===== */
-  let heatMode = 'acc';
+  let heatMode = 'acc', adOp = 'mul';
+  const AT = () => trk(adOp);
+  $('#adOps').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { adOp = b.dataset.op; renderAdult(); } });
   const LV_COLORS = ['var(--lv0)', 'var(--lv1)', 'var(--lv2)', 'var(--lv3)', 'var(--lv4)'];
   function renderAdult() {
-    const sm = MT.summary(P), st = P.settings;
+    const op = adOp, T = AT(), sm = MT.summary(T), st = T.settings;
+    $$('#adOps button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.op === op)));
     $('#adWho').textContent = `${P.avatar} ${P.name} · jugando desde el ${fmtDate(P.createdAt)}`;
     $('#adStorage').hidden = Store.ok;
-    const kp = [['Dominadas', `${sm.mastered} / ${sm.total}`], ['Preguntas', P.answered], ['Práctica', fmtDur(P.practiceMs)], ['Días', P.days.length], ['Mejor racha', P.bestStreak]];
+    const kp = [['Dominadas', `${sm.mastered} / ${sm.total}`], ['Preguntas', T.answered], ['Práctica', fmtDur(T.practiceMs)], ['Días', T.days.length], ['Mejor racha', T.bestStreak]];
     $('#adKpis').innerHTML = kp.map(k => `<div class="kpi"><b>${esc(k[1])}</b><span>${k[0]}</span></div>`).join('');
     $('#adLevelBar').innerHTML = sm.byLevel.map((n, i) => n ? `<i style="width:${100 * n / sm.total}%;background:${LV_COLORS[i]}"></i>` : '').join('');
     $('#adLevelBar').setAttribute('aria-label', MT.LEVELS.map((l, i) => `${l}: ${sm.byLevel[i]}`).join(', '));
     $('#adLevelKey').innerHTML = MT.LEVELS.map((l, i) => `<span><i style="background:${LV_COLORS[i]}"></i>${l}: ${sm.byLevel[i]}</span>`).join('');
     renderHeat();
-    const w = MT.weaknesses(P, 10);
+    const w = MT.weaknesses(T, 10);
     $('#weakList').innerHTML = w.length ? w.map(x => {
       const conf = x.confusion ? `<span class="conf">Respondió ${x.confusion.answer}, ${x.confusion.count <= 10 ? NUM_WORD[x.confusion.count] : x.confusion.count} veces</span>` : '';
-      return `<li><span class="op">${x.a} × ${x.b}</span><span class="meta"><span class="pill" style="background:${LV_COLORS[x.level]}">${MT.LEVELS[x.level]}</span>${Math.round(100 * x.acc)} % aciertos · ${x.avg ? fmtSec(x.avg) : '–'} · ${x.attempts} ${x.attempts === 1 ? 'intento' : 'intentos'}</span>${conf}</li>`;
-    }).join('') : `<li><span class="meta">${P.answered ? 'Sin falencias por ahora.' : 'Aparecerán aquí cuando juegue un poco.'}</span></li>`;
-    $('#adTables').innerHTML = MT.tables(P).map(t =>
-      `<div class="trow">${medalHtml(t)}<div><div class="tname">Tabla del ${t.n}</div><div class="bar"><i style="width:${100 * t.done / t.total}%"></i></div></div><span class="num">${t.done} de ${t.total}</span></div>`).join('');
+      return `<li><span class="op">${fmtFact(op, x.a, x.b, true)}</span><span class="meta"><span class="pill" style="background:${LV_COLORS[x.level]}">${MT.LEVELS[x.level]}</span>${Math.round(100 * x.acc)} % aciertos · ${x.avg ? fmtSec(x.avg) : '–'} · ${x.attempts} ${x.attempts === 1 ? 'intento' : 'intentos'}</span>${conf}</li>`;
+    }).join('') : `<li><span class="meta">${T.answered ? 'Sin falencias por ahora.' : 'Aparecerán aquí cuando juegue un poco.'}</span></li>`;
+    $('#adTables').innerHTML = MT.tables(T).map(t =>
+      `<div class="trow">${medalHtml(t, op)}<div><div class="tname">${tableName(op, t.n)}</div><div class="bar"><i style="width:${100 * t.done / t.total}%"></i></div></div><span class="num">${t.done} de ${t.total}</span></div>`).join('');
     $$('#setFast button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === st.fastMs)));
     $$('#setRound button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === st.roundSize)));
-    $('#setTables').innerHTML = MT.TABLES.map(n => `<button type="button" class="tchip" data-n="${n}" aria-pressed="${st.tables.includes(n)}" aria-label="Tabla del ${n}">${n}</button>`).join('');
-    const bo = st.boost, F = factors(), U = new Set(MT.universe(st));
+    $('#setTables').innerHTML = MT.TABLES.map(n => `<button type="button" class="tchip" data-n="${n}" aria-pressed="${st.tables.includes(n)}" aria-label="${tableName(op, n)}">${op === 'div' ? '÷' : ''}${n}</button>`).join('');
+    $('#setTablesNote').textContent = op === 'div' ? 'Una división entra si divide entre una tabla activa.' : 'Una multiplicación entra si tiene al menos una tabla activa.';
+    $('#setOneLabel').textContent = op === 'div' ? 'Incluir el 1 (÷1 y divisiones que dan 1)' : 'Incluir ×1';
+    const bo = st.boost, F = factors(T), U = new Set(MT.universe(st));
     const sel = bo.keys.filter(k => U.has(k)), selSet = new Set(sel);
     $('#setBoost').setAttribute('aria-checked', String(bo.on));
     const bg = $('#boostGrid');
     bg.classList.toggle('off', !bo.on);
     bg.style.setProperty('--cols', F.length + 1);
-    let gh = '<div class="hc h">×</div>' + F.map(b => `<div class="hc h">${b}</div>`).join('');
+    let gh = gridHead(op, F, 'hc h');
     for (const a of F) {
-      gh += `<div class="hc h">${a}</div>`;
+      gh += rowHead(op, a, 'hc h');
       for (const b of F) {
         const k = MT.key(a, b);
-        gh += U.has(k) ? `<button type="button" class="hc pc" data-k="${k}" aria-pressed="${selSet.has(k)}" aria-label="${a} × ${b}">${a * b}</button>` : '<div class="hc off"></div>';
+        gh += U.has(k) ? `<button type="button" class="hc pc" data-k="${k}" aria-pressed="${selSet.has(k)}" aria-label="${fmtFact(op, a, b)}">${a * b}</button>` : '<div class="hc off"></div>';
       }
     }
     bg.innerHTML = gh;
     $('#setBoostNote').textContent = !bo.on
-      ? (sel.length ? `Apagado. Quedan guardadas: ${factsPhrase(sel)}.` : 'Apagado.')
-      : sel.length ? `Activo con ${sel.length === 1 ? '1 multiplicación' : sel.length + ' multiplicaciones'}: ${factsPhrase(sel)}.` : 'Toca al menos una multiplicación para reforzarla.';
+      ? (sel.length ? `Apagado. Quedan guardadas: ${factsPhrase(op, sel)}.` : 'Apagado.')
+      : sel.length ? `Activo con ${sel.length} ${noun(op, sel.length)}: ${factsPhrase(op, sel)}.` : `Toca al menos una ${noun(op, 1)} para reforzarla.`;
     $('#boostClear').hidden = !sel.length;
     $('#setOne').setAttribute('aria-checked', String(!!st.includeOne));
-    $('#setSound').setAttribute('aria-checked', String(!!st.sound));
+    $('#setSound').setAttribute('aria-checked', String(!!P.settings.sound));
     $('#btnBackup').hidden = !canSave();
     $('#dangerConfirm').hidden = true; $('#restoreConfirm').hidden = true;
   }
   function renderHeat() {
     $('#heatAcc').setAttribute('aria-pressed', String(heatMode === 'acc'));
     $('#heatTime').setAttribute('aria-pressed', String(heatMode === 'time'));
-    const F = factors(), U = new Set(MT.universe(P.settings)), fast = P.settings.fastMs;
+    const op = adOp, T = AT(), F = factors(T), U = new Set(MT.universe(T.settings)), fast = T.settings.fastMs;
     const heat = $('#heat'); heat.style.setProperty('--cols', F.length + 1);
-    let h = '<div class="hc h">×</div>' + F.map(b => `<div class="hc h">${b}</div>`).join('');
+    let h = gridHead(op, F, 'hc h');
     for (const a of F) {
-      h += `<div class="hc h">${a}</div>`;
+      h += rowHead(op, a, 'hc h');
       for (const b of F) {
         const k = MT.key(a, b);
         if (!U.has(k)) { h += '<div class="hc off"></div>'; continue; }
-        const f = P.facts[k];
-        if (!f.attempts) { h += `<div class="hc" title="${a} × ${b}: sin datos">–</div>`; continue; }
+        const f = T.facts[k], nm = fmtFact(op, a, b);
+        if (!f.attempts) { h += `<div class="hc" title="${nm}: sin datos">–</div>`; continue; }
         if (heatMode === 'acc') {
           const acc = f.correct / f.attempts, g = acc < 0.5 ? 0 : acc < 0.8 ? 1 : acc < 0.95 ? 2 : 3;
-          h += `<div class="hc g${g}" title="${a} × ${b}: ${Math.round(acc * 100)} % de aciertos">${Math.round(acc * 100)}</div>`;
+          h += `<div class="hc g${g}" title="${nm}: ${Math.round(acc * 100)} % de aciertos">${Math.round(acc * 100)}</div>`;
         } else {
           const avg = MT.avgOkMs(f);
-          if (avg === null) { h += `<div class="hc g0" title="${a} × ${b}: sin aciertos todavía">–</div>`; continue; }
+          if (avg === null) { h += `<div class="hc g0" title="${nm}: sin aciertos todavía">–</div>`; continue; }
           const r = avg / fast, g = r > 1.5 ? 0 : r > 1 ? 1 : r > 0.6 ? 2 : 3;
-          h += `<div class="hc g${g}" title="${a} × ${b}: ${fmtSec(avg)} en promedio">${(avg / 1000).toFixed(1).replace('.', ',')}</div>`;
+          h += `<div class="hc g${g}" title="${nm}: ${fmtSec(avg)} en promedio">${(avg / 1000).toFixed(1).replace('.', ',')}</div>`;
         }
       }
     }
@@ -2031,31 +2184,30 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     if (universeChanged) { MT.ensure(P); S = null; }
     persist(); renderAdult();
   }
-  $('#setFast').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { P.settings.fastMs = +b.dataset.v; changed(false); } });
-  $('#setRound').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { P.settings.roundSize = +b.dataset.v; if (S) S.dots = []; changed(false); } });
+  $('#setFast').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { AT().settings.fastMs = +b.dataset.v; changed(false); } });
+  $('#setRound').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { AT().settings.roundSize = +b.dataset.v; if (S) S.dots = []; changed(false); } });
   $('#setTables').addEventListener('click', e => {
     const b = e.target.closest('.tchip'); if (!b) return;
-    const n = +b.dataset.n, t = P.settings.tables;
+    const n = +b.dataset.n, st = AT().settings, t = st.tables;
     if (t.includes(n)) {
       if (t.length === 1) { $('#setTablesNote').textContent = 'Debe quedar al menos una tabla activa.'; return; }
-      P.settings.tables = t.filter(x => x !== n);
-    } else P.settings.tables = t.concat(n).sort((x, y) => x - y);
-    $('#setTablesNote').textContent = 'Una multiplicación entra si tiene al menos una tabla activa.';
+      st.tables = t.filter(x => x !== n);
+    } else st.tables = t.concat(n).sort((x, y) => x - y);
     changed(true);
   });
-  $('#setOne').addEventListener('click', () => { P.settings.includeOne = !P.settings.includeOne; changed(true); });
+  $('#setOne').addEventListener('click', () => { const st = AT().settings; st.includeOne = !st.includeOne; changed(true); });
   // Refuerzo: al apagarlo se guardan las marcadas; marcar una con el refuerzo apagado lo prende.
-  $('#setBoost').addEventListener('click', () => { P.settings.boost.on = !P.settings.boost.on; changed(false); $('#setBoost').focus({ preventScroll: true }); });
+  $('#setBoost').addEventListener('click', () => { const bo = AT().settings.boost; bo.on = !bo.on; changed(false); $('#setBoost').focus({ preventScroll: true }); });
   $('#boostGrid').addEventListener('click', e => {
     const b = e.target.closest('.pc'); if (!b) return;
-    const k = b.dataset.k, bo = P.settings.boost;
+    const k = b.dataset.k, bo = AT().settings.boost;
     bo.keys = bo.keys.includes(k) ? bo.keys.filter(x => x !== k) : bo.keys.concat(k);
     if (bo.keys.length && !bo.on) bo.on = true;
     changed(false);
     const nb = document.querySelector(`#boostGrid .pc[data-k="${k}"]`);
     if (nb) nb.focus({ preventScroll: true });
   });
-  $('#boostClear').addEventListener('click', () => { P.settings.boost.keys = []; changed(false); $('#setBoost').focus({ preventScroll: true }); });
+  $('#boostClear').addEventListener('click', () => { AT().settings.boost.keys = []; changed(false); $('#setBoost').focus({ preventScroll: true }); });
   $('#setSound').addEventListener('click', () => { P.settings.sound = !P.settings.sound; changed(false); });
 
   // Reiniciar o borrar: dos confirmaciones.
@@ -2072,8 +2224,8 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     yes.focus();
   }
   $('#btnReset').addEventListener('click', () => askDanger(
-    `Se borrará todo el progreso de ${P.name}: niveles, estrellas y medallas. El perfil y los ajustes se quedan.`, 'Sí, reiniciar',
-    () => { MT.resetProgress(P); S = null; persist(); renderAdult(); $('#backupMsg').className = 'msg'; $('#backupMsg').textContent = 'Progreso reiniciado.'; }));
+    `Se borrará el progreso de ${adOp === 'div' ? 'dividir' : 'multiplicar'} de ${P.name}: niveles, estrellas y medallas de ese modo. Lo demás se queda.`, 'Sí, reiniciar',
+    () => { MT.resetProgress(P, adOp); S = null; persist(); renderAdult(); $('#backupMsg').className = 'msg'; $('#backupMsg').textContent = 'Progreso reiniciado.'; }));
   $('#btnDelete').addEventListener('click', () => askDanger(
     `Se borrará el perfil de ${P.name} con todo su progreso. No se puede deshacer.`, 'Sí, borrar perfil',
     () => { data.profiles = data.profiles.filter(p => p !== P); P = null; S = null; persist(); goProfiles(); }));

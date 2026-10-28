@@ -1,6 +1,6 @@
 # Misión Tablas
 
-Práctica de las tablas de multiplicar del 2 al 9 para niños de 9 años. La app descubre en qué multiplicaciones falla cada niño, se las repite hasta que las domina y las intercala con las que ya sabe. Las preguntas nunca se acaban.
+Práctica de las tablas de multiplicar y de dividir del 2 al 9 para niños de 9 años. La app descubre en qué multiplicaciones falla cada niño, se las repite hasta que las domina y las intercala con las que ya sabe. Las preguntas nunca se acaban.
 
 **Para jugar:** https://hernandoarteaga.github.io/mision-tablas/
 
@@ -8,6 +8,7 @@ Práctica de las tablas de multiplicar del 2 al 9 para niños de 9 años. La app
 
 ## Cómo se juega
 
+- En el inicio se elige **Multiplicar** o **Dividir**. Cada modo tiene su propio progreso, mapa, medallas, refuerzo y diploma.
 - Cada niño crea su jugador con su nombre y un animal. Varios hermanos pueden compartir el mismo dispositivo.
 - La pregunta aparece en grande y se responde con el teclado de la pantalla o con el del computador.
 - Si se equivoca, la app le muestra la respuesta con un dibujo de puntos y un truco, y el niño la escribe para seguir.
@@ -22,6 +23,15 @@ Práctica de las tablas de multiplicar del 2 al 9 para niños de 9 años. La app
 4. Solo cuenta como Dominada si la responde bien y en menos de 4 segundos. El niño nunca ve un reloj. Las dominadas vuelven cada vez más espaciadas para no olvidarlas.
 5. No mete nuevas mientras haya 4 difíciles, y si falla 3 veces la misma, le muestra la pista antes de preguntarla y la espacia más para no frustrarlo.
 
+## Tablas de dividir
+
+- Son 64 divisiones exactas, como 56 ÷ 8 = 7. La medalla de "dividir entre 7" se gana al dominar las 8 divisiones entre 7.
+- Las divisiones nuevas entran primero si el niño ya sabe la multiplicación que les corresponde (si domina 7 × 8, pronto le sale 56 ÷ 8).
+- Las pistas se apoyan en la multiplicación: "Piensa en la tabla del 7: 7 × 8 = 56". Para algunas hay trucos: ÷2 es la mitad, ÷4 la mitad de la mitad, ÷8 mitad tres veces, ÷5 contar de 5 en 5 y ÷9 la primera cifra más 1.
+- El dibujo de puntos muestra el reparto: 56 en 8 filas, 7 en cada una. Después recuerda la pareja: si 56 ÷ 8 = 7, entonces 56 ÷ 7 = 8.
+- Detecta errores típicos: responder el número entre el que se divide, restar en vez de dividir, o quedarse corto o pasarse de grupos.
+- Por defecto cuenta como rápida una respuesta de menos de 5 segundos, porque al principio dividir toma más tiempo. Se puede cambiar.
+
 ## Principios pedagógicos
 
 - **Recordar, no reconocer:** el niño siempre escribe la respuesta. No hay opción múltiple.
@@ -33,7 +43,7 @@ Práctica de las tablas de multiplicar del 2 al 9 para niños de 9 años. La app
 
 ## Para adultos
 
-El botón **Para adultos** está protegido con una multiplicación de dos cifras y abre un panel con:
+El botón **Para adultos** está protegido con una multiplicación de dos cifras y abre un panel que muestra cada modo (multiplicar o dividir) por separado, con:
 
 - mapa de calor de aciertos y tiempos por multiplicación;
 - las 10 mayores falencias, con sus confusiones frecuentes ("7 × 8: respondió 54, tres veces");

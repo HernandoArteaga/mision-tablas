@@ -16,15 +16,18 @@ function rngFrom(seed) {
 }
 const inv = k => { const t = MT.parse(k); return MT.key(t.b, t.a); };
 
-function simulate(kid, n, seed, sessionLen, setup) {
+function simulate(kid, n, seed, sessionLen, setup, op) {
   const rng = rngFrom(seed);
   let now = new Date(2026, 9, 19, 16, 0, 0).getTime();
-  const p = MT.newProfile(kid.name, '🦊', now);
-  if (setup) { setup(p); MT.ensure(p); }
+  const prof = MT.newProfile(kid.name, '🦊', now);
+  if (setup) { setup(prof); MT.ensure(prof); }
+  const p = MT.track(prof, op);
+  const known = op === 'div' ? new Set(Object.keys(prof.facts).filter(k => prof.facts[k].level >= 3)) : null;
   let s = MT.newSession(p, now), session = 0, idx = 0;
+  s.known = known;
   const log = [];
   for (let i = 0; i < n; i++) {
-    if (idx >= sessionLen) { now += 86400000; s = MT.newSession(p, now); session++; idx = 0; }
+    if (idx >= sessionLen) { now += 86400000; s = MT.newSession(p, now); s.known = known; session++; idx = 0; }
     const keys = MT.universe(p.settings);
     const L1 = keys.filter(k => p.facts[k].level === 1).length;
     const pick = MT.pickNext(p, s, rng, now);
@@ -37,7 +40,7 @@ function simulate(kid, n, seed, sessionLen, setup) {
       ok: r.correct, level: r.level, pre: pick.preHint, sessErr: r.sessionErrors, all: r.allMastered });
     idx++;
   }
-  return { p, log };
+  return { p, log, prof };
 }
 
 const right = (pk, ms) => ({ value: pk.a * pk.b, ms });
@@ -210,6 +213,77 @@ out.push('\n8) Unir el mismo perfil jugado en dos dispositivos');
   MT.syncContrib(cel, 'cel/' + A.id);
   const lap = MT.mergeProfiles(clone(back), clone(cel));
   check(lap.stars === cel.stars && lap.answered === M.answered + 15, `Tras 15 preguntas más en el celular y otra unión: ${lap.answered} respuestas en total, sin duplicar`);
+}
+
+out.push('\n9) Tablas de dividir');
+{
+  const dright = (pk, ms) => ({ value: pk.b, ms });
+  const kidDivFast = { name: 'Divide rápido', answer: pk => dright(pk, 2000) };
+  // Falla 56 ÷ 8 (responde el divisor) y 54 ÷ 6 (responde 8: 6 × 8 = 48).
+  const kidDivA = { name: 'Falla 56÷8 y 54÷6', answer: pk => pk.key === '8x7' ? { value: 8, ms: 3000 } : pk.key === '6x9' ? { value: 8, ms: 3000 } : dright(pk, 3000) };
+  const F = simulate(kidDivFast, 500, 31, 60, null, 'div');
+  const at = F.log.findIndex(e => e && e.all);
+  check(MT.universe(F.p.settings).length === 64 && MT.tables(F.p).every(t => t.total === 8),
+    '64 divisiones: 8 por tabla (÷2 a ÷9)');
+  check(at >= 0 && F.log.length === 500 && !F.log.includes(null) && F.p.medals.length === 8 && F.prof.answered === 0,
+    `Niño que divide rápido: domina las 64 en la pregunta ${at + 1}, gana las 8 medallas y sigue sin cortarse; multiplicar queda intacto`);
+  const A = simulate(kidDivA, 600, 32, 60, null, 'div');
+  let minR = Infinity, ses = 0, sumR = 0;
+  const from = Math.max(A.log.find(e => e.key === '8x7').session, A.log.find(e => e.key === '6x9').session) + 1;
+  for (let sIdx = from; sIdx < 10; sIdx++) {
+    const L = A.log.filter(e => e.session === sIdx);
+    const c1 = L.filter(e => e.key === '8x7').length, c2 = L.filter(e => e.key === '6x9').length;
+    const other = (L.length - c1 - c2) / 62;
+    minR = Math.min(minR, c1 / other, c2 / other); sumR += (c1 + c2) / 2 / other; ses++;
+  }
+  check(minR >= 3, `Sesiones ${from + 1} a 10: 56 ÷ 8 y 54 ÷ 6 salen en promedio ${(sumR / ses).toFixed(1)} veces más que una división cualquiera (mínimo ${minR.toFixed(1)})`);
+  let rep = 0;
+  for (let i = 1; i < A.log.length; i++) { const x = A.log[i], y = A.log[i - 1]; if (x.key === y.key || x.key === inv(y.key)) rep++; }
+  check(rep === 0, 'Nunca sale la misma división ni su pareja (56 ÷ 8 y 56 ÷ 7) dos veces seguidas');
+  const c = MT.divConfusion;
+  check(c(8, 7, 8).type === 'divisor' && c(8, 7, 48).type === 'resta' && /6 × 8 = 48/.test(c(6, 9, 8).text) && /faltó un grupo/.test(c(6, 9, 8).text) && /sobraron 2 grupos/.test(c(7, 3, 5).text),
+    'Confusiones: responder el divisor, restar, o quedarse corto o pasarse de grupos');
+  const w = MT.weaknesses(A.p, 3);
+  check(['8x7', '6x9'].includes(w[0].key), `Panel: la mayor falencia es ${w[0].a * w[0].b} ÷ ${w[0].a}`);
+  // Pistas de las 81 divisiones: aritmética correcta y la pista previa no revela el resultado.
+  const bad = [];
+  for (let d = 1; d <= 9; d++) for (let q = 1; q <= 9; q++) {
+    const h = MT.divHint(d, q), D = d * q, all = h.full + ' ' + (h.swap || '');
+    if (!(h.full.match(/\d+/g) || []).map(Number).includes(q)) bad.push(`${D}÷${d} sin resultado`);
+    for (const m of all.matchAll(/(\d+) × (\d+) = (\d+)/g)) if (+m[1] * +m[2] !== +m[3]) bad.push(`${D}÷${d} ×`);
+    for (const m of all.matchAll(/(\d+) ÷ (\d+) = (\d+)/g)) if (+m[1] / +m[2] !== +m[3]) bad.push(`${D}÷${d} ÷`);
+    for (const m of all.matchAll(/(\d+) \+ (\d+) = (\d+)/g)) if (+m[1] + +m[2] !== +m[3]) bad.push(`${D}÷${d} +`);
+    const chain = h.full.match(/\d+( → \d+)+/);
+    if (chain) { const v = chain[0].split(' → ').map(Number); for (let i = 1; i < v.length; i++) if (v[i] * 2 !== v[i - 1]) bad.push(`${D}÷${d} mitad`); }
+    const five = h.full.match(/hasta \d+: ([\d, ]+)\. Son (\d+)/);
+    if (five && (five[1].split(', ').length !== +five[2] || +five[2] !== q)) bad.push(`${D}÷${d} saltos`);
+    const nine = h.full.match(/primera cifra de (\d+) es (\d+)/);
+    if (nine && Math.floor(+nine[1] / 10) !== +nine[2]) bad.push(`${D}÷${d} truco 9`);
+    const exempt = q === d || D === 56;
+    if (!exempt && new RegExp('(^|[^\\d])' + q + '([^\\d]|$)').test(h.cue)) bad.push(`${D}÷${d} pista previa revela ${q}`);
+  }
+  check(bad.length === 0, `Pistas de las 81 divisiones correctas y sin revelar el resultado antes de tiempo ${bad.join(', ')}`);
+  // Si ya sabe ciertas multiplicaciones, sus divisiones entran primero.
+  const hardMul = ['6x7', '7x6', '6x8', '8x6', '7x8', '8x7'];
+  const K = simulate(kidDivFast, 40, 33, 60, p => { for (const k of hardMul) p.facts[k].level = 4; }, 'div');
+  const firstNew = K.log.filter(e => e.kind === 'nueva').slice(0, 4).map(e => e.key);
+  check(firstNew.length === 4 && firstNew.every(k => hardMul.includes(k)),
+    `Sabe 6 × 7, 6 × 8 y 7 × 8: las primeras divisiones nuevas son ${firstNew.map(k => { const t = MT.parse(k); return t.a * t.b + ' ÷ ' + t.a; }).join(', ')}`);
+  // Unir dispositivos también une la división; un perfil viejo sin división la recibe vacía.
+  const clone = x => JSON.parse(JSON.stringify(x));
+  const X = simulate(kidDivFast, 60, 34, 60, null, 'div').prof, Y = simulate(kidDivA, 50, 35, 60, null, 'div').prof;
+  MT.syncContrib(X, 'cel/' + X.id); MT.syncContrib(Y, 'lap/' + Y.id);
+  const M = MT.mergeProfiles(clone(X), clone(Y));
+  check(M.div.stars === X.div.stars + Y.div.stars && M.div.answered === 110 && M.answered === 0,
+    `Unir dispositivos: ${X.div.stars} + ${Y.div.stars} estrellas de dividir → ${M.div.stars}`);
+  const old = clone(runs.A.p); delete old.div; delete old.mode;
+  const mulBefore = JSON.stringify(old.facts);
+  MT.ensure(old);
+  check(Object.keys(old.div.facts).length === 64 && old.div.answered === 0 && JSON.stringify(old.facts) === mulBefore && old.mode === 'mul',
+    'Un perfil de antes recibe la división vacía sin tocar su progreso de multiplicar');
+  const R = clone(F.prof); MT.resetProgress(R, 'div');
+  const R2 = clone(runs.A.p); MT.ensure(R2); R2.div = clone(F.p); MT.resetProgress(R2, 'mul');
+  check(R.div.answered === 0 && R2.answered === 0 && R2.div.answered === 500, 'Reiniciar un modo no borra el otro');
 }
 
 out.push('\nExtras');

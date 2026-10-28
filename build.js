@@ -22,7 +22,7 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Práctica adaptativa de las tablas de multiplicar del 2 al 9 para niños de 9 años.">
+<meta name="description" content="Práctica adaptativa de las tablas de multiplicar y de dividir del 2 al 9 para niños de 9 años.">
 <meta name="theme-color" content="#FCFDFF">
 <link rel="icon" href="${icon}">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>

@@ -30,11 +30,15 @@ def watch(page):
     page.on('console', lambda m: errors.append('console: ' + m.text) if m.type == 'error' and 'fonts' not in m.text else None)
 
 
-def qnums(page):
-    return int(page.inner_text('#qa')), int(page.inner_text('#qb'))
+def qinfo(page):
+    a, b = int(page.inner_text('#qa')), int(page.inner_text('#qb'))
+    op = page.inner_text('#qop')
+    return a, b, (a // b if op == '÷' else a * b), op
 
 
-def wrong_for(a, b):
+def wrong_val(a, b, ans, op):
+    if op == '÷':
+        return ans + 1 if ans < 9 else ans - 1
     v = a * b + b
     return v if v < 100 else a * b - b
 
@@ -49,18 +53,21 @@ def play_touch(page, n, wrong_at, shots=None):
             page.tap('#roundGo'); page.wait_for_function(READY); continue
         if page.is_visible('#o-medal'):
             page.tap('#medalOk'); page.wait_for_function(READY); continue
-        a, b = qnums(page)
+        a, b, ans, op = qinfo(page)
         if answered == wrong_at:
-            for d in str(wrong_for(a, b)): page.tap(f'.key[data-k="{d}"]')
+            for d in str(wrong_val(a, b, ans, op)): page.tap(f'.key[data-k="{d}"]')
             page.tap('.key[data-k="ok"]')
             page.wait_for_timeout(450)
             circles = len(page.query_selector_all('#fixBox svg circle'))
-            ok(page.is_visible('#fixBox') and str(a * b) in page.inner_text('.copy-tip') and circles == a * b,
-               f'Error en {a} × {b}: muestra {a * b}, un arreglo de {circles} puntos y pide copiarlo')
+            dots = a if op == '÷' else a * b
+            fb, qt = page.locator('#feedback').bounding_box(), page.locator('#qText').bounding_box()
+            ok(fb['y'] + fb['height'] <= qt['y'] + 1, f'El mensaje ({fb["height"]:.0f} px de alto) no se encima con la pregunta')
+            ok(page.is_visible('#fixBox') and str(ans) in page.inner_text('.copy-tip') and circles == dots,
+               f'Error en {a} {op} {b}: muestra {ans}, un arreglo de {circles} puntos y pide copiarlo')
             if shots: page.screenshot(path=shots['fix'])
-            for d in str(a * b): page.tap(f'.key[data-k="{d}"]')
+            for d in str(ans): page.tap(f'.key[data-k="{d}"]')
         else:
-            for d in str(a * b): page.tap(f'.key[data-k="{d}"]')
+            for d in str(ans): page.tap(f'.key[data-k="{d}"]')
             page.tap('.key[data-k="ok"]')
         answered += 1
         page.wait_for_function(READY, timeout=8000)
@@ -139,8 +146,8 @@ with sync_playwright() as pw:
     page.tap('#btnPlay'); page.wait_for_function(READY)
     play_touch(page, 2, 99)
     page.screenshot(path=f'{SHOTS}/t1-play.png')
-    a, b = qnums(page)
-    for d in str(wrong_for(a, b)): page.tap(f'.key[data-k="{d}"]')
+    a, b, ans, op = qinfo(page)
+    for d in str(wrong_val(a, b, ans, op)): page.tap(f'.key[data-k="{d}"]')
     page.tap('.key[data-k="ok"]'); page.wait_for_timeout(500)
     page.screenshot(path=f'{SHOTS}/t2-fix.png')
     ctx.close()
@@ -167,13 +174,13 @@ with sync_playwright() as pw:
         if page.is_visible('#o-medal'):
             page.wait_for_function("() => document.activeElement && document.activeElement.id === 'medalOk'")
             page.keyboard.press('Enter'); page.wait_for_function("() => document.getElementById('o-medal').hidden"); page.wait_for_function(READY); continue
-        a, b = qnums(page)
+        a, b, ans, op = qinfo(page)
         if answered == 5:
-            page.keyboard.type(str(wrong_for(a, b))); page.keyboard.press('Enter'); page.wait_for_timeout(400)
+            page.keyboard.type(str(wrong_val(a, b, ans, op))); page.keyboard.press('Enter'); page.wait_for_timeout(400)
             page.keyboard.type('9'); page.keyboard.press('Backspace')
-            page.keyboard.type(str(a * b)); fixed = True
+            page.keyboard.type(str(ans)); fixed = True
         else:
-            page.keyboard.type(str(a * b)); page.keyboard.press('Enter')
+            page.keyboard.type(str(ans)); page.keyboard.press('Enter')
         answered += 1
         page.wait_for_function(READY, timeout=8000)
     ok(answered == 12 and rounds == 1 and fixed, f'Solo con teclado: {answered} respuestas, una corrección y {rounds} fin de ronda con Enter')
@@ -219,6 +226,40 @@ with sync_playwright() as pw:
     new_profile(p2, 'JULIETA')
     ok(p2.evaluate(count_js) == 1 and 'julieta' in p2.inner_text('#homeHello').lower(), 'Crear "JULIETA" otra vez entra al perfil que ya existe')
     c1.close(); c2.close()
+
+    # ---------- Tablas de dividir ----------
+    ctx = br.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, is_mobile=True)
+    page = ctx.new_page(); watch(page); page.goto(URL); page.wait_for_timeout(500)
+    new_profile(page, 'Mateo')
+    page.tap('#s-home .mode[data-op="div"]'); page.wait_for_timeout(200)
+    ok('divisiones dominadas' in page.inner_text('#homeCountLabel') and page.get_attribute('#s-home .mode[data-op="div"]', 'aria-pressed') == 'true',
+       'En el inicio se elige Dividir: "0 de 64 divisiones dominadas"')
+    page.screenshot(path=f'{SHOTS}/v1-home.png')
+    page.tap('#btnPlay'); page.wait_for_function(READY)
+    q_ok = page.inner_text('#qop') == '÷' and int(page.inner_text('#qa')) % int(page.inner_text('#qb')) == 0
+    page.screenshot(path=f'{SHOTS}/v2-play.png')
+    seen = play_touch(page, 12, 2, {'fix': f'{SHOTS}/v3-fix.png', 'round': f'{SHOTS}/v4-round.png'})
+    ok(q_ok and seen, 'Pregunta "56 ÷ 8 = ?" con resultado exacto; 12 respuestas y fin de ronda')
+    stars = page.inner_text('#hudStarsN')
+    page.tap('#btnExit'); page.wait_for_timeout(250); page.reload(); page.wait_for_timeout(600)
+    ok(page.get_attribute('#s-home .mode[data-op="div"]', 'aria-pressed') == 'true' and page.inner_text('#homeStars') == stars,
+       f'Tras recargar sigue en Dividir con sus {stars} estrellas')
+    page.tap('#btnMap'); page.wait_for_timeout(250)
+    page.tap('#mapGrid .cell[data-k="8x7"]')
+    info = page.inner_text('#mapInfo')
+    ok(page.inner_text('#mapGrid .cell.h') == '÷' and '56 ÷ 8' in info and 'Dividir entre 7' in page.inner_text('#tableList'),
+       f'Mapa de divisiones: "{info}"')
+    page.screenshot(path=f'{SHOTS}/v5-map.png', full_page=True)
+    page.tap('#s-map .back'); page.wait_for_timeout(200)
+    open_adult(page)
+    div_fast = page.get_attribute('#setFast button[data-v="5000"]', 'aria-pressed') == 'true'
+    weak_div = '÷' in page.inner_text('#weakList')
+    page.screenshot(path=f'{SHOTS}/v6-adult.png', full_page=True)
+    page.tap('#adOps button[data-op="mul"]'); page.wait_for_timeout(200)
+    ok(div_fast and weak_div and page.get_attribute('#setFast button[data-v="4000"]', 'aria-pressed') == 'true'
+       and page.inner_text('#adKpis').startswith('0 / 64'),
+       'Panel para adultos por modo: dividir (falencias con ÷, rapidez 5 s) y multiplicar (sin jugar, 4 s)')
+    ctx.close()
     br.close()
 
 srv.terminate()
