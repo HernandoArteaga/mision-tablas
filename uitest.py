@@ -22,7 +22,7 @@ def ok(cond, msg):
 READY = """() => { const vis = id => !document.getElementById(id).hidden;
   if (vis('o-round') || vis('o-medal') || vis('o-diploma')) return true;
   const c = document.getElementById('qCard'), s = document.getElementById('slot');
-  return !document.getElementById('s-play').hidden && s.textContent === '?' && !c.classList.contains('good') && !c.classList.contains('fixing'); }"""
+  return !document.getElementById('s-play').hidden && s.textContent === '?' && !c.classList.contains('good') && !c.classList.contains('fixing') && !c.classList.contains('testwrong'); }"""
 
 
 def watch(page):
@@ -259,6 +259,65 @@ with sync_playwright() as pw:
     ok(div_fast and weak_div and page.get_attribute('#setFast button[data-v="4000"]', 'aria-pressed') == 'true'
        and page.inner_text('#adKpis').startswith('0 / 64'),
        'Panel para adultos por modo: dividir (falencias con ÷, rapidez 5 s) y multiplicar (sin jugar, 4 s)')
+    ctx.close()
+
+    # ---------- Test definitivo: ganar y perder ----------
+    def run_test(pg, wrong_at):
+        pg.tap('#btnTest'); pg.wait_for_timeout(250)
+        pg.tap('#tsGo'); pg.wait_for_function(READY)
+        n = int(pg.inner_text('#testCount').split(' de ')[1]); done = 0
+        while done < n:
+            a, b, ans, op = qinfo(pg)
+            pg.keyboard.type(str(wrong_val(a, b, ans, op) if done in wrong_at else ans)); pg.keyboard.press('Enter')
+            done += 1
+            if done < n: pg.wait_for_function(READY, timeout=8000)
+        return n
+
+    ctx = br.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, is_mobile=True)
+    page = ctx.new_page(); watch(page); page.goto(URL); page.wait_for_timeout(500)
+    new_profile(page, 'Julieta')
+    ok('locked' in page.get_attribute('#btnTest', 'class') and 'Llevas 0' in page.inner_text('#testSub'), 'El test aparece cerrado mientras no domine las 64')
+    open_adult(page)
+    page.tap('#setTestAlways'); page.wait_for_timeout(150)
+    page.fill('#setPrize', 'Un helado con Papá'); page.dispatch_event('#setPrize', 'change'); page.wait_for_timeout(150)
+    page.tap('#s-adult .back'); page.wait_for_timeout(250)
+    sub = page.inner_text('#testSub')
+    ok('locked' not in page.get_attribute('#btnTest', 'class') and 'Un helado con Papá' in sub, f'Abierto por el adulto, muestra el premio: "{sub}"')
+    page.screenshot(path=f'{SHOTS}/w1-home.png')
+    n = run_test(page, {7, 30})
+    page.wait_for_selector('#o-prize:not([hidden])', timeout=8000)
+    page.wait_for_timeout(2600)
+    page.screenshot(path=f'{SHOTS}/w2-prize.png')
+    title = page.get_attribute('#prizeTitle', 'aria-label')
+    song = page.evaluate("document.documentElement.dataset.song || ''")
+    ok(title == '¡Test definitivo superado!' and 'Un helado con Papá' in page.inner_text('#tPrize') and page.is_visible('#prizeTicket') and song == 'playing',
+       f'Test de {n} con 2 errores: celebración, vale "{page.inner_text("#tPrize")}" y canción sonando')
+    page.tap('#prizeOk'); page.wait_for_timeout(300)
+    ok(page.is_visible('#btnTicket') and page.evaluate("!document.documentElement.dataset.song"), 'Al cerrar se detiene la canción y el inicio muestra el premio por reclamar')
+    page.tap('#btnTicket'); page.wait_for_timeout(400)
+    page.tap('#prizeClaim'); page.wait_for_timeout(250)
+    x, y = [int(t) for t in page.inner_text('#gateQ').split('×')]
+    page.fill('#gateInput', str(x * y)); page.tap('#gateForm button[type=submit]'); page.wait_for_timeout(300)
+    stamp = page.is_visible('#tStamp')
+    page.tap('#prizeOk'); page.wait_for_timeout(300)
+    ok(stamp and not page.is_visible('#btnTicket') and 'Récord: 62 de 64' in page.inner_text('#testSub'), 'Papá lo marca como entregado (con la barrera para adultos); queda el récord 62 de 64')
+    ctx.close()
+
+    ctx = br.new_context(viewport={'width': 1180, 'height': 820}, has_touch=True)
+    page = ctx.new_page(); watch(page); page.goto(URL); page.wait_for_timeout(500)
+    new_profile(page, 'Ana')
+    open_adult(page)
+    for t in ['3', '4', '5', '6', '7', '8', '9']: page.tap(f'#setTables .tchip[data-n="{t}"]'); page.wait_for_timeout(60)
+    page.tap('#setTestAlways'); page.wait_for_timeout(100)
+    page.tap('#s-adult .back'); page.wait_for_timeout(250)
+    n = run_test(page, {0, 3, 6})
+    page.wait_for_selector('#o-test:not([hidden])', timeout=8000)
+    page.screenshot(path=f'{SHOTS}/w3-fail.png')
+    lines = page.inner_text('#testLines')
+    ok(page.inner_text('#testScore') == f'{n - 3} de {n}' and 'Para practicar' in lines and not page.is_visible('#o-prize'),
+       f'Test de {n} con 3 errores no gana: "{lines.splitlines()[0]}"')
+    page.tap('#testPractice'); page.wait_for_function(READY)
+    ok(page.is_visible('#roundDots') and not page.is_visible('#testBar'), '"Practicar ahora" vuelve a la práctica normal')
     ctx.close()
     br.close()
 

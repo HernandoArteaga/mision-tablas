@@ -286,6 +286,48 @@ out.push('\n9) Tablas de dividir');
   check(R.div.answered === 0 && R2.answered === 0 && R2.div.answered === 500, 'Reiniciar un modo no borra el otro');
 }
 
+out.push('\n10) Test definitivo y premio');
+{
+  const clone = x => JSON.parse(JSON.stringify(x));
+  const p = MT.newProfile('Julieta', '🦉');
+  let allOk = true, valid = 0;
+  for (let seed = 1; seed <= 200; seed++) {
+    const o = MT.testOrder(p, rngFrom(seed));
+    if (o.length !== 64 || new Set(o).size !== 64) allOk = false;
+    if (MT.testValid(o)) valid++;
+  }
+  check(allOk && valid === 200, `200 tests de multiplicar: siempre las 64 una vez cada una, mezcladas (sin repetidas, invertidas ni 3 seguidas de la misma tabla en ${valid} de 200)`);
+  let dv = 0;
+  for (let seed = 1; seed <= 100; seed++) { const o = MT.testOrder(p.div, rngFrom(seed)); if (o.length === 64 && new Set(o).size === 64 && MT.testValid(o)) dv++; }
+  const small = clone(p); small.settings.tables = [7]; MT.ensure(small);
+  const so = MT.testOrder(small, rngFrom(3));
+  check(dv === 100 && so.length === MT.universe(small.settings).length && new Set(so).size === so.length,
+    `Dividir: 100 de 100 tests bien mezclados; con solo la tabla del 7 el test tiene ${so.length} preguntas`);
+  check(MT.testNeeded(64) === 58 && !MT.testOpen(p), 'Se gana con 58 de 64; cerrado mientras no domine todas');
+  const done = simulate(kidFast, 260, 13, 60).p;
+  const forced = clone(p); forced.settings.testAlways = true;
+  check(MT.testOpen(done) && MT.testOpen(forced), 'Se abre al dominar las 64, o antes si el adulto lo permite');
+  const q = clone(done);
+  const r1 = MT.recordTest(q, 55, 64, 1000);
+  const r2 = MT.recordTest(q, 60, 64, 2000);
+  const r3 = MT.recordTest(q, 63, 64, 3000);
+  check(!r1.passed && r2.passed && r2.prizeWon && r3.passed && !r3.prizeWon && r3.prizePending && q.test.best === 63 && q.prize.text === 'Un plan especial con Papá',
+    '55/64 no gana; 60/64 gana el premio; volver a aprobar no da otro premio mientras siga pendiente; récord 63');
+  MT.claimPrize(q, 4000);
+  const r4 = MT.recordTest(q, 62, 64, 5000);
+  MT.newPrize(q);
+  const r5 = MT.recordTest(q, 59, 64, 6000);
+  check(q.prize.round === 1 && !r4.prizeWon && r5.prizeWon && q.prize.claimedAt === 0, 'Tras entregarlo, "preparar otro premio" permite ganar uno nuevo');
+  // Unir dispositivos: ganado en uno, entregado en el otro.
+  const A = clone(done), B = clone(done);
+  MT.recordTest(A, 61, 64, 7000);
+  B.prize = clone(A.prize); MT.claimPrize(B, 8000);
+  const M = MT.mergeProfiles(clone(A), clone(B));
+  check(M.prize.wonAt === 7000 && M.prize.claimedAt === 8000 && M.test.best === 61, 'Unir dispositivos conserva el premio, su entrega y el récord');
+  const R = clone(q); MT.resetProgress(R, 'mul');
+  check(R.prize.round === 1 && R.prize.wonAt === 6000 && R.answered === 0, 'Reiniciar el progreso no borra un premio ganado');
+}
+
 out.push('\nExtras');
 {
   let viol = 0, total = 0;

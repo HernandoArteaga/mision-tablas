@@ -35,6 +35,10 @@
   --lv4: #35B467;
   --gold: #F5B700;
   --gold-deep: #B88400;
+  --gold-soft: #FFF0B3;
+  --night: #1A2150;
+  --night-2: #3A2A8C;
+  --moon: #E6E9FF;
   --font-display: "Baloo 2", ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif;
   --font-body: "Nunito", ui-rounded, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color-scheme: light;
@@ -129,6 +133,7 @@ body.playing #app { height: 100%; }
   border: 2px solid var(--line); background: var(--card);
   font-family: var(--font-display); font-weight: 700; font-size: 28px; color: var(--ink);
 }
+.field.small { font-family: var(--font-body); font-size: 20px; min-height: 56px; }
 .field:focus { border-color: var(--stamp); outline: none; box-shadow: 0 0 0 4px var(--stamp-soft); }
 .avatar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); gap: 10px; }
 .avatar-opt {
@@ -444,8 +449,85 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
 @keyframes shake { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
 @keyframes stampIn { from { transform: rotate(-30deg) scale(1.8); opacity: 0; } to { transform: rotate(-14deg) scale(1); opacity: 1; } }
 @keyframes pop { from { transform: scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
+/* ---------- Test definitivo ---------- */
+.test-card {
+  display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; min-height: 76px; padding: 12px 16px;
+  border-radius: 22px; border: 2px solid var(--gold-deep); background: linear-gradient(135deg, var(--gold-soft), var(--gold));
+  box-shadow: 0 5px 0 var(--gold-deep); color: var(--ink); touch-action: manipulation;
+}
+.test-card:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--gold-deep); }
+.test-card .tc-icon { flex: none; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: rgba(255, 255, 255, .65); font-size: 30px; line-height: 1; }
+.test-card .tc-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.test-card b { font-family: var(--font-display); font-weight: 800; font-size: 24px; line-height: 1.1; }
+.test-card .tc-sub { font-weight: 700; font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }
+.test-card .chev { font-family: var(--font-display); font-size: 34px; color: var(--gold-deep); }
+.test-card.locked { background: var(--card); border: 2px dashed var(--line); box-shadow: none; color: var(--ink-2); cursor: default; }
+.test-card.locked .tc-icon { background: var(--lv0); }
+.test-card.locked .chev { display: none; }
+.test-card.locked:active { transform: none; }
+.test-card.shake { animation: shake .35s ease; }
+.ticket-banner {
+  display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 56px; padding: 8px 16px; border-radius: 18px;
+  border: 2px solid var(--stamp); background: var(--stamp-soft); color: var(--stamp); box-shadow: 0 4px 0 var(--stamp);
+  font-family: var(--font-display); font-weight: 800; font-size: 19px; line-height: 1.15;
+}
+.ticket-banner:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--stamp); }
+.test-bar { order: 3; flex-basis: 100%; display: grid; gap: 4px; justify-items: center; }
+@media (min-width: 600px) { .test-bar { order: 0; flex: 1 1 auto; max-width: 340px; } }
+.test-bar span { font-weight: 800; font-size: 15px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.tb-track { width: 100%; height: 12px; border-radius: 999px; background: var(--lv0); border: 1.5px solid var(--line); overflow: hidden; }
+.tb-track i { display: block; height: 100%; width: 0; background: var(--gold); border-radius: 999px; transition: width .3s ease; }
+body.testing .round-dots { display: none; }
+.q-card.testwrong { background: var(--warm-soft); border-color: var(--warm-line); }
+
+/* ---------- Gran celebración ---------- */
+.overlay.prize { display: flex; flex-direction: column; background: radial-gradient(circle at 50% 28%, var(--night-2) 0%, var(--night) 58%, #0B1030 100%); }
+#fireworks { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.prize-stage { position: relative; margin: auto; width: 100%; max-width: 520px; display: grid; gap: 14px; justify-items: center; text-align: center; color: #fff; padding-block: 6px; }
+.trophy-wrap { position: relative; width: 200px; height: 178px; display: grid; place-items: center; }
+.rays {
+  position: absolute; inset: -70px; border-radius: 50%;
+  background: repeating-conic-gradient(rgba(255, 213, 74, .3) 0deg 9deg, transparent 9deg 18deg);
+  -webkit-mask: radial-gradient(circle, #000 22%, transparent 70%); mask: radial-gradient(circle, #000 22%, transparent 70%);
+  animation: spin 16s linear infinite;
+}
+.trophy { position: relative; width: 160px; height: auto; filter: drop-shadow(0 10px 24px rgba(255, 196, 0, .45)); animation: trophyIn .8s cubic-bezier(.2, 1.5, .4, 1) both, float 3s ease-in-out .8s infinite; }
+.prize-title { font-size: clamp(30px, 8vw, 46px); font-weight: 800; color: var(--gold); text-shadow: 0 3px 0 #7A4E00, 0 0 24px rgba(255, 213, 74, .5); line-height: 1.08; }
+.prize-title .word { display: inline-block; white-space: nowrap; }
+.prize-title .ltr { display: inline-block; animation: letterIn .5s cubic-bezier(.2, 1.6, .4, 1) both; animation-delay: calc(.35s + var(--i) * 35ms); }
+.prize-score { font-family: var(--font-display); font-weight: 700; font-size: 21px; color: var(--moon); }
+.ticket {
+  position: relative; width: 100%; max-width: 420px; padding: 18px 34px; color: var(--ink); overflow: hidden;
+  background: linear-gradient(135deg, #FFF6D0 0%, #FFE07A 45%, var(--gold) 100%); border-radius: 16px; display: grid; gap: 4px;
+  -webkit-mask: radial-gradient(circle 15px at left center, transparent 14px, #000 15px) left / 51% 100% no-repeat, radial-gradient(circle 15px at right center, transparent 14px, #000 15px) right / 51% 100% no-repeat;
+  mask: radial-gradient(circle 15px at left center, transparent 14px, #000 15px) left / 51% 100% no-repeat, radial-gradient(circle 15px at right center, transparent 14px, #000 15px) right / 51% 100% no-repeat;
+  animation: ticketIn .7s cubic-bezier(.2, 1.3, .4, 1) 1.3s both;
+}
+.ticket::before { content: ""; position: absolute; inset: 8px 24px; border: 2px dashed rgba(122, 78, 0, .45); border-radius: 10px; pointer-events: none; }
+.ticket::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, .75) 45%, transparent 60%); transform: translateX(-120%); animation: shine 3.2s ease-in-out 2.2s infinite; pointer-events: none; }
+.t-kicker { font-weight: 900; letter-spacing: .3em; font-size: 13px; color: #7A4E00; }
+.t-prize { font-family: var(--font-display); font-weight: 800; font-size: clamp(24px, 6.5vw, 34px); line-height: 1.1; overflow-wrap: anywhere; }
+.t-for { font-weight: 700; font-size: 15px; color: var(--ink-2); }
+.t-claim { font-weight: 900; font-size: 16px; color: var(--stamp); }
+.t-stamp {
+  position: absolute; right: 26px; top: 50%; transform: translateY(-50%) rotate(-16deg); padding: 4px 10px; border-radius: 10px;
+  border: 4px double var(--ok-edge); color: var(--ok-edge); background: rgba(255, 255, 255, .7);
+  font-family: var(--font-display); font-weight: 800; font-size: 20px;
+}
+.prize-actions { display: grid; gap: 10px; width: 100%; max-width: 420px; }
+.prize-actions .chip { justify-self: center; background: transparent; color: var(--moon); border-color: rgba(230, 233, 255, .5); }
+.btn.ghost { background: transparent; color: #fff; border-color: rgba(255, 255, 255, .55); box-shadow: 0 4px 0 rgba(255, 255, 255, .25); }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes trophyIn { from { transform: translateY(40px) scale(.3) rotate(-12deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes float { 50% { transform: translateY(-8px); } }
+@keyframes letterIn { from { transform: translateY(30px) scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes ticketIn { from { transform: perspective(600px) rotateX(85deg) translateY(-20px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes shine { 0% { transform: translateX(-120%); } 45%, 100% { transform: translateX(120%); } }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+  .prize-title .ltr, .ticket, .trophy, .ticket::after { animation-delay: 0s !important; }
+  .rays { animation: none !important; }
 }
 </style>
 
@@ -502,6 +584,12 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     <button id="btnPlay" class="btn primary big" type="button">¡A jugar!</button>
     <p id="homeNote" class="home-note"></p>
     <p id="homeBoost" class="home-note boost" hidden></p>
+    <button id="btnTicket" class="ticket-banner" type="button" hidden><span aria-hidden="true">🎟️</span> Tienes un premio para reclamar con Papá</button>
+    <button id="btnTest" class="test-card" type="button">
+      <span class="tc-icon" id="testIcon" aria-hidden="true">🏆</span>
+      <span class="tc-text"><b>Test definitivo</b><span class="tc-sub" id="testSub"></span></span>
+      <span class="chev" aria-hidden="true">›</span>
+    </button>
     <div class="home-grid">
       <button id="btnMap" class="tile" type="button">
         <h2>Mapa de las Tablas <span class="go" aria-hidden="true">›</span></h2>
@@ -520,6 +608,7 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     <div class="play-top">
       <button id="btnExit" class="chip" type="button">← Salir</button>
       <div id="roundDots" class="round-dots" role="img" aria-label="Avance de la ronda"></div>
+      <div id="testBar" class="test-bar" hidden><span id="testCount"></span><div class="tb-track" aria-hidden="true"><i id="testFill"></i></div></div>
       <div class="hud">
         <span class="hud-item" id="hudStars" aria-label="Estrellas"><span aria-hidden="true">⭐</span> <span id="hudStarsN">0</span></span>
         <span class="hud-item" id="hudStreak" aria-label="Racha de aciertos"><span aria-hidden="true">🔥</span> <span id="hudStreakN">0</span></span>
@@ -644,6 +733,16 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
       <button type="button" class="switch" role="switch" id="setSound" aria-checked="true"><span>Sonidos</span><span class="track" aria-hidden="true"></span></button>
     </div>
 
+    <div class="panel" id="testPanel">
+      <h2>Test definitivo y premio</h2>
+      <p class="sub" id="testInfo"></p>
+      <label for="setPrize" class="label">Premio para reclamar con Papá</label>
+      <input id="setPrize" class="field small" maxlength="60" autocomplete="off" placeholder="Ej.: Un helado con Papá">
+      <button type="button" class="switch" role="switch" id="setTestAlways" aria-checked="false"><span>Abrir el test aunque no las domine todas</span><span class="track" aria-hidden="true"></span></button>
+      <p class="note" id="prizeStatus"></p>
+      <div class="row"><button type="button" class="btn go" id="btnClaim" hidden>Marcar como entregado</button><button type="button" class="btn" id="btnNewPrize" hidden>Preparar otro premio</button></div>
+    </div>
+
     <div class="panel" id="syncPanel">
       <h2>Unir con otro dispositivo</h2>
       <p class="sub">Cada dispositivo guarda su propio progreso. Si juega en dos, únelos así:</p>
@@ -734,6 +833,67 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     <div class="actions">
       <button type="button" class="btn go" id="dipSave" hidden>Guardar como imagen</button>
       <button type="button" class="btn" id="dipClose" data-autofocus>Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div id="o-tstart" class="overlay" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="tsTitle">
+    <div style="font-size:56px;line-height:1" aria-hidden="true">🏆</div>
+    <h2 id="tsTitle">Test definitivo</h2>
+    <div class="lines" id="tsLines"></div>
+    <div class="actions">
+      <button type="button" class="btn primary big" id="tsGo" data-autofocus>¡Empezar!</button>
+      <button type="button" class="btn" id="tsNo">Todavía no</button>
+    </div>
+  </div>
+</div>
+
+<div id="o-test" class="overlay" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="testTitle">
+    <h2 id="testTitle">¡Buen intento!</h2>
+    <p class="big-stars" id="testScore"></p>
+    <div class="lines" id="testLines"></div>
+    <div class="actions">
+      <button type="button" class="btn primary big" id="testPractice" data-autofocus>Practicar ahora</button>
+      <button type="button" class="btn" id="testHome">Volver al inicio</button>
+    </div>
+  </div>
+</div>
+
+<div id="o-prize" class="overlay prize" hidden>
+  <canvas id="fireworks" aria-hidden="true"></canvas>
+  <div class="prize-stage" role="dialog" aria-modal="true" aria-labelledby="prizeTitle">
+    <div class="trophy-wrap" aria-hidden="true">
+      <div class="rays"></div>
+      <svg class="trophy" viewBox="0 0 120 130">
+        <defs>
+          <linearGradient id="tg-gold" x1="0" x2="1"><stop offset="0" stop-color="#FFE98A"/><stop offset=".45" stop-color="#FFC21A"/><stop offset="1" stop-color="#C98A00"/></linearGradient>
+          <linearGradient id="tg-dark" x1="0" x2="1"><stop offset="0" stop-color="#E0A100"/><stop offset="1" stop-color="#8F6100"/></linearGradient>
+        </defs>
+        <path d="M30 22 H16 C10 22 8 28 9 34 C11 46 21 54 34 56" fill="none" stroke="url(#tg-gold)" stroke-width="7" stroke-linecap="round"/>
+        <path d="M90 22 H104 C110 22 112 28 111 34 C109 46 99 54 86 56" fill="none" stroke="url(#tg-gold)" stroke-width="7" stroke-linecap="round"/>
+        <path d="M28 12 H92 V40 C92 64 78 80 60 82 C42 80 28 64 28 40 Z" fill="url(#tg-gold)"/>
+        <rect x="53" y="81" width="14" height="16" fill="url(#tg-dark)"/>
+        <path d="M40 97 H80 L84 108 H36 Z" fill="url(#tg-gold)"/>
+        <rect x="28" y="108" width="64" height="14" rx="4" fill="url(#tg-dark)"/>
+        <path d="M60 26 L65 37 L77 38 L68 46 L71 58 L60 52 L49 58 L52 46 L43 38 L55 37 Z" fill="#FFF6C9"/>
+        <path d="M36 18 C36 40 40 56 50 70" fill="none" stroke="#FFFFFF" stroke-opacity=".55" stroke-width="5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h2 id="prizeTitle" class="prize-title"></h2>
+    <p id="prizeScore" class="prize-score"></p>
+    <div id="prizeTicket" class="ticket" hidden>
+      <span class="t-kicker">VALE POR</span>
+      <span class="t-prize" id="tPrize"></span>
+      <span class="t-for" id="tFor"></span>
+      <span class="t-claim">Reclámalo con Papá</span>
+      <span class="t-stamp" id="tStamp" hidden>¡Entregado!</span>
+    </div>
+    <div class="prize-actions">
+      <button type="button" class="btn primary big" id="prizeOk" data-autofocus>¡Genial!</button>
+      <button type="button" class="btn ghost" id="prizeSong">♪ Escuchar la canción</button>
+      <button type="button" class="chip" id="prizeClaim">Para Papá: ya lo entregué</button>
     </div>
   </div>
 </div>
@@ -834,6 +994,7 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
   let P = data.profiles.find(p => p.id === data.current) || null;
   let S = null;     // sesión
   let Q = null;     // pregunta en curso
+  let TEST = null;  // test definitivo en curso
   let dl = null;    // capacidad para guardar archivos
   function persist() { if (P) MT.syncContrib(P, ckey(P)); data.current = P ? P.id : null; Store.save(data); }
   // Une perfiles que llegan de otro dispositivo (código o archivo) con los de aquí, por nombre.
@@ -951,6 +1112,8 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
   function show(name) {
     SCREENS.forEach(n => { $('#s-' + n).hidden = n !== name; });
     document.body.classList.toggle('playing', name === 'play');
+    document.body.classList.toggle('testing', name === 'play' && !!TEST);
+    $('#testBar').hidden = !(name === 'play' && TEST);
     current = name;
     window.scrollTo(0, 0);
     screenFocus().focus({ preventScroll: true });
@@ -1084,6 +1247,7 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     const mm = $('#miniMap'); mm.style.setProperty('--cols', F.length);
     mm.innerHTML = F.map(a => F.map(b => { const k = MT.key(a, b); return U.has(k) ? `<i style="background:var(--lv${T.facts[k].level})"></i>` : '<i style="background:transparent"></i>'; }).join('')).join('');
     $('#btnDiploma').hidden = !T.masteredAll;
+    renderTestCard(T);
     const bk = MT.boostKeys(T.settings).filter(k => U.has(k));
     $('#homeBoost').hidden = !bk.length;
     $('#homeBoost').textContent = bk.length ? 'Refuerzo activo: ' + factsPhrase(op, bk, 4) : '';
@@ -1117,7 +1281,8 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
   }
   function renderHud(res) {
     $('#hudStarsN').textContent = totalStars();
-    $('#hudStreakN').textContent = S ? S.streak : 0;
+    const sess = TEST ? TEST.sess : S;
+    $('#hudStreakN').textContent = sess ? sess.streak : 0;
     if (res && res.correct) {
       ['#hudStars', '#hudStreak'].forEach(s => { const el = $(s); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); });
     }
@@ -1139,7 +1304,7 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     P.settings.sound = !P.settings.sound; Sound.unlock(); persist(); renderSound();
     if (e.detail) $('#s-play').focus({ preventScroll: true }); // tras un toque, Enter vuelve a comprobar respuestas
   });
-  $('#btnExit').addEventListener('click', () => { Q = null; goHome(); });
+  $('#btnExit').addEventListener('click', () => { Q = null; TEST = null; goHome(); });
 
   function setFeedback(html, cls) { const f = $('#feedback'); f.className = 'feedback ' + (cls || ''); f.innerHTML = html; }
   function nextQuestion() {
@@ -1148,6 +1313,10 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     const op = S.op, T = trk(op);
     S.known = op === 'div' ? knownMul() : null; // al dividir, primero las que ya sabe multiplicar
     const pick = MT.pickNext(T, S, Math.random, Date.now());
+    showQuestion(op, T, pick);
+    renderDots(); renderHud();
+  }
+  function showQuestion(op, T, pick) {
     Q = { pick: pick, typed: '', phase: 'ask', start: performance.now(), hiddenAt: null, res: null };
     const card = $('#qCard');
     card.className = 'q-card';
@@ -1165,7 +1334,7 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     $('#stamp').hidden = true;
     const ph = $('#preHint');
     if (pick.preHint) { ph.hidden = false; ph.innerHTML = '<b>Pista:</b> ' + esc(MT.hintFor(T.settings, pick.a, pick.b).cue); } else ph.hidden = true;
-    renderSlot(); renderDots(); renderHud();
+    renderSlot();
   }
   function renderSlot() {
     const slot = $('#slot');
@@ -1191,6 +1360,7 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
   }
   function submit() {
     if (!Q.typed) { nudge(); return; }
+    if (TEST) return submitTest();
     const ms = Math.max(0, performance.now() - Q.start);
     const res = MT.grade(trk(S.op), S, Q.pick.key, parseInt(Q.typed, 10), ms, Date.now(),
       { kind: Q.pick.kind, stage: Q.pick.stage, assisted: Q.pick.preHint });
@@ -1298,6 +1468,282 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     if (document.hidden) Q.hiddenAt = performance.now();
     else if (Q.hiddenAt !== null) { Q.start += performance.now() - Q.hiddenAt; Q.hiddenAt = null; }
   });
+
+  /* ===== Test definitivo =====
+     Todas las preguntas del modo, una vez cada una, sin pistas. Los errores vuelven a la práctica. */
+  const TEST_OK = ['¡Bien!', '¡Eso!', '¡Correcto!', '¡Sí señor!', '¡Muy bien!', '¡Perfecto!'];
+  function renderTestCard(T) {
+    const open = MT.testOpen(T), sm = MT.summary(T), need = MT.testNeeded(sm.total), pz = T.prize, tt = T.test;
+    const card = $('#btnTest');
+    card.classList.toggle('locked', !open);
+    card.setAttribute('aria-disabled', String(!open));
+    $('#testIcon').textContent = open ? '🏆' : '🔒';
+    $('#testSub').textContent = !open ? `Se abre cuando domines las ${sm.total}. Llevas ${sm.mastered}. Premio: ${T.settings.prizeText}.`
+      : !pz.wonAt ? `${sm.total} preguntas sin pistas. Con ${need} buenas ganas: ${T.settings.prizeText}.`
+        : !pz.claimedAt ? `¡Ganaste el premio! Récord: ${tt.best} de ${tt.total}. Puedes repetirlo.`
+          : `Récord: ${tt.best} de ${tt.total}. ¡Puedes repetirlo!`;
+    $('#btnTicket').hidden = !(pz.wonAt && !pz.claimedAt);
+  }
+  $('#btnTest').addEventListener('click', () => {
+    const op = curOp(), T = trk(op), card = $('#btnTest');
+    if (!MT.testOpen(T)) { card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); return; }
+    const n = MT.universe(T.settings).length, need = MT.testNeeded(n);
+    const lines = [`${n} ${noun(op, 2)}, una vez cada una y sin pistas.`, `Necesitas ${need} buenas para ganar.`,
+      T.prize.wonAt && !T.prize.claimedAt ? 'Ya ganaste el premio. ¡A superar tu récord!' : T.prize.wonAt ? '¡A superar tu récord!' : `Premio: ${T.settings.prizeText}`,
+      'No hay reloj: tómate tu tiempo.'];
+    $('#tsLines').innerHTML = lines.map(l => `<p>${esc(l)}</p>`).join('');
+    $('#tsGo').onclick = () => { closeOverlay('o-tstart'); startTest(); };
+    $('#tsNo').onclick = () => closeOverlay('o-tstart');
+    openOverlay('o-tstart');
+  });
+  $('#btnTicket').addEventListener('click', () => openPrize(curOp(), null, false));
+  function startTest() {
+    Sound.unlock(); clearTimers();
+    const op = curOp(), T = trk(op);
+    TEST = { op: op, keys: MT.testOrder(T, Math.random), i: 0, ok: 0, wrong: [], sess: MT.newSession(T, Date.now()) };
+    S = null;
+    show('play'); renderSound(); renderHud();
+    nextTestQuestion();
+  }
+  function renderTestBar() {
+    const n = TEST.keys.length;
+    $('#testCount').textContent = `Test definitivo · ${Math.min(TEST.i + 1, n)} de ${n}`;
+    $('#testFill').style.width = (100 * TEST.i / n) + '%';
+  }
+  function nextTestQuestion() {
+    clearTimers();
+    if (current !== 'play' || !TEST) return;
+    const k = TEST.keys[TEST.i], t = MT.parse(k);
+    showQuestion(TEST.op, trk(TEST.op), { key: k, a: t.a, b: t.b, kind: 'test', stage: 0, preHint: false });
+    renderTestBar(); renderHud();
+  }
+  function submitTest() {
+    const ms = Math.max(0, performance.now() - Q.start);
+    const res = MT.grade(trk(TEST.op), TEST.sess, Q.pick.key, parseInt(Q.typed, 10), ms, Date.now(), { kind: 'test' });
+    Q.res = res; Q.phase = 'right';
+    if (res.correct) TEST.ok++; else TEST.wrong.push(Q.pick.key);
+    TEST.i++;
+    persist(); renderHud(res); renderTestBar();
+    const card = $('#qCard');
+    if (res.correct) {
+      card.classList.add('good');
+      setFeedback('✓ ' + esc(pickOne(TEST_OK)), 'good');
+      Sound.ok(res.fast);
+      later(testNext, 650);
+    } else {
+      card.classList.add('testwrong');
+      $('#slot').className = 'slot';
+      $('#slot').innerHTML = `<span class="ghost">${res.expected}</span>`;
+      setFeedback(`Era ${res.expected}. ¡Sigue adelante!`, 'soft');
+      Sound.soft();
+      later(testNext, 1500);
+    }
+  }
+  function testNext() {
+    if (!TEST) return;
+    if (TEST.i >= TEST.keys.length) finishTest(); else nextTestQuestion();
+  }
+  function finishTest() {
+    const t = TEST, T = trk(t.op);
+    const r = MT.recordTest(T, t.ok, t.keys.length, Date.now());
+    TEST = null; Q = null;
+    persist();
+    goHome();
+    if (r.passed) openPrize(t.op, r, true); else openTestFail(t.op, r, t.wrong);
+  }
+  function openTestFail(op, r, wrong) {
+    const miss = r.need - r.correct;
+    $('#testTitle').textContent = miss <= 3 ? '¡Uy, casi!' : '¡Buen intento!';
+    $('#testScore').textContent = `${r.correct} de ${r.total}`;
+    const lines = [`Para ganar necesitas ${r.need}. ${miss === 1 ? '¡Te faltó solo 1!' : `Te faltaron ${miss}.`}`];
+    if (wrong.length) lines.push(`Para practicar: ${factsPhrase(op, wrong, 6)}. Ya las puse en tu práctica.`);
+    $('#testLines').innerHTML = lines.map(l => `<p>${esc(l)}</p>`).join('');
+    $('#testPractice').onclick = () => { closeOverlay('o-test'); startPlay(); };
+    $('#testHome').onclick = () => closeOverlay('o-test');
+    openOverlay('o-test');
+  }
+  function openPrize(op, r, fresh) {
+    const T = trk(op), pz = T.prize, pending = !!pz.wonAt && !pz.claimedAt;
+    const title = !r ? '¡Tu premio!' : r.prizeWon ? '¡Test definitivo superado!' : '¡Lo lograste otra vez!';
+    $('#prizeTitle').setAttribute('aria-label', title);
+    let li = 0; // letras animadas, agrupadas por palabra para que no se corten
+    $('#prizeTitle').innerHTML = title.split(' ').map(w => `<span class="word" aria-hidden="true">${Array.from(w).map(ch => `<span class="ltr" style="--i:${li++}">${esc(ch)}</span>`).join('')}</span>`).join(' ');
+    $('#prizeScore').textContent = !r ? `Ganado el ${fmtDate(pz.wonAt)}` : r.prizeWon ? `${r.correct} de ${r.total} correctas` : `${r.correct} de ${r.total} · récord: ${T.test.best} de ${T.test.total}`;
+    const showTicket = !!pz.wonAt && (pending || (r && r.prizeWon));
+    $('#prizeTicket').hidden = !showTicket;
+    $('#tPrize').textContent = pz.text || T.settings.prizeText;
+    $('#tFor').textContent = `para ${P.name} · ${fmtDate(pz.wonAt || Date.now())}`;
+    $('#tStamp').hidden = !pz.claimedAt;
+    $('#prizeClaim').hidden = !pending;
+    $('#prizeSong').onclick = () => Song.play();
+    $('#prizeOk').onclick = () => closeOverlay('o-prize');
+    $('#prizeClaim').onclick = () => openGate(() => {
+      MT.claimPrize(T, Date.now()); persist();
+      $('#tStamp').hidden = false; $('#prizeClaim').hidden = true;
+      renderHome();
+    });
+    openOverlay('o-prize', () => { Song.stop(); FX.stop(); renderHome(); });
+    FX.run($('#fireworks'), fresh ? 9000 : 2500);
+    if (fresh && P.settings.sound) Song.play();
+  }
+
+  /* ===== Canción del premio: original, creada con Web Audio ===== */
+  const Song = {
+    out: null, noise: null, endAt: 0,
+    play() {
+      Sound.unlock();
+      const c = Sound.ctx;
+      if (!c) return;
+      this.stop();
+      const out = c.createGain(), comp = c.createDynamicsCompressor();
+      out.gain.value = 0.85; out.connect(comp); comp.connect(c.destination);
+      this.out = out;
+      const spb = 60 / 150, t0 = c.currentTime + 0.06;
+      const at = beat => t0 + beat * spb;
+      const hz = m => 440 * Math.pow(2, (m - 69) / 12);
+      if (!this.noise) {
+        const n = c.createBuffer(1, c.sampleRate, c.sampleRate), d = n.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        this.noise = n;
+      }
+      const tone = (beat, beats, m, type, vol, cutoff) => {
+        const t = at(beat), dur = beats * spb * 0.95, rel = Math.min(0.08, dur / 3);
+        const o = c.createOscillator(), g = c.createGain();
+        o.type = type; o.frequency.value = hz(m);
+        let node = o;
+        if (cutoff) { const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cutoff; o.connect(f); node = f; }
+        node.connect(g); g.connect(out);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+        g.gain.setValueAtTime(vol, t + Math.max(0.012, dur - rel));
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.start(t); o.stop(t + dur + 0.05);
+      };
+      const lead = (b, d, m) => { tone(b, d, m, 'square', 0.07, 3200); if (m < 86) tone(b, d, m + 12, 'triangle', 0.022); };
+      const bass = (b, d, m) => tone(b, d, m, 'sawtooth', 0.09, 700);
+      const pad = (b, d, ms) => ms.forEach(m => tone(b, d, m, 'triangle', 0.028));
+      const noise = (beat, dur, vol, type, freq) => {
+        const t = at(beat), src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+        src.buffer = this.noise; f.type = type; f.frequency.value = freq;
+        src.connect(f); f.connect(g); g.connect(out);
+        g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        src.start(t); src.stop(t + dur + 0.02);
+      };
+      const kick = b => {
+        const t = at(b), o = c.createOscillator(), g = c.createGain();
+        o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+        g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+        o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.25);
+      };
+      const snare = (b, v) => noise(b, 0.14, v || 0.16, 'highpass', 1400);
+      const hat = b => noise(b, 0.04, 0.045, 'highpass', 7000);
+      const crash = b => noise(b, 1.4, 0.12, 'highpass', 3500);
+      // Fanfarria de entrada y redoble
+      [[0, 67], [1 / 3, 72], [2 / 3, 76]].forEach(x => lead(x[0], 1 / 3, x[1]));
+      lead(1, 0.5, 79); lead(1.5, 0.5, 76);
+      lead(2, 2, 84); pad(2, 2, [60, 64, 67, 72]); crash(2); kick(2);
+      for (let i = 0; i < 8; i++) snare(3 + i * 0.125, 0.04 + i * 0.018);
+      // Tema: 8 compases (Do, La menor, Fa, Sol, Do, La menor, Fa-Sol, Do)
+      const MEL = [
+        [[0, .5, 76], [.5, .5, 79], [1, 1, 84], [2, .5, 83], [2.5, .5, 81], [3, 1, 79]],
+        [[0, .5, 81], [.5, .5, 84], [1, 1, 88], [2, .5, 86], [2.5, .5, 84], [3, 1, 81]],
+        [[0, .5, 77], [.5, .5, 81], [1, 1, 84], [2, .5, 81], [2.5, .5, 77], [3, 1, 81]],
+        [[0, .5, 79], [.5, .5, 81], [1, .5, 83], [1.5, .5, 84], [2, 2, 86]],
+        [[0, .75, 88], [.75, .25, 86], [1, .5, 84], [1.5, .5, 79], [2, .5, 76], [2.5, .5, 79], [3, 1, 84]],
+        [[0, .5, 84], [.5, .5, 83], [1, .5, 81], [1.5, .5, 76], [2, 1, 81], [3, 1, 84]],
+        [[0, .5, 81], [.5, .5, 84], [1, 1, 89], [2, .5, 79], [2.5, .5, 83], [3, 1, 86]],
+        [[0, .5, 84], [.5, .5, 88], [1, 1, 91], [2, 2, 84]]
+      ];
+      const C = [48, [60, 64, 67]], Am = [45, [57, 60, 64]], F = [41, [57, 60, 65]], G = [43, [55, 59, 62]];
+      const HARM = [[C, C], [Am, Am], [F, F], [G, G], [C, C], [Am, Am], [F, G], [C, C]];
+      for (let bar = 0; bar < 8; bar++) {
+        const b0 = 4 + bar * 4;
+        MEL[bar].forEach(x => lead(b0 + x[0], x[1], x[2]));
+        HARM[bar].forEach((h, half) => {
+          pad(b0 + half * 2, 2, h[1]);
+          for (let e = 0; e < 4; e++) bass(b0 + half * 2 + e * 0.5, 0.5, e % 2 ? h[0] + 12 : h[0]);
+        });
+        for (let q = 0; q < 4; q++) { if (q % 2) snare(b0 + q); else kick(b0 + q); hat(b0 + q); hat(b0 + q + 0.5); }
+      }
+      // Final
+      lead(36, 1 / 3, 84); lead(36 + 1 / 3, 1 / 3, 88); lead(36 + 2 / 3, 1 / 3, 91);
+      lead(37, 3, 84); pad(37, 3, [60, 64, 67, 72, 76]); bass(37, 3, 36); kick(37); crash(37);
+      this.endAt = at(40);
+      document.documentElement.dataset.song = 'playing';
+    },
+    stop() {
+      const out = this.out;
+      this.out = null;
+      delete document.documentElement.dataset.song;
+      if (!out || !Sound.ctx) return;
+      try {
+        const t = Sound.ctx.currentTime;
+        out.gain.cancelScheduledValues(t); out.gain.setValueAtTime(out.gain.value, t); out.gain.linearRampToValueAtTime(0, t + 0.15);
+      } catch (e) { /* sin audio */ }
+      setTimeout(() => { try { out.disconnect(); } catch (e) { /* ya desconectado */ } }, 300);
+    }
+  };
+
+  /* ===== Fuegos artificiales y confeti ===== */
+  const FX = {
+    raf: 0,
+    run(cv, ms) {
+      this.stop();
+      if (reduceMotion) return;
+      const cx = cv.getContext('2d'), dpr = Math.min(2, window.devicePixelRatio || 1);
+      cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
+      const W = cv.width, H = cv.height;
+      const cols = ['#FFD54A', '#FF7AB6', '#5EE7FF', '#7CFF8A', '#B79CFF', '#FFFFFF', '#FFA24C'];
+      const pick = () => cols[Math.floor(Math.random() * cols.length)];
+      const rockets = [], sparks = [], conf = [];
+      const newConf = top => ({ x: Math.random() * W, y: top ? -20 * dpr : Math.random() * -H, vy: (1.2 + Math.random() * 1.8) * dpr, vx: (Math.random() - 0.5) * 0.8 * dpr,
+        w: (6 + Math.random() * 6) * dpr, h: (3 + Math.random() * 4) * dpr, a: Math.random() * 6, va: (Math.random() - 0.5) * 0.2, c: pick() });
+      for (let i = 0; i < 110; i++) conf.push(newConf(false));
+      const t0 = performance.now();
+      let last = t0, next = t0;
+      const frame = now => {
+        const dt = Math.min(3, (now - last) / 16.7), el = now - t0;
+        last = now;
+        cx.clearRect(0, 0, W, H);
+        if (el < ms && now >= next) {
+          rockets.push({ x: W * (0.15 + Math.random() * 0.7), y0: H, ty: H * (0.12 + Math.random() * 0.3), p: 0, c: pick() });
+          next = now + 300 + Math.random() * 450;
+        }
+        cx.globalCompositeOperation = 'lighter';
+        for (let i = rockets.length - 1; i >= 0; i--) {
+          const r = rockets[i];
+          r.p += dt / 50;
+          const e = 1 - Math.pow(1 - Math.min(1, r.p), 3), y = r.y0 + (r.ty - r.y0) * e;
+          cx.fillStyle = r.c; cx.beginPath(); cx.arc(r.x, y, 2.5 * dpr, 0, 6.283); cx.fill();
+          if (r.p >= 1) {
+            rockets.splice(i, 1);
+            const n = 64, sp = (2.2 + Math.random() * 2.5) * dpr;
+            for (let j = 0; j < n; j++) {
+              const ang = (j / n) * 6.283, v = sp * (0.6 + Math.random() * 0.5);
+              sparks.push({ x: r.x, y: y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, life: 1, c: Math.random() < 0.25 ? '#FFFFFF' : r.c });
+            }
+          }
+        }
+        for (let i = sparks.length - 1; i >= 0; i--) {
+          const s = sparks[i];
+          s.vx *= 0.985; s.vy = s.vy * 0.985 + 0.05 * dpr * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.life -= 0.013 * dt;
+          if (s.life <= 0) { sparks.splice(i, 1); continue; }
+          cx.globalAlpha = s.life; cx.fillStyle = s.c; cx.beginPath(); cx.arc(s.x, s.y, 2.2 * dpr, 0, 6.283); cx.fill();
+        }
+        cx.globalAlpha = 1; cx.globalCompositeOperation = 'source-over';
+        for (let i = conf.length - 1; i >= 0; i--) {
+          const p = conf[i];
+          p.y += p.vy * dt; p.x += p.vx * dt; p.a += p.va * dt;
+          if (p.y > H + 20 * dpr) { if (el < ms) conf[i] = newConf(true); else { conf.splice(i, 1); continue; } }
+          cx.save(); cx.translate(p.x, p.y); cx.rotate(p.a); cx.fillStyle = p.c; cx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); cx.restore();
+        }
+        if (el < ms || rockets.length || sparks.length || conf.length) this.raf = requestAnimationFrame(frame);
+        else cx.clearRect(0, 0, W, H);
+      };
+      this.raf = requestAnimationFrame(frame);
+    },
+    stop() { cancelAnimationFrame(this.raf); this.raf = 0; const cv = $('#fireworks'); cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); }
+  };
 
   /* ===== Ventanas del juego ===== */
   function openRound(r, breakDue, done) {
@@ -1486,6 +1932,17 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
     $('#setOne').setAttribute('aria-checked', String(!!st.includeOne));
     $('#setSound').setAttribute('aria-checked', String(!!P.settings.sound));
     $('#btnBackup').hidden = !canSave();
+    const need = MT.testNeeded(sm.total), pz = T.prize, tt = T.test;
+    $('#testInfo').textContent = `${sm.total} ${noun(op, 2)} sin pistas; gana con ${need}. ` +
+      (st.testAlways ? 'Ahora está abierto aunque no las domine todas.' : `Se abre cuando domine todas (lleva ${sm.mastered} de ${sm.total}).`);
+    if (document.activeElement !== $('#setPrize')) $('#setPrize').value = pz.wonAt && !pz.claimedAt ? (pz.text || st.prizeText) : st.prizeText;
+    $('#setTestAlways').setAttribute('aria-checked', String(st.testAlways));
+    $('#prizeStatus').textContent = !pz.wonAt
+      ? (tt.attempts ? `Aún no gana el premio. Intentos: ${tt.attempts} · récord: ${tt.best} de ${tt.total}.` : 'Aún no ha hecho el test.')
+      : !pz.claimedAt ? `Ganó el premio el ${fmtDate(pz.wonAt)}. Pendiente de entregar.`
+        : `Premio entregado el ${fmtDate(pz.claimedAt)}. Récord: ${tt.best} de ${tt.total}. Con "Preparar otro premio", la próxima vez que apruebe gana uno nuevo.`;
+    $('#btnClaim').hidden = !(pz.wonAt && !pz.claimedAt);
+    $('#btnNewPrize').hidden = !pz.claimedAt;
     $('#dangerConfirm').hidden = true; $('#restoreConfirm').hidden = true;
   }
   function renderHeat() {
@@ -1549,6 +2006,18 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
   });
   $('#boostClear').addEventListener('click', () => { AT().settings.boost.keys = []; changed(false); $('#setBoost').focus({ preventScroll: true }); });
   $('#setSound').addEventListener('click', () => { P.settings.sound = !P.settings.sound; changed(false); });
+  // Test definitivo y premio
+  $('#setPrize').addEventListener('input', () => {
+    const T = AT(), v = $('#setPrize').value.trim().slice(0, 60);
+    if (!v) return;
+    T.settings.prizeText = v;
+    if (T.prize.wonAt && !T.prize.claimedAt) T.prize.text = v; // corrige también el premio pendiente
+    persist();
+  });
+  $('#setPrize').addEventListener('change', () => renderAdult());
+  $('#setTestAlways').addEventListener('click', () => { const st = AT().settings; st.testAlways = !st.testAlways; changed(false); });
+  $('#btnClaim').addEventListener('click', () => { MT.claimPrize(AT(), Date.now()); changed(false); });
+  $('#btnNewPrize').addEventListener('click', () => { MT.newPrize(AT()); changed(false); });
 
   // Reiniciar o borrar: dos confirmaciones.
   function askDanger(text, label, action) {

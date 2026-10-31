@@ -23,6 +23,13 @@ Práctica de las tablas de multiplicar y de dividir del 2 al 9 para niños de 9 
 4. Solo cuenta como Dominada si la responde bien y en menos de 4 segundos. El niño nunca ve un reloj. Las dominadas vuelven cada vez más espaciadas para no olvidarlas.
 5. No mete nuevas mientras haya 4 difíciles, y si falla 3 veces la misma, le muestra la pista antes de preguntarla y la espacia más para no frustrarlo.
 
+## Test definitivo y premio
+
+- En el inicio hay un botón **Test definitivo**. Se abre cuando el niño domina todas las multiplicaciones (o todas las divisiones, en ese modo); el adulto puede abrirlo antes desde su panel.
+- Pregunta todas, una vez cada una, mezcladas y sin pistas. No hay reloj. Gana con el 90 % (58 de 64).
+- Los errores del test vuelven a la práctica como Difíciles, para reforzarlos.
+- Al ganar: celebración con fuegos artificiales y trofeo, una canción original creada con Web Audio y un vale "VALE POR…" para reclamar con Papá. El adulto escribe el premio en su panel y lo marca como entregado (también desde el vale, con la barrera para adultos). Con "Preparar otro premio" se puede ganar uno nuevo.
+
 ## Tablas de dividir
 
 - Son 64 divisiones exactas, como 56 ÷ 8 = 7. La medalla de "dividir entre 7" se gana al dominar las 8 divisiones entre 7.

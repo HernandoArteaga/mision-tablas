@@ -9,6 +9,8 @@
     FAST_MS: 4000,                 // umbral de rapidez por defecto (ms)
     FAST_MS_DIV: 5000,             // en división el recuerdo es más lento al comienzo
     UNKNOWN_MUL_PENALTY: 2.5,      // división nueva cuya multiplicación aún no sabe: entra más tarde
+    TEST_PASS: 0.9,                // test definitivo: proporción de aciertos para ganar (58 de 64)
+    PRIZE_DEFAULT: 'Un plan especial con Papá',
     ROUND_SIZE: 10,                // preguntas por ronda
     MIX_BASE: { reto: 0.5, confianza: 0.3, nueva: 0.2 },
     MIX_LOW: { reto: 0.35, confianza: 0.55, nueva: 0.1 },  // aciertos recientes < 70 %
@@ -45,7 +47,7 @@
      Una división se guarda como el par (divisor, resultado): 'axb' es (a × b) ÷ a = b. */
   function defaultSettings(op) {
     const div = op === 'div';
-    const s = { op: div ? 'div' : 'mul', fastMs: div ? CONFIG.FAST_MS_DIV : CONFIG.FAST_MS, tables: TABLES.slice(), includeOne: false, roundSize: CONFIG.ROUND_SIZE, boost: { on: false, keys: [] } };
+    const s = { op: div ? 'div' : 'mul', fastMs: div ? CONFIG.FAST_MS_DIV : CONFIG.FAST_MS, tables: TABLES.slice(), includeOne: false, roundSize: CONFIG.ROUND_SIZE, boost: { on: false, keys: [] }, testAlways: false, prizeText: CONFIG.PRIZE_DEFAULT };
     if (!div) s.sound = true;
     return s;
   }
@@ -108,6 +110,11 @@
     for (const k of universe(p.settings)) if (!p.facts[k]) p.facts[k] = newFact();
     for (const f of ['recent', 'lastKeys', 'medals', 'days']) if (!Array.isArray(p[f])) p[f] = [];
     for (const f of ['q', 'answered', 'stars', 'bestStreak', 'practiceMs', 'masteredAll']) if (typeof p[f] !== 'number') p[f] = 0;
+    p.settings.testAlways = !!p.settings.testAlways;
+    if (typeof p.settings.prizeText !== 'string' || !p.settings.prizeText.trim()) p.settings.prizeText = CONFIG.PRIZE_DEFAULT;
+    const te = p.test || {}, pr = p.prize || {};
+    p.test = { best: +te.best || 0, total: +te.total || 0, attempts: +te.attempts || 0, passedAt: +te.passedAt || 0 };
+    p.prize = { round: +pr.round || 0, wonAt: +pr.wonAt || 0, claimedAt: +pr.claimedAt || 0, text: typeof pr.text === 'string' ? pr.text : '' };
     return p;
   }
   function ensure(p) {
@@ -118,8 +125,9 @@
   }
   /* Reinicia el progreso de un modo; el perfil, los ajustes y el otro modo se quedan. */
   function resetProgress(p, op) {
-    if (op === 'div') { p.div = ensureTrack({ settings: p.div.settings }, 'div'); return p; }
-    const keep = { v: 1, id: p.id, name: p.name, avatar: p.avatar, createdAt: p.createdAt, settings: p.settings, div: p.div, mode: p.mode };
+    // El premio se conserva: si ya lo ganó, sigue pendiente de reclamar.
+    if (op === 'div') { p.div = ensureTrack({ settings: p.div.settings, prize: p.div.prize }, 'div'); return p; }
+    const keep = { v: 1, id: p.id, name: p.name, avatar: p.avatar, createdAt: p.createdAt, settings: p.settings, div: p.div, mode: p.mode, prize: p.prize };
     for (const k of Object.keys(p)) delete p[k];
     return ensure(Object.assign(p, keep));
   }
@@ -556,6 +564,57 @@
     return { n: n, today: today };
   }
 
+  /* ===== Test definitivo =====
+     Todas las preguntas en juego, una vez cada una, mezcladas y sin pistas. */
+  function testNeeded(total) { return Math.ceil(total * CONFIG.TEST_PASS); }
+  function testOpen(p) { return !!p.settings.testAlways || summary(p).maintenance; }
+  function testValid(seq) {
+    for (let i = 1; i < seq.length; i++) {
+      const t = parse(seq[i]);
+      if (seq[i] === seq[i - 1] || seq[i - 1] === key(t.b, t.a)) return false;
+      if (i >= 2 && parse(seq[i - 1]).a === t.a && parse(seq[i - 2]).a === t.a) return false;
+    }
+    return true;
+  }
+  function testOrder(p, rng) {
+    rng = rng || Math.random;
+    const keys = universe(p.settings);
+    let best = null;
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const left = keys.slice(), out = [];
+      while (left.length) {
+        let cand = [];
+        for (let relax = 0; relax <= 2 && !cand.length; relax++) cand = left.filter(k => allowed(k, out.slice(-3), relax));
+        if (!cand.length) cand = left;
+        // Primero los factores que más quedan: así no se amontonan al final.
+        const count = {};
+        for (const k of left) { const a = parse(k).a; count[a] = (count[a] || 0) + 1; }
+        const k = wpick(cand, cand.map(x => count[parse(x).a]), rng);
+        left.splice(left.indexOf(k), 1);
+        out.push(k);
+      }
+      if (testValid(out)) return out;
+      best = best || out;
+    }
+    return best;
+  }
+  // Guarda el resultado. El premio se gana la primera vez que aprueba (o tras "preparar otro premio").
+  function recordTest(p, correct, total, now) {
+    now = now || Date.now();
+    const need = testNeeded(total), passed = correct >= need;
+    const t = p.test;
+    t.attempts++;
+    if (!t.total || correct * t.total > t.best * total) { t.best = correct; t.total = total; }
+    let prizeWon = false;
+    if (passed) {
+      if (!t.passedAt) t.passedAt = now;
+      if (!p.prize.wonAt) { p.prize.wonAt = now; p.prize.claimedAt = 0; p.prize.text = p.settings.prizeText; prizeWon = true; }
+    }
+    return { passed: passed, need: need, correct: correct, total: total, prizeWon: prizeWon, prizePending: !!p.prize.wonAt && !p.prize.claimedAt };
+  }
+  function claimPrize(p, now) { if (p.prize.wonAt && !p.prize.claimedAt) p.prize.claimedAt = now || Date.now(); }
+  function newPrize(p) { p.prize = { round: p.prize.round + 1, wonAt: 0, claimedAt: 0, text: '' }; }
+
   /* ===== Varios dispositivos =====
      Cada copia de un perfil en un dispositivo anota su propio aporte (estrellas, respuestas, intentos).
      Al unir dos copias se toma el máximo de cada aporte y se suman: unir varias veces no cuenta nada doble. */
@@ -623,9 +682,20 @@
       medals: Array.from(new Set(a.medals.concat(b.medals))).sort((x, y) => x - y),
       masteredAll: won.length ? Math.min.apply(null, won) : 0,
       recent: newer.recent.slice(), lastKeys: newer.lastKeys.slice(),
-      settings: JSON.parse(JSON.stringify(newer.settings))
+      settings: JSON.parse(JSON.stringify(newer.settings)),
+      test: mergeTest(a.test, b.test, newer === a), prize: mergePrize(a.prize, b.prize)
     };
     return merged;
+  }
+  function mergeTest(x, y) {
+    const better = !y.total || (x.total && x.best * y.total >= y.best * x.total) ? x : y;
+    const passed = [x.passedAt, y.passedAt].filter(Boolean);
+    return { best: better.best, total: better.total, attempts: Math.max(x.attempts, y.attempts), passedAt: passed.length ? Math.min.apply(null, passed) : 0 };
+  }
+  function mergePrize(x, y) {
+    if (x.round !== y.round) return JSON.parse(JSON.stringify(x.round > y.round ? x : y));
+    const won = [x.wonAt, y.wonAt].filter(Boolean), cl = [x.claimedAt, y.claimedAt].filter(Boolean);
+    return { round: x.round, wonAt: won.length ? Math.min.apply(null, won) : 0, claimedAt: cl.length ? Math.max.apply(null, cl) : 0, text: (x.wonAt ? x.text : y.text) || x.text || y.text };
   }
   // Une el perfil b dentro de a: las dos pistas.
   function mergeProfiles(a, b) {
@@ -644,6 +714,7 @@
     normName, syncContrib, mergeProfiles,
     CONFIG, TABLES, LEVELS, key, parse, universe, group, defaultSettings, boostKeys, newFact, newProfile, ensure, resetProgress,
     expected, inTable, track, hintFor, confusionFor, divHint, divConfusion,
+    testNeeded, testOpen, testOrder, testValid, recordTest, claimPrize, newPrize,
     newSession, closeRound, ackBreak, allowed, pickNext, grade, hint, confusion,
     summary, tables, weaknesses, avgOkMs, dayStreak, ymd
   };
