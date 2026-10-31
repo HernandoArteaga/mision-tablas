@@ -850,18 +850,6 @@ body.testing .round-dots { display: none; }
   </div>
 </div>
 
-<div id="o-test" class="overlay" hidden>
-  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="testTitle">
-    <h2 id="testTitle">¡Buen intento!</h2>
-    <p class="big-stars" id="testScore"></p>
-    <div class="lines" id="testLines"></div>
-    <div class="actions">
-      <button type="button" class="btn primary big" id="testPractice" data-autofocus>Practicar ahora</button>
-      <button type="button" class="btn" id="testHome">Volver al inicio</button>
-    </div>
-  </div>
-</div>
-
 <div id="o-prize" class="overlay prize" hidden>
   <canvas id="fireworks" aria-hidden="true"></canvas>
   <div class="prize-stage" role="dialog" aria-modal="true" aria-labelledby="prizeTitle">
@@ -1305,7 +1293,7 @@ body.testing .round-dots { display: none; }
     P.settings.sound = !P.settings.sound; Sound.unlock(); persist(); renderSound();
     if (e.detail) $('#s-play').focus({ preventScroll: true }); // tras un toque, Enter vuelve a comprobar respuestas
   });
-  $('#btnExit').addEventListener('click', () => { Q = null; TEST = null; goHome(); });
+  $('#btnExit').addEventListener('click', () => { Q = null; leaveTest(); goHome(); });
 
   function setFeedback(html, cls) { const f = $('#feedback'); f.className = 'feedback ' + (cls || ''); f.innerHTML = html; }
   function nextQuestion() {
@@ -1471,7 +1459,8 @@ body.testing .round-dots { display: none; }
   });
 
   /* ===== Test definitivo =====
-     Todas las preguntas del modo, una vez cada una, sin pistas. Los errores vuelven a la práctica. */
+     Preguntas al azar sin parar y sin pistas. Gana al responder todas bien seguidas (64 de 64).
+     Si falla, el test sigue y solo el contador de seguidas vuelve a 0. Los errores también vuelven a la práctica. */
   const TEST_OK = ['¡Bien!', '¡Eso!', '¡Correcto!', '¡Sí señor!', '¡Muy bien!', '¡Perfecto!'];
   function renderTestCard(T) {
     const open = MT.testOpen(T), sm = MT.summary(T), need = MT.testNeeded(sm.total), pz = T.prize, tt = T.test;
@@ -1479,9 +1468,9 @@ body.testing .round-dots { display: none; }
     card.classList.toggle('locked', !open);
     $('#testIcon').textContent = open ? '🏆' : '🔒';
     $('#testSub').textContent = !open ? `Se abre cuando domines las ${sm.total} (llevas ${sm.mastered}) o con la clave de Papá. Premio: ${T.settings.prizeText}.`
-      : !pz.wonAt ? `${sm.total} preguntas sin pistas. Con ${need} buenas ganas: ${T.settings.prizeText}.`
-        : !pz.claimedAt ? `¡Ganaste el premio! Récord: ${tt.best} de ${tt.total}. Puedes repetirlo.`
-          : `Récord: ${tt.best} de ${tt.total}. ¡Puedes repetirlo!`;
+      : !pz.wonAt ? `Responde las ${need} bien seguidas y ganas: ${T.settings.prizeText}.${tt.best ? ` Tu mejor racha: ${tt.best} de ${tt.total}.` : ''}`
+        : !pz.claimedAt ? '¡Ganaste el premio! Puedes repetir el test cuando quieras.'
+          : 'Ya lo superaste. ¡Puedes repetirlo cuando quieras!';
     $('#btnTicket').hidden = !(pz.wonAt && !pz.claimedAt);
   }
   $('#btnTest').addEventListener('click', () => {
@@ -1492,9 +1481,10 @@ body.testing .round-dots { display: none; }
   });
   function openTestStart(op, T) {
     const n = MT.universe(T.settings).length, need = MT.testNeeded(n);
-    const lines = [`${n} ${noun(op, 2)}, una vez cada una y sin pistas.`, `Necesitas ${need} buenas para ganar.`,
-      T.prize.wonAt && !T.prize.claimedAt ? 'Ya ganaste el premio. ¡A superar tu récord!' : T.prize.wonAt ? '¡A superar tu récord!' : `Premio: ${T.settings.prizeText}`,
-      'No hay reloj: tómate tu tiempo.'];
+    const lines = [`Las ${n} ${noun(op, 2)} salen al azar, sin pistas y sin reloj.`,
+      `Para ganar, respóndelas todas bien seguidas: ${need} de ${need}.`,
+      'Si te equivocas, el test sigue, pero el contador de seguidas vuelve a 0.',
+      T.prize.wonAt ? '¡Demuestra otra vez que te las sabes todas!' : `Premio: ${T.settings.prizeText}`];
     $('#tsLines').innerHTML = lines.map(l => `<p>${esc(l)}</p>`).join('');
     $('#tsGo').onclick = () => { closeOverlay('o-tstart'); startTest(); };
     $('#tsNo').onclick = () => closeOverlay('o-tstart');
@@ -1504,15 +1494,15 @@ body.testing .round-dots { display: none; }
   function startTest() {
     Sound.unlock(); clearTimers();
     const op = curOp(), T = trk(op);
-    TEST = { op: op, keys: MT.testOrder(T, Math.random), i: 0, ok: 0, wrong: [], sess: MT.newSession(T, Date.now()) };
+    TEST = { op: op, keys: MT.testOrder(T, Math.random), i: 0, streak: 0, best: 0, sess: MT.newSession(T, Date.now()) };
     S = null;
     show('play'); renderSound(); renderHud();
     nextTestQuestion();
   }
   function renderTestBar() {
     const n = TEST.keys.length;
-    $('#testCount').textContent = `Test definitivo · ${Math.min(TEST.i + 1, n)} de ${n}`;
-    $('#testFill').style.width = (100 * TEST.i / n) + '%';
+    $('#testCount').textContent = `Seguidas: ${TEST.streak} de ${n}` + (TEST.best ? ` · mejor: ${TEST.best}` : '');
+    $('#testFill').style.width = (100 * TEST.streak / n) + '%';
   }
   function nextTestQuestion() {
     clearTimers();
@@ -1525,46 +1515,45 @@ body.testing .round-dots { display: none; }
     const ms = Math.max(0, performance.now() - Q.start);
     const res = MT.grade(trk(TEST.op), TEST.sess, Q.pick.key, parseInt(Q.typed, 10), ms, Date.now(), { kind: 'test' });
     Q.res = res; Q.phase = 'right';
-    if (res.correct) TEST.ok++; else TEST.wrong.push(Q.pick.key);
-    TEST.i++;
-    persist(); renderHud(res); renderTestBar();
-    const card = $('#qCard');
+    const n = TEST.keys.length, T = trk(TEST.op), card = $('#qCard');
     if (res.correct) {
+      TEST.streak++; TEST.i++;
+      TEST.best = Math.max(TEST.best, TEST.streak);
+      const left = n - TEST.streak;
+      const msg = left === 0 ? '¡Todas!' : left === 1 ? '¡Solo falta 1!' : left === 5 ? '¡Solo faltan 5!'
+        : TEST.streak === Math.floor(n / 2) ? '¡Vas por la mitad!' : pickOne(TEST_OK);
       card.classList.add('good');
-      setFeedback('✓ ' + esc(pickOne(TEST_OK)), 'good');
+      setFeedback('✓ ' + esc(msg), 'good');
       Sound.ok(res.fast);
-      later(testNext, 650);
+      persist(); renderHud(res); renderTestBar();
+      later(() => (TEST.streak >= n ? finishTest() : nextTestQuestion()), 650);
     } else {
+      // El test sigue: solo vuelve a 0 el contador. La próxima tanda trae otra vez todas, y la fallada sale pronto.
+      const lost = TEST.streak;
+      if (lost) MT.recordTest(T, lost, n, Date.now());
+      TEST.streak = 0; TEST.i = 0;
+      TEST.keys = MT.testOrder(T, Math.random, TEST.sess.hist.slice(-2), Q.pick.key);
       card.classList.add('testwrong');
       $('#slot').className = 'slot';
       $('#slot').innerHTML = `<span class="ghost">${res.expected}</span>`;
-      setFeedback(`Era ${res.expected}. ¡Sigue adelante!`, 'soft');
+      setFeedback(`Era ${res.expected}. Las seguidas vuelven a 0, ¡tú puedes!`, 'soft');
       Sound.soft();
-      later(testNext, 1500);
+      persist(); renderHud(res); renderTestBar();
+      later(nextTestQuestion, 1800);
     }
   }
-  function testNext() {
-    if (!TEST) return;
-    if (TEST.i >= TEST.keys.length) finishTest(); else nextTestQuestion();
-  }
   function finishTest() {
-    const t = TEST, T = trk(t.op);
-    const r = MT.recordTest(T, t.ok, t.keys.length, Date.now());
+    const t = TEST, T = trk(t.op), n = t.keys.length;
+    const r = MT.recordTest(T, n, n, Date.now());
     TEST = null; Q = null;
     persist();
     goHome();
-    if (r.passed) openPrize(t.op, r, true); else openTestFail(t.op, r, t.wrong);
+    openPrize(t.op, r, true);
   }
-  function openTestFail(op, r, wrong) {
-    const miss = r.need - r.correct;
-    $('#testTitle').textContent = miss <= 3 ? '¡Uy, casi!' : '¡Buen intento!';
-    $('#testScore').textContent = `${r.correct} de ${r.total}`;
-    const lines = [`Para ganar necesitas ${r.need}. ${miss === 1 ? '¡Te faltó solo 1!' : `Te faltaron ${miss}.`}`];
-    if (wrong.length) lines.push(`Para practicar: ${factsPhrase(op, wrong, 6)}. Ya las puse en tu práctica.`);
-    $('#testLines').innerHTML = lines.map(l => `<p>${esc(l)}</p>`).join('');
-    $('#testPractice').onclick = () => { closeOverlay('o-test'); startPlay(); };
-    $('#testHome').onclick = () => closeOverlay('o-test');
-    openOverlay('o-test');
+  // Al salir a la mitad se guarda la racha que llevaba.
+  function leaveTest() {
+    if (TEST && TEST.streak) { MT.recordTest(trk(TEST.op), TEST.streak, TEST.keys.length, Date.now()); persist(); }
+    TEST = null;
   }
   function openPrize(op, r, fresh) {
     const T = trk(op), pz = T.prize, pending = !!pz.wonAt && !pz.claimedAt;
@@ -1572,7 +1561,7 @@ body.testing .round-dots { display: none; }
     $('#prizeTitle').setAttribute('aria-label', title);
     let li = 0; // letras animadas, agrupadas por palabra para que no se corten
     $('#prizeTitle').innerHTML = title.split(' ').map(w => `<span class="word" aria-hidden="true">${Array.from(w).map(ch => `<span class="ltr" style="--i:${li++}">${esc(ch)}</span>`).join('')}</span>`).join(' ');
-    $('#prizeScore').textContent = !r ? `Ganado el ${fmtDate(pz.wonAt)}` : r.prizeWon ? `${r.correct} de ${r.total} correctas` : `${r.correct} de ${r.total} · récord: ${T.test.best} de ${T.test.total}`;
+    $('#prizeScore').textContent = !r ? `Ganado el ${fmtDate(pz.wonAt)}` : `¡${r.correct} de ${r.total} seguidas, sin un error!`;
     const showTicket = !!pz.wonAt && (pending || (r && r.prizeWon));
     $('#prizeTicket').hidden = !showTicket;
     $('#tPrize').textContent = pz.text || T.settings.prizeText;
@@ -1950,14 +1939,14 @@ body.testing .round-dots { display: none; }
     $('#setSound').setAttribute('aria-checked', String(!!P.settings.sound));
     $('#btnBackup').hidden = !canSave();
     const need = MT.testNeeded(sm.total), pz = T.prize, tt = T.test;
-    $('#testInfo').textContent = `${sm.total} ${noun(op, 2)} sin pistas; gana con ${need}. ` +
+    $('#testInfo').textContent = `${sm.total} ${noun(op, 2)} al azar y sin pistas; gana al responderlas todas bien seguidas (${need} de ${need}). Si falla, solo el contador vuelve a 0. ` +
       (st.testAlways ? 'Ahora está abierto aunque no las domine todas.' : `Se abre cuando domine todas (lleva ${sm.mastered} de ${sm.total}).`);
     if (document.activeElement !== $('#setPrize')) $('#setPrize').value = pz.wonAt && !pz.claimedAt ? (pz.text || st.prizeText) : st.prizeText;
     $('#setTestAlways').setAttribute('aria-checked', String(st.testAlways));
     $('#prizeStatus').textContent = !pz.wonAt
-      ? (tt.attempts ? `Aún no gana el premio. Intentos: ${tt.attempts} · récord: ${tt.best} de ${tt.total}.` : 'Aún no ha hecho el test.')
+      ? (tt.attempts ? `Aún no gana el premio. Mejor racha: ${tt.best} de ${tt.total}.` : 'Aún no ha hecho el test.')
       : !pz.claimedAt ? `Ganó el premio el ${fmtDate(pz.wonAt)}. Pendiente de entregar.`
-        : `Premio entregado el ${fmtDate(pz.claimedAt)}. Récord: ${tt.best} de ${tt.total}. Con "Preparar otro premio", la próxima vez que apruebe gana uno nuevo.`;
+        : `Premio entregado el ${fmtDate(pz.claimedAt)}. Con "Preparar otro premio", la próxima vez que lo supere gana uno nuevo.`;
     $('#btnClaim').hidden = !(pz.wonAt && !pz.claimedAt);
     $('#btnNewPrize').hidden = !pz.claimedAt;
     $('#dangerConfirm').hidden = true; $('#restoreConfirm').hidden = true;

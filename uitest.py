@@ -271,16 +271,21 @@ with sync_playwright() as pw:
     ctx.close()
 
     # ---------- Test definitivo: ganar y perder ----------
-    def run_test(pg, wrong_at):
+    READY_OR_PRIZE = f"() => !document.getElementById('o-prize').hidden || ({READY})()"
+
+    def run_test(pg, wrong_at, stop_after=None):
+        # Responde hasta ganar (o hasta stop_after respuestas). Devuelve las preguntas vistas y lo que mostró el contador.
         pg.tap('#btnTest'); pg.wait_for_timeout(250)
         pg.tap('#tsGo'); pg.wait_for_function(READY)
-        n = int(pg.inner_text('#testCount').split(' de ')[1]); done = 0
-        while done < n:
+        seen, counters, done = [], [], 0
+        while not pg.is_visible('#o-prize') and (stop_after is None or done < stop_after):
             a, b, ans, op = qinfo(pg)
+            seen.append((a, b))
             pg.keyboard.type(str(wrong_val(a, b, ans, op) if done in wrong_at else ans)); pg.keyboard.press('Enter')
             done += 1
-            if done < n: pg.wait_for_function(READY, timeout=8000)
-        return n
+            pg.wait_for_function(READY_OR_PRIZE, timeout=8000)
+            if not pg.is_visible('#o-prize'): counters.append(pg.inner_text('#testCount'))
+        return seen, counters
 
     ctx = br.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, is_mobile=True)
     page = ctx.new_page(); watch(page); page.goto(URL); page.wait_for_timeout(500)
@@ -299,14 +304,20 @@ with sync_playwright() as pw:
     sub = page.inner_text('#testSub')
     ok('locked' not in page.get_attribute('#btnTest', 'class') and 'Un helado con Papá' in sub, f'Abierto por el adulto, muestra el premio: "{sub}"')
     page.screenshot(path=f'{SHOTS}/w1-home.png')
-    n = run_test(page, {7, 30})
+    seen, counters = run_test(page, {7, 30})
+    n = 64
+    ok(len(seen) == 31 + 64 and counters[6].startswith('Seguidas: 7') and counters[7].startswith('Seguidas: 0 de 64 · mejor: 7')
+       and counters[30].startswith('Seguidas: 0 de 64 · mejor: 22'),
+       f'Se equivoca en la 8.ª y en la 31.ª: el test sigue y el contador vuelve a 0; gana tras 64 seguidas ({len(seen)} respuestas)')
+    last64 = set(seen[-64:])
+    ok(len(last64) == 64, 'Las 64 seguidas del final son las 64 multiplicaciones distintas')
     page.wait_for_selector('#o-prize:not([hidden])', timeout=8000)
     page.wait_for_timeout(2600)
     page.screenshot(path=f'{SHOTS}/w2-prize.png')
     title = page.get_attribute('#prizeTitle', 'aria-label')
     song = page.evaluate("document.documentElement.dataset.song || ''")
     ok(title == '¡Test definitivo superado!' and 'Un helado con Papá' in page.inner_text('#tPrize') and page.is_visible('#prizeTicket') and song == 'playing',
-       f'Test de {n} con 2 errores: celebración, vale "{page.inner_text("#tPrize")}" y canción sonando')
+       f'Celebración "{page.inner_text("#prizeScore")}", vale "{page.inner_text("#tPrize")}" y canción sonando')
     page.tap('#prizeOk'); page.wait_for_timeout(300)
     ok(page.is_visible('#btnTicket') and page.evaluate("!document.documentElement.dataset.song"), 'Al cerrar se detiene la canción y el inicio muestra el premio por reclamar')
     page.tap('#btnTicket'); page.wait_for_timeout(400)
@@ -314,7 +325,7 @@ with sync_playwright() as pw:
     page.fill('#gateInput', papa_code(page)); page.tap('#gateForm button[type=submit]'); page.wait_for_timeout(300)
     stamp = page.is_visible('#tStamp')
     page.tap('#prizeOk'); page.wait_for_timeout(300)
-    ok(stamp and not page.is_visible('#btnTicket') and 'Récord: 62 de 64' in page.inner_text('#testSub'), 'Papá lo marca como entregado (con la barrera para adultos); queda el récord 62 de 64')
+    ok(stamp and not page.is_visible('#btnTicket') and 'Ya lo superaste' in page.inner_text('#testSub'), 'Papá lo marca como entregado con su clave')
     ctx.close()
 
     ctx = br.new_context(viewport={'width': 1180, 'height': 820}, has_touch=True)
@@ -324,14 +335,15 @@ with sync_playwright() as pw:
     for t in ['3', '4', '5', '6', '7', '8', '9']: page.tap(f'#setTables .tchip[data-n="{t}"]'); page.wait_for_timeout(60)
     page.tap('#setTestAlways'); page.wait_for_timeout(100)
     page.tap('#s-adult .back'); page.wait_for_timeout(250)
-    n = run_test(page, {0, 3, 6})
-    page.wait_for_selector('#o-test:not([hidden])', timeout=8000)
-    page.screenshot(path=f'{SHOTS}/w3-fail.png')
-    lines = page.inner_text('#testLines')
-    ok(page.inner_text('#testScore') == f'{n - 3} de {n}' and 'Para practicar' in lines and not page.is_visible('#o-prize'),
-       f'Test de {n} con 3 errores no gana: "{lines.splitlines()[0]}"')
-    page.tap('#testPractice'); page.wait_for_function(READY)
-    ok(page.is_visible('#roundDots') and not page.is_visible('#testBar'), '"Practicar ahora" vuelve a la práctica normal')
+    seen, counters = run_test(page, {5}, stop_after=16)
+    page.screenshot(path=f'{SHOTS}/w3-streak.png')
+    missed = seen[5]
+    back = [i for i in range(6, 16) if seen[i] == missed]
+    ok(back and 9 <= back[0] <= 14 and counters[5].startswith('Seguidas: 0 de 15 · mejor: 5') and not page.is_visible('#o-prize'),
+       f'Con 15 preguntas: falla {missed[0]} × {missed[1]} y vuelve a salir {back[0] - 5 if back else "?"} preguntas después; sigue sin ganar')
+    page.tap('#btnExit'); page.wait_for_timeout(300)
+    ok('mejor racha: 10 de 15' in page.inner_text('#testSub') and page.is_visible('#s-home'),
+       f'Al salir guarda la mejor racha: "{page.inner_text("#testSub")}"')
     ctx.close()
     br.close()
 

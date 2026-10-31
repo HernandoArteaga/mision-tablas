@@ -9,7 +9,8 @@
     FAST_MS: 4000,                 // umbral de rapidez por defecto (ms)
     FAST_MS_DIV: 5000,             // en división el recuerdo es más lento al comienzo
     UNKNOWN_MUL_PENALTY: 2.5,      // división nueva cuya multiplicación aún no sabe: entra más tarde
-    TEST_PASS: 0.9,                // test definitivo: proporción de aciertos para ganar (58 de 64)
+    TEST_PASS: 1,                  // test definitivo: hay que responderlas todas bien seguidas (64 de 64)
+    TEST_COMEBACK: [3, 8],         // tras un error en el test, la fallada vuelve entre la 3.ª y la 8.ª pregunta
     PRIZE_DEFAULT: 'Un plan especial con Papá',
     ROUND_SIZE: 10,                // preguntas por ronda
     MIX_BASE: { reto: 0.5, confianza: 0.3, nueva: 0.2 },
@@ -565,26 +566,31 @@
   }
 
   /* ===== Test definitivo =====
-     Todas las preguntas en juego, una vez cada una, mezcladas y sin pistas. */
+     Preguntas al azar sin parar, sin pistas. Gana al responder todas las del modo bien y seguidas.
+     Si falla, el test sigue pero el contador de seguidas vuelve a 0: las próximas vuelven a ser
+     todas las del modo, en otro orden, y la fallada sale pronto. */
   function testNeeded(total) { return Math.ceil(total * CONFIG.TEST_PASS); }
   function testOpen(p) { return !!p.settings.testAlways || summary(p).maintenance; }
-  function testValid(seq) {
-    for (let i = 1; i < seq.length; i++) {
-      const t = parse(seq[i]);
-      if (seq[i] === seq[i - 1] || seq[i - 1] === key(t.b, t.a)) return false;
-      if (i >= 2 && parse(seq[i - 1]).a === t.a && parse(seq[i - 2]).a === t.a) return false;
+  function testValid(seq, hist) {
+    const h = (hist || []).slice(-2), all = h.concat(seq);
+    for (let i = Math.max(1, h.length); i < all.length; i++) {
+      const t = parse(all[i]);
+      if (all[i] === all[i - 1] || all[i - 1] === key(t.b, t.a)) return false;
+      if (i >= 2 && parse(all[i - 1]).a === t.a && parse(all[i - 2]).a === t.a) return false;
     }
     return true;
   }
-  function testOrder(p, rng) {
+  // hist: últimas preguntas antes de esta tanda; early: la que falló, para que salga pronto.
+  function testOrder(p, rng, hist, early) {
     rng = rng || Math.random;
+    hist = (hist || []).slice(-2);
     const keys = universe(p.settings);
     let best = null;
     for (let attempt = 0; attempt < 60; attempt++) {
       const left = keys.slice(), out = [];
       while (left.length) {
         let cand = [];
-        for (let relax = 0; relax <= 2 && !cand.length; relax++) cand = left.filter(k => allowed(k, out.slice(-3), relax));
+        for (let relax = 0; relax <= 2 && !cand.length; relax++) cand = left.filter(k => allowed(k, hist.concat(out).slice(-3), relax));
         if (!cand.length) cand = left;
         // Primero los factores que más quedan: así no se amontonan al final.
         const count = {};
@@ -593,7 +599,17 @@
         left.splice(left.indexOf(k), 1);
         out.push(k);
       }
-      if (testValid(out)) return out;
+      if (early && keys.includes(early)) {
+        const rest = out.filter(k => k !== early);
+        const lo = CONFIG.TEST_COMEBACK[0], hi = Math.min(CONFIG.TEST_COMEBACK[1], rest.length);
+        const pos = [];
+        for (let i = lo; i <= hi; i++) pos.push(i);
+        pos.sort(() => rng() - 0.5);
+        for (const i of pos) {
+          const cand = rest.slice(0, i).concat(early, rest.slice(i));
+          if (testValid(cand, hist)) return cand;
+        }
+      } else if (testValid(out, hist)) return out;
       best = best || out;
     }
     return best;

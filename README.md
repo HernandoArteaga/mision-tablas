@@ -26,8 +26,9 @@ Práctica de las tablas de multiplicar y de dividir del 2 al 9 para niños de 9 
 ## Test definitivo y premio
 
 - En el inicio hay un botón **Test definitivo**. Se abre cuando el niño domina todas las multiplicaciones (o todas las divisiones, en ese modo); el adulto puede abrirlo antes desde su panel o con su clave en el mismo botón.
-- Pregunta todas, una vez cada una, mezcladas y sin pistas. No hay reloj. Gana con el 90 % (58 de 64).
-- Los errores del test vuelven a la práctica como Difíciles, para reforzarlos.
+- Las preguntas salen al azar, sin pistas ni reloj, y no se acaban. Gana al responder todas bien seguidas (64 de 64).
+- Si se equivoca, el test sigue y solo el contador de seguidas vuelve a 0. La próxima racha vuelve a incluir todas, y la fallada sale de nuevo a las pocas preguntas.
+- Los errores del test también vuelven a la práctica como Difíciles, para reforzarlos.
 - Al ganar: celebración con fuegos artificiales y trofeo, una canción original creada con Web Audio y un vale "VALE POR…" para reclamar con Papá. El adulto escribe el premio en su panel y lo marca como entregado (también desde el vale, con la barrera para adultos). Con "Preparar otro premio" se puede ganar uno nuevo.
 
 ## Tablas de dividir
