@@ -30,6 +30,13 @@ def watch(page):
     page.on('console', lambda m: errors.append('console: ' + m.text) if m.type == 'error' and 'fonts' not in m.text else None)
 
 
+CODE_JS = "(() => { const d = new Date(); return String(d.getHours() * 100 + d.getMinutes()).padStart(4, '0'); })()"
+
+
+def papa_code(pg):
+    return pg.evaluate(CODE_JS)
+
+
 def qinfo(page):
     a, b = int(page.inner_text('#qa')), int(page.inner_text('#qb'))
     op = page.inner_text('#qop')
@@ -106,10 +113,13 @@ with sync_playwright() as pw:
     page.screenshot(path=f'{SHOTS}/p6-map.png', full_page=True)
     page.tap('#s-map .back'); page.wait_for_timeout(200)
     page.tap('#btnAdult'); page.wait_for_timeout(300)
-    x, y = [int(t) for t in page.inner_text('#gateQ').split('×')]
-    page.tap('#gateInput'); page.keyboard.type('1'); page.tap('#gateForm button[type=submit]')
-    ok(page.is_visible('#o-gate') and 'No es correcto' in page.inner_text('#gateErr'), 'La barrera para adultos rechaza una respuesta equivocada')
-    page.fill('#gateInput', str(x * y)); page.tap('#gateForm button[type=submit]'); page.wait_for_timeout(400)
+    good = papa_code(page)
+    wrong = '%04d' % ((int(good) + 37) % 2400)
+    page.tap('#gateInput'); page.keyboard.type(wrong); page.tap('#gateForm button[type=submit]')
+    masked = page.evaluate("getComputedStyle(document.getElementById('gateInput')).webkitTextSecurity")
+    ok(page.is_visible('#o-gate') and 'Clave incorrecta' in page.inner_text('#gateErr') and masked == 'disc',
+       f'La clave de Papá se escribe oculta y rechaza {wrong} (la hora es {good})')
+    page.fill('#gateInput', papa_code(page)); page.tap('#gateForm button[type=submit]'); page.wait_for_timeout(400)
     weak = page.inner_text('#weakList')
     ok(page.is_visible('#s-adult') and '×' in weak, 'Con la respuesta correcta entra al panel, que lista las falencias')
     page.screenshot(path=f'{SHOTS}/p7-adult.png', full_page=True)
@@ -197,8 +207,7 @@ with sync_playwright() as pw:
 
     def open_adult(pg):
         pg.tap('#btnAdult'); pg.wait_for_timeout(250)
-        x, y = [int(t) for t in pg.inner_text('#gateQ').split('×')]
-        pg.fill('#gateInput', str(x * y)); pg.tap('#gateForm button[type=submit]'); pg.wait_for_timeout(300)
+        pg.fill('#gateInput', papa_code(pg)); pg.tap('#gateForm button[type=submit]'); pg.wait_for_timeout(300)
 
     count_js = "() => JSON.parse(localStorage.getItem('mision-tablas-v1')).profiles.length"
     devs = []
@@ -276,7 +285,13 @@ with sync_playwright() as pw:
     ctx = br.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, is_mobile=True)
     page = ctx.new_page(); watch(page); page.goto(URL); page.wait_for_timeout(500)
     new_profile(page, 'Julieta')
-    ok('locked' in page.get_attribute('#btnTest', 'class') and 'Llevas 0' in page.inner_text('#testSub'), 'El test aparece cerrado mientras no domine las 64')
+    ok('locked' in page.get_attribute('#btnTest', 'class') and 'llevas 0' in page.inner_text('#testSub'), 'El test aparece cerrado mientras no domine las 64')
+    page.tap('#btnTest'); page.wait_for_timeout(250)
+    gate_title = page.inner_text('#gateTitle')
+    page.fill('#gateInput', papa_code(page)); page.tap('#gateForm button[type=submit]'); page.wait_for_timeout(300)
+    ok(gate_title == 'Abrir el test definitivo' and page.is_visible('#o-tstart'), 'Con candado, la clave de Papá abre el test (solo este intento)')
+    page.tap('#tsNo'); page.wait_for_timeout(200)
+    ok('locked' in page.get_attribute('#btnTest', 'class'), 'Si no lo empieza, el test sigue con candado')
     open_adult(page)
     page.tap('#setTestAlways'); page.wait_for_timeout(150)
     page.fill('#setPrize', 'Un helado con Papá'); page.dispatch_event('#setPrize', 'change'); page.wait_for_timeout(150)
@@ -296,8 +311,7 @@ with sync_playwright() as pw:
     ok(page.is_visible('#btnTicket') and page.evaluate("!document.documentElement.dataset.song"), 'Al cerrar se detiene la canción y el inicio muestra el premio por reclamar')
     page.tap('#btnTicket'); page.wait_for_timeout(400)
     page.tap('#prizeClaim'); page.wait_for_timeout(250)
-    x, y = [int(t) for t in page.inner_text('#gateQ').split('×')]
-    page.fill('#gateInput', str(x * y)); page.tap('#gateForm button[type=submit]'); page.wait_for_timeout(300)
+    page.fill('#gateInput', papa_code(page)); page.tap('#gateForm button[type=submit]'); page.wait_for_timeout(300)
     stamp = page.is_visible('#tStamp')
     page.tap('#prizeOk'); page.wait_for_timeout(300)
     ok(stamp and not page.is_visible('#btnTicket') and 'Récord: 62 de 64' in page.inner_text('#testSub'), 'Papá lo marca como entregado (con la barrera para adultos); queda el récord 62 de 64')

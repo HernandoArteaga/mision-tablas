@@ -141,6 +141,7 @@ body.playing #app { height: 100%; }
   border: 2px solid var(--line); background: var(--card);
   font-family: var(--font-display); font-weight: 700; font-size: 28px; color: var(--ink);
 }
+.field.secret { -webkit-text-security: disc; letter-spacing: .2em; }
 .field.small { font-family: var(--font-body); font-size: 20px; min-height: 56px; }
 .field:focus { border-color: var(--stamp); outline: none; box-shadow: 0 0 0 4px var(--stamp-soft); }
 .avatar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); gap: 10px; }
@@ -910,8 +911,8 @@ body.testing .round-dots { display: none; }
 <div id="o-gate" class="overlay" hidden>
   <form class="dialog left" role="dialog" aria-modal="true" aria-labelledby="gateTitle" id="gateForm" novalidate>
     <h2 id="gateTitle" style="font-size:30px">Solo para adultos</h2>
-    <label for="gateInput" class="lead">Para entrar, resuelve <b id="gateQ"></b></label>
-    <input id="gateInput" class="field" inputmode="numeric" autocomplete="off" maxlength="4" data-autofocus>
+    <label for="gateInput" class="lead" id="gateLead">Escribe la clave de Papá para entrar.</label>
+    <input id="gateInput" class="field secret" inputmode="numeric" pattern="[0-9]*" autocomplete="off" spellcheck="false" maxlength="4" data-autofocus>
     <p id="gateErr" class="form-err" role="alert"></p>
     <div class="actions">
       <button type="submit" class="btn go">Entrar</button>
@@ -2207,17 +2208,20 @@ body.testing .round-dots { display: none; }
     const open = MT.testOpen(T), sm = MT.summary(T), need = MT.testNeeded(sm.total), pz = T.prize, tt = T.test;
     const card = $('#btnTest');
     card.classList.toggle('locked', !open);
-    card.setAttribute('aria-disabled', String(!open));
     $('#testIcon').textContent = open ? '🏆' : '🔒';
-    $('#testSub').textContent = !open ? `Se abre cuando domines las ${sm.total}. Llevas ${sm.mastered}. Premio: ${T.settings.prizeText}.`
+    $('#testSub').textContent = !open ? `Se abre cuando domines las ${sm.total} (llevas ${sm.mastered}) o con la clave de Papá. Premio: ${T.settings.prizeText}.`
       : !pz.wonAt ? `${sm.total} preguntas sin pistas. Con ${need} buenas ganas: ${T.settings.prizeText}.`
         : !pz.claimedAt ? `¡Ganaste el premio! Récord: ${tt.best} de ${tt.total}. Puedes repetirlo.`
           : `Récord: ${tt.best} de ${tt.total}. ¡Puedes repetirlo!`;
     $('#btnTicket').hidden = !(pz.wonAt && !pz.claimedAt);
   }
   $('#btnTest').addEventListener('click', () => {
-    const op = curOp(), T = trk(op), card = $('#btnTest');
-    if (!MT.testOpen(T)) { card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); return; }
+    const op = curOp(), T = trk(op);
+    // Con candado, Papá puede abrirlo con su clave (solo para este intento).
+    if (!MT.testOpen(T)) { openGate(() => openTestStart(op, T), 'test'); return; }
+    openTestStart(op, T);
+  });
+  function openTestStart(op, T) {
     const n = MT.universe(T.settings).length, need = MT.testNeeded(n);
     const lines = [`${n} ${noun(op, 2)}, una vez cada una y sin pistas.`, `Necesitas ${need} buenas para ganar.`,
       T.prize.wonAt && !T.prize.claimedAt ? 'Ya ganaste el premio. ¡A superar tu récord!' : T.prize.wonAt ? '¡A superar tu récord!' : `Premio: ${T.settings.prizeText}`,
@@ -2226,7 +2230,7 @@ body.testing .round-dots { display: none; }
     $('#tsGo').onclick = () => { closeOverlay('o-tstart'); startTest(); };
     $('#tsNo').onclick = () => closeOverlay('o-tstart');
     openOverlay('o-tstart');
-  });
+  }
   $('#btnTicket').addEventListener('click', () => openPrize(curOp(), null, false));
   function startTest() {
     Sound.unlock(); clearTimers();
@@ -2312,7 +2316,7 @@ body.testing .round-dots { display: none; }
       MT.claimPrize(T, Date.now()); persist();
       $('#tStamp').hidden = false; $('#prizeClaim').hidden = true;
       renderHome();
-    });
+    }, 'claim');
     openOverlay('o-prize', () => { Song.stop(); FX.stop(); renderHome(); });
     FX.run($('#fireworks'), fresh ? 9000 : 2500);
     if (fresh && P.settings.sound) Song.play();
@@ -2597,18 +2601,31 @@ body.testing .round-dots { display: none; }
   });
 
   /* ===== Barrera para adultos ===== */
+  // La clave de Papá es la hora actual en formato de 24 horas: 13:22 → 1322 (también vale un minuto antes o después).
+  function adultCodeOk(value) {
+    const digits = String(value || '').replace(/\D/g, '');
+    if (digits.length < 3) return false;
+    const n = parseInt(digits, 10), now = Date.now();
+    return [-1, 0, 1].some(off => { const d = new Date(now + off * 60000); return n === d.getHours() * 100 + d.getMinutes(); });
+  }
+  const GATE_TEXT = {
+    adult: ['Solo para adultos', 'Escribe la clave de Papá para entrar.'],
+    test: ['Abrir el test definitivo', 'Papá: escribe tu clave para abrir el test.'],
+    claim: ['Entregar el premio', 'Papá: escribe tu clave para marcarlo como entregado.']
+  };
   let gate = null;
-  function openGate(onPass) {
-    const a = 12 + Math.floor(Math.random() * 17), b = 3 + Math.floor(Math.random() * 7);
-    gate = { ans: a * b, onPass: onPass };
-    $('#gateQ').textContent = `${a} × ${b}`;
+  function openGate(onPass, kind) {
+    const tx = GATE_TEXT[kind] || GATE_TEXT.adult;
+    gate = { onPass: onPass };
+    $('#gateTitle').textContent = tx[0];
+    $('#gateLead').textContent = tx[1];
     $('#gateInput').value = ''; $('#gateErr').textContent = '';
     openOverlay('o-gate');
   }
   $('#gateForm').addEventListener('submit', e => {
     e.preventDefault();
-    if (parseInt($('#gateInput').value, 10) === gate.ans) { const f = gate.onPass; closeOverlay('o-gate'); f(); }
-    else { $('#gateErr').textContent = 'No es correcto. Inténtalo de nuevo.'; $('#gateInput').select(); }
+    if (adultCodeOk($('#gateInput').value)) { const f = gate.onPass; closeOverlay('o-gate'); f(); }
+    else { $('#gateErr').textContent = 'Clave incorrecta. Inténtalo de nuevo.'; $('#gateInput').select(); }
   });
   $('#gateCancel').addEventListener('click', () => closeOverlay('o-gate'));
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#o-gate').hidden) closeOverlay('o-gate'); });
