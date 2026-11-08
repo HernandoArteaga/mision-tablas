@@ -12,6 +12,11 @@
     TEST_PASS: 1,                  // test definitivo: hay que responderlas todas bien seguidas (64 de 64)
     TEST_COMEBACK: [3, 8],         // tras un error en el test, la fallada vuelve entre la 3.ª y la 8.ª pregunta
     PRIZE_DEFAULT: 'Un plan especial con Papá',
+    MIX_DIV_SHARE: 0.5,            // Mixto: proporción de divisiones
+    MIX_MAX_RUN: 3,                // Mixto: máximo de seguidas del mismo tipo
+    STREAK_STEP: 10,               // canción de racha a las 10, 20, 30 y 40 seguidas…
+    STREAK_EPIC: 50,               // …la épica a las 50…
+    STREAK_EPIC_STEP: 25,          // …y luego cada 25 (75, 100, 125…)
     ROUND_SIZE: 10,                // preguntas por ronda
     MIX_BASE: { reto: 0.5, confianza: 0.3, nueva: 0.2 },
     MIX_LOW: { reto: 0.35, confianza: 0.55, nueva: 0.1 },  // aciertos recientes < 70 %
@@ -121,7 +126,7 @@
   function ensure(p) {
     ensureTrack(p, 'mul');
     p.div = ensureTrack(p.div && typeof p.div === 'object' ? p.div : {}, 'div');
-    p.mode = p.mode === 'div' ? 'div' : 'mul';
+    p.mode = p.mode === 'div' || p.mode === 'mix' ? p.mode : 'mul';
     return p;
   }
   /* Reinicia el progreso de un modo; el perfil, los ajustes y el otro modo se quedan. */
@@ -565,6 +570,43 @@
     return { n: n, today: today };
   }
 
+  /* ===== Mixto =====
+     Mezcla multiplicaciones y divisiones; cada respuesta suma al progreso de su propio modo.
+     No pregunta una división justo después de su multiplicación (ni al revés): sería regalar la respuesta. */
+  function sameFamily(x, y) { return !!x && !!y && ((x.a === y.a && x.b === y.b) || (x.a === y.b && x.b === y.a)); }
+  function knownSet(prof) { return new Set(Object.keys(prof.facts).filter(k => prof.facts[k].level >= 3)); }
+  // subs: sesiones del motor {mul, div}; state: {last, run} lo lleva el mismo pickMixed.
+  function pickMixed(prof, subs, state, rng, now) {
+    rng = rng || Math.random;
+    state.run = state.run || [];
+    let op = rng() < CONFIG.MIX_DIV_SHARE ? 'div' : 'mul';
+    const tail = state.run.slice(-CONFIG.MIX_MAX_RUN);
+    if (tail.length === CONFIG.MIX_MAX_RUN && tail.every(o => o === op)) op = op === 'mul' ? 'div' : 'mul';
+    subs.div.known = knownSet(prof);
+    let chosen = null;
+    for (const o of [op, op === 'mul' ? 'div' : 'mul']) {
+      for (let i = 0; i < 6 && !chosen; i++) {
+        const pick = pickNext(track(prof, o), subs[o], rng, now);
+        if (!state.last || state.last.op === o || !sameFamily(state.last, pick)) chosen = { op: o, pick: pick };
+      }
+      if (chosen) break;
+    }
+    if (!chosen) chosen = { op: op, pick: pickNext(track(prof, op), subs[op], rng, now) };
+    state.last = { op: chosen.op, a: chosen.pick.a, b: chosen.pick.b };
+    state.run.push(chosen.op);
+    if (state.run.length > 10) state.run.shift();
+    return chosen;
+  }
+
+  /* ===== Canciones de racha =====
+     Nivel de la canción al llegar a n respuestas seguidas sin error (0 = no suena).
+     10 → 1, 20 → 2, 30 → 3, 40 → 4, 50 y luego cada 25 → 5 (la épica). */
+  function streakTier(n) {
+    if (!(n > 0)) return 0;
+    if (n < CONFIG.STREAK_EPIC) return n % CONFIG.STREAK_STEP === 0 ? n / CONFIG.STREAK_STEP : 0;
+    return (n - CONFIG.STREAK_EPIC) % CONFIG.STREAK_EPIC_STEP === 0 ? 5 : 0;
+  }
+
   /* ===== Test definitivo =====
      Preguntas al azar sin parar, sin pistas. Gana al responder todas las del modo bien y seguidas.
      Si falla, el test sigue pero el contador de seguidas vuelve a 0: las próximas vuelven a ser
@@ -731,6 +773,7 @@
     CONFIG, TABLES, LEVELS, key, parse, universe, group, defaultSettings, boostKeys, newFact, newProfile, ensure, resetProgress,
     expected, inTable, track, hintFor, confusionFor, divHint, divConfusion,
     testNeeded, testOpen, testOrder, testValid, recordTest, claimPrize, newPrize,
+    pickMixed, sameFamily, streakTier,
     newSession, closeRound, ackBreak, allowed, pickNext, grade, hint, confusion,
     summary, tables, weaknesses, avgOkMs, dayStreak, ymd
   };

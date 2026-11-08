@@ -345,6 +345,44 @@ with sync_playwright() as pw:
     ok('mejor racha: 10 de 15' in page.inner_text('#testSub') and page.is_visible('#s-home'),
        f'Al salir guarda la mejor racha: "{page.inner_text("#testSub")}"')
     ctx.close()
+
+    # ---------- Mixto y canciones de racha ----------
+    ctx = br.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, is_mobile=True)
+    page = ctx.new_page(); watch(page); page.goto(URL); page.wait_for_timeout(500)
+    new_profile(page, 'Sofi')
+    page.tap('#s-home .mode[data-op="mix"]'); page.wait_for_timeout(200)
+    ok('multiplicaciones y divisiones' in page.inner_text('#homeCountLabel') and page.inner_text('#homeTotal') == '128' and not page.is_visible('#btnTest'),
+       'Mixto en el inicio: suma los dos modos (de 128) y esconde el test, que es de cada modo')
+    page.screenshot(path=f'{SHOTS}/x1-home.png')
+    page.tap('#btnPlay'); page.wait_for_function(READY)
+    seen, jingles, stamps, done = [], {}, {}, 0
+    WAIT = f"() => !document.getElementById('o-round').hidden || ({READY})()"
+    while done < 21:
+        if page.is_visible('#o-round'): page.tap('#roundGo'); page.wait_for_function(READY); continue
+        if page.is_visible('#o-medal'): page.tap('#medalOk'); page.wait_for_function(READY); continue
+        a, b, ans, op = qinfo(page); seen.append((op, a, b))
+        page.keyboard.type(str(ans)); page.keyboard.press('Enter'); done += 1
+        if done in (9, 10, 20):
+            page.wait_for_timeout(150)
+            jingles[done] = page.evaluate("document.documentElement.dataset.jingle || ''")
+            stamps[done] = page.inner_text('#stamp') if page.is_visible('#stamp') else ''
+            if done == 10: page.screenshot(path=f'{SHOTS}/x2-streak.png')
+        page.wait_for_function(WAIT, timeout=8000)
+    fam = lambda x: frozenset((x[1], x[2]) if x[0] == '×' else (x[2], x[1] // x[2]))
+    gifts = sum(1 for i in range(1, len(seen)) if seen[i][0] != seen[i - 1][0] and fam(seen[i]) == fam(seen[i - 1]))
+    nmul = sum(1 for x in seen if x[0] == '×')
+    ok(0 < nmul < len(seen) and gifts == 0, f'Mixto: {nmul} multiplicaciones y {len(seen) - nmul} divisiones en {len(seen)} preguntas, sin regalar respuestas')
+    ok(jingles.get(9) == '' and jingles.get(10) == '1' and jingles.get(20) == '2' and '10 seguidas' in stamps.get(10, ''),
+       f'Canción de racha: nada a las 9; nivel {jingles.get(10)} a las 10 ("{stamps.get(10)}") y nivel {jingles.get(20)} a las 20')
+    prof = page.evaluate("JSON.parse(localStorage.getItem('mision-tablas-v1')).profiles[0]")
+    ok(prof['answered'] > 0 and prof['div']['answered'] > 0 and prof['answered'] + prof['div']['answered'] == 21,
+       f"Cada respuesta suma a su modo: {prof['answered']} × y {prof['div']['answered']} ÷")
+    page.tap('#btnExit'); page.wait_for_timeout(250)
+    page.tap('#btnMap'); page.wait_for_timeout(250)
+    vis = page.is_visible('#mapOps')
+    page.tap('#mapOps button[data-op="div"]'); page.wait_for_timeout(150)
+    ok(vis and page.inner_text('#mapGrid .cell.h') == '÷', 'En Mixto el mapa deja ver el de multiplicar y el de dividir')
+    ctx.close()
     br.close()
 
 srv.terminate()

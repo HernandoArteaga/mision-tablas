@@ -337,6 +337,37 @@ out.push('\n10) Test definitivo y premio');
   check(R.prize.round === 1 && R.prize.wonAt === 6000 && R.answered === 0, 'Reiniciar el progreso no borra un premio ganado');
 }
 
+out.push('\n11) Mixto y canciones de racha');
+{
+  const tiers = [5, 9, 10, 11, 20, 30, 40, 45, 50, 60, 75, 99, 100, 125].map(n => `${n}→${MT.streakTier(n)}`).join(' ');
+  check(tiers === '5→0 9→0 10→1 11→0 20→2 30→3 40→4 45→0 50→5 60→0 75→5 99→0 100→5 125→5', `Racha → canción: ${tiers}`);
+  const mixKid = (seed, n, pOk) => {
+    const rng = rngFrom(seed), prof = MT.newProfile('Sofi', '🐼');
+    let now = new Date(2026, 10, 8, 16, 0, 0).getTime();
+    const subs = { mul: MT.newSession(prof, now), div: MT.newSession(prof.div, now) }, state = {}, log = [];
+    for (let i = 0; i < n; i++) {
+      const m = MT.pickMixed(prof, subs, state, rng, now), T = MT.track(prof, m.op), pk = m.pick;
+      const ok = rng() < pOk, right = m.op === 'div' ? pk.b : pk.a * pk.b;
+      now += 4000;
+      MT.grade(T, subs[m.op], pk.key, ok ? right : right + 1, 2500, now, { kind: pk.kind, stage: pk.stage, assisted: pk.preHint });
+      log.push({ op: m.op, a: pk.a, b: pk.b, key: pk.key });
+    }
+    return { prof, log };
+  };
+  const R = mixKid(41, 600, 0.9), L = R.log;
+  const div = L.filter(e => e.op === 'div').length / L.length;
+  let gift = 0, run = 1, maxRun = 1, rep = 0;
+  for (let i = 1; i < L.length; i++) {
+    if (L[i].op !== L[i - 1].op && MT.sameFamily(L[i], L[i - 1])) gift++;
+    if (L[i].op === L[i - 1].op && (L[i].key === L[i - 1].key || L[i].key === inv(L[i - 1].key))) rep++;
+    run = L[i].op === L[i - 1].op ? run + 1 : 1; maxRun = Math.max(maxRun, run);
+  }
+  check(div > 0.4 && div < 0.6 && maxRun <= 3, `600 preguntas en Mixto: ${(100 * div).toFixed(0)} % divisiones; nunca más de ${maxRun} seguidas del mismo tipo`);
+  check(gift === 0 && rep === 0, 'Nunca regala la respuesta: tras 7 × 8 no sale 56 ÷ 8 ni 56 ÷ 7 (y viceversa); tampoco repite seguidas');
+  check(R.prof.answered + R.prof.div.answered === 600 && MT.summary(R.prof).mastered > 30 && MT.summary(R.prof.div).mastered > 20,
+    `Cada respuesta suma a su modo: ${R.prof.answered} multiplicaciones y ${R.prof.div.answered} divisiones; dominadas ${MT.summary(R.prof).mastered} × y ${MT.summary(R.prof.div).mastered} ÷`);
+}
+
 out.push('\nExtras');
 {
   let viol = 0, total = 0;

@@ -149,17 +149,20 @@ body.playing #app { height: 100%; }
 .home-top .who { display: flex; align-items: center; gap: 14px; flex: 1 1 260px; min-width: 0; }
 .home-top h1 { font-size: clamp(28px, 6vw, 40px); font-weight: 800; overflow-wrap: anywhere; }
 .home-top .tools { display: flex; gap: 8px; flex-wrap: wrap; }
-.modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .mode {
-  display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 64px; padding: 8px 12px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 80px; padding: 8px 6px;
   border-radius: 20px; border: 2px solid var(--key-edge); background: var(--card); box-shadow: 0 4px 0 var(--key-edge);
-  font-family: var(--font-display); font-weight: 800; font-size: clamp(19px, 5vw, 26px); color: var(--ink-2); touch-action: manipulation;
+  font-family: var(--font-display); font-weight: 800; font-size: clamp(16px, 4.4vw, 24px); line-height: 1.1; color: var(--ink-2); touch-action: manipulation;
 }
+@media (min-width: 640px) { .mode { flex-direction: row; gap: 10px; min-height: 64px; } }
+.mode .sym.two { width: auto; padding: 0 6px; font-size: 22px; letter-spacing: -.02em; }
 .mode .sym { flex: none; display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: var(--lv0); color: var(--ink); font-size: 28px; line-height: 1; }
 .mode[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; box-shadow: 0 4px 0 rgba(29, 42, 87, .45); }
 .mode[aria-pressed="true"] .sym { background: var(--sun); }
 .mode:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-edge); }
 .ad-ops button { min-height: 52px; font-size: 17px; }
+.map-ops { justify-self: start; }
 .mission {
   background: var(--card); border: 2px solid var(--line); border-radius: 26px;
   box-shadow: 0 6px 0 var(--key-edge); padding: 20px; display: grid; gap: 14px;
@@ -572,6 +575,7 @@ body.testing .round-dots { display: none; }
     <div class="modes" role="group" aria-label="¿Qué practicamos?">
       <button type="button" class="mode" data-op="mul" aria-pressed="true"><span class="sym" aria-hidden="true">×</span>Multiplicar</button>
       <button type="button" class="mode" data-op="div" aria-pressed="false"><span class="sym" aria-hidden="true">÷</span>Dividir</button>
+      <button type="button" class="mode" data-op="mix" aria-pressed="false"><span class="sym two" aria-hidden="true">×÷</span>Mixto</button>
     </div>
     <div class="mission">
       <div class="count"><b id="homeCount">0</b><span>de <span id="homeTotal">64</span></span><small id="homeCountLabel">multiplicaciones dominadas</small></div>
@@ -646,6 +650,9 @@ body.testing .round-dots { display: none; }
     <button class="chip back" type="button" data-go="home">← Volver</button>
     <h1 class="title" tabindex="-1" data-focus>Mapa de las Tablas</h1>
     <p class="lead" id="mapLead">Cada casilla es una multiplicación. Tócala para ver cómo vas.</p>
+    <div class="seg ad-ops map-ops" role="group" aria-label="Qué mapa ver" id="mapOps" hidden>
+      <button type="button" data-op="mul" aria-pressed="true">× Multiplicar</button><button type="button" data-op="div" aria-pressed="false">÷ Dividir</button>
+    </div>
     <div class="map-wrap">
       <div id="mapGrid" class="map-grid"></div>
       <p id="mapInfo" class="map-info" aria-live="polite"></p>
@@ -1189,12 +1196,15 @@ body.testing .round-dots { display: none; }
 
   /* ===== Multiplicar o dividir =====
      El perfil guarda multiplicar en sí mismo y dividir en P.div, cada uno con su progreso. */
-  const curOp = () => (P && P.mode === 'div' ? 'div' : 'mul');
+  const curOp = () => (P && (P.mode === 'div' || P.mode === 'mix') ? P.mode : 'mul');
   const trk = op => MT.track(P, op);
   const opSym = op => (op === 'div' ? '÷' : '×');
   // 'axb' al dividir es (a × b) ÷ a = b.
   function fmtFact(op, a, b, nb) { const s = nb ? '\u00A0' : ' '; return op === 'div' ? `${a * b}${s}÷${s}${a}` : `${a}${s}×${s}${b}`; }
-  function noun(op, n) { return op === 'div' ? (n === 1 ? 'división' : 'divisiones') : (n === 1 ? 'multiplicación' : 'multiplicaciones'); }
+  function noun(op, n) {
+    if (op === 'mix') return n === 1 ? 'operación' : 'operaciones';
+    return op === 'div' ? (n === 1 ? 'división' : 'divisiones') : (n === 1 ? 'multiplicación' : 'multiplicaciones');
+  }
   function tableName(op, n) { return op === 'div' ? `Dividir entre ${n}` : `Tabla del ${n}`; }
   const totalStars = () => P.stars + P.div.stars;
   const allDays = () => Array.from(new Set(P.days.concat(P.div.days)));
@@ -1212,11 +1222,17 @@ body.testing .round-dots { display: none; }
   }
   function factors(T) { return T.settings.includeOne ? [1, 2, 3, 4, 5, 6, 7, 8, 9] : [2, 3, 4, 5, 6, 7, 8, 9]; }
   $$('#s-home .mode').forEach(b => b.addEventListener('click', () => { P.mode = b.dataset.op; persist(); renderHome(); }));
+  let ticketOp = 'mul';
   function renderHome() {
-    const op = curOp(), T = trk(op);
-    const sm = MT.summary(T), ds = MT.dayStreak({ days: allDays() }, Date.now()), tb = MT.tables(T);
+    const op = curOp(), mix = op === 'mix', T = trk(mix ? 'mul' : op);
+    const views = mix ? ['mul', 'div'] : [op];
+    // En Mixto el inicio suma los dos modos.
+    const sm = views.map(o => MT.summary(trk(o))).reduce((x, y) => ({ mastered: x.mastered + y.mastered, total: x.total + y.total, maintenance: x.maintenance && y.maintenance }));
+    const ds = MT.dayStreak({ days: allDays() }, Date.now());
+    const tb = [].concat.apply([], views.map(o => MT.tables(trk(o)).map(t => Object.assign({ op: o }, t))));
+    const answered = views.reduce((n, o) => n + trk(o).answered, 0);
     $$('#s-home .mode').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.op === op)));
-    $('#homeCountLabel').textContent = noun(op, 2) + ' dominadas';
+    $('#homeCountLabel').textContent = mix ? 'multiplicaciones y divisiones dominadas' : noun(op, 2) + ' dominadas';
     $('#homeAva').textContent = P.avatar;
     $('#homeHello').textContent = `¡Hola, ${P.name}!`;
     $('#homeCount').textContent = sm.mastered;
@@ -1228,18 +1244,29 @@ body.testing .round-dots { display: none; }
     $('#homeDays').textContent = ds.n ? (ds.n === 1 ? '1 día de racha' : `${ds.n} días seguidos`) : 'Hoy empieza tu racha';
     const won = tb.filter(t => t.medal).length;
     $('#homeMedals').textContent = won === 1 ? '1 medalla' : `${won} medallas`;
-    $('#homeNote').textContent = !T.answered ? (op === 'div' ? 'Vamos a descubrir qué divisiones ya sabes.' : 'Vamos a descubrir qué tablas ya sabes.')
+    $('#homeNote').textContent = mix ? 'Mezcla multiplicaciones y divisiones. Cada respuesta suma a su propio mapa.'
+      : !answered ? (op === 'div' ? 'Vamos a descubrir qué divisiones ya sabes.' : 'Vamos a descubrir qué tablas ya sabes.')
       : sm.maintenance ? '¡Dominas todas! Ahora a mantenerlas en forma.'
         : `Te ${sm.total - sm.mastered === 1 ? 'falta 1' : 'faltan ' + (sm.total - sm.mastered)} para dominarlas todas.`;
-    $('#homeMedalRow').innerHTML = tb.map(t => medalHtml(t, op)).join('');
+    $('#homeMedalRow').innerHTML = tb.map(t => medalHtml(t, t.op)).join('');
     const F = factors(T), U = new Set(MT.universe(T.settings));
     const mm = $('#miniMap'); mm.style.setProperty('--cols', F.length);
     mm.innerHTML = F.map(a => F.map(b => { const k = MT.key(a, b); return U.has(k) ? `<i style="background:var(--lv${T.facts[k].level})"></i>` : '<i style="background:transparent"></i>'; }).join('')).join('');
-    $('#btnDiploma').hidden = !T.masteredAll;
-    renderTestCard(T);
-    const bk = MT.boostKeys(T.settings).filter(k => U.has(k));
-    $('#homeBoost').hidden = !bk.length;
-    $('#homeBoost').textContent = bk.length ? 'Refuerzo activo: ' + factsPhrase(op, bk, 4) : '';
+    $('#btnDiploma').hidden = mix || !T.masteredAll;
+    // El test definitivo es de cada modo; en Mixto solo se avisa si hay un premio pendiente.
+    $('#btnTest').hidden = mix;
+    if (mix) {
+      const pend = ['mul', 'div'].find(o => { const z = trk(o).prize; return z.wonAt && !z.claimedAt; });
+      $('#btnTicket').hidden = !pend;
+      ticketOp = pend || 'mul';
+    } else { renderTestCard(T); ticketOp = op; }
+    const boosts = views.map(o => {
+      const t = trk(o), u = new Set(MT.universe(t.settings));
+      const bk = MT.boostKeys(t.settings).filter(k => u.has(k));
+      return bk.length ? factsPhrase(o, bk, mix ? 3 : 4) : '';
+    }).filter(Boolean);
+    $('#homeBoost').hidden = !boosts.length;
+    $('#homeBoost').textContent = boosts.length ? 'Refuerzo activo: ' + boosts.join(' · ') : '';
   }
   // "7 × 8, 9 × 7 y 6 × 9"; con más de `max`, "7 × 8, 9 × 7, 6 × 9 y 2 más".
   function factsPhrase(op, keys, max) {
@@ -1253,31 +1280,40 @@ body.testing .round-dots { display: none; }
     if (!P) return goProfiles();
     renderHome(); show('home');
   }
-  $('#btnMap').addEventListener('click', () => { renderMap(); show('map'); });
+  let mapOp = 'mul';
+  $('#btnMap').addEventListener('click', () => { mapOp = curOp() === 'mix' ? 'mul' : curOp(); renderMap(); show('map'); });
+  $('#mapOps').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { mapOp = b.dataset.op; renderMap(); } });
   $('#btnDiploma').addEventListener('click', () => openDiploma(false, null, curOp()));
-  $('#btnAdult').addEventListener('click', () => openGate(() => { adOp = curOp(); renderAdult(); show('adult'); }));
+  $('#btnAdult').addEventListener('click', () => openGate(() => { adOp = curOp() === 'div' ? 'div' : 'mul'; renderAdult(); show('adult'); }));
 
   /* ===== Práctica ===== */
   $('#btnPlay').addEventListener('click', startPlay);
+  // La práctica lleva su propia racha, ronda y pausa; el motor lleva una sesión por modo (en Mixto, dos).
+  const freshRound = () => ({ answered: 0, correct: 0, stars: 0, ups: 0, mastered: [] });
+  function newPlay(op, now) {
+    const subs = {};
+    (op === 'mix' ? ['mul', 'div'] : [op]).forEach(o => { subs[o] = MT.newSession(trk(o), now); });
+    return { pid: P.id, op: op, subs: subs, mix: {}, streak: 0, dots: [], round: freshRound(), last: now, activeMs: 0, breakAt: MT.CONFIG.BREAK_MS };
+  }
+  const roundSize = () => trk(S.op === 'div' ? 'div' : 'mul').settings.roundSize;
   function startPlay() {
     Sound.unlock();
     const now = Date.now();
     const op = curOp();
-    if (!S || S.pid !== P.id || S.op !== op || now - S.last > MT.CONFIG.SESSION_RESUME_MS) { S = MT.newSession(trk(op), now); S.pid = P.id; S.op = op; S.dots = []; }
+    if (!S || S.pid !== P.id || S.op !== op || now - S.last > MT.CONFIG.SESSION_RESUME_MS) S = newPlay(op, now);
     show('play');
     renderHud(); renderSound();
     nextQuestion();
   }
   function renderHud(res) {
     $('#hudStarsN').textContent = totalStars();
-    const sess = TEST ? TEST.sess : S;
-    $('#hudStreakN').textContent = sess ? sess.streak : 0;
+    $('#hudStreakN').textContent = TEST ? TEST.streak : S ? S.streak : 0;
     if (res && res.correct) {
       ['#hudStars', '#hudStreak'].forEach(s => { const el = $(s); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); });
     }
   }
   function renderDots() {
-    const n = trk(S.op).settings.roundSize, d = S.dots;
+    const n = roundSize(), d = S.dots;
     let h = '';
     for (let i = 0; i < n; i++) h += `<i class="rd ${d[i] ? 'rd-' + d[i] : ''} ${i === d.length && Q && Q.phase === 'ask' ? 'rd-now' : ''}"></i>`;
     $('#roundDots').innerHTML = h;
@@ -1299,10 +1335,17 @@ body.testing .round-dots { display: none; }
   function nextQuestion() {
     clearTimers();
     if (current !== 'play') return;
-    const op = S.op, T = trk(op);
-    S.known = op === 'div' ? knownMul() : null; // al dividir, primero las que ya sabe multiplicar
-    const pick = MT.pickNext(T, S, Math.random, Date.now());
-    showQuestion(op, T, pick);
+    let op = S.op, pick;
+    if (op === 'mix') {
+      const m = MT.pickMixed(P, S.subs, S.mix, Math.random, Date.now());
+      op = m.op; pick = m.pick;
+    } else {
+      const sub = S.subs[op];
+      sub.known = op === 'div' ? knownMul() : null; // al dividir, primero las que ya sabe multiplicar
+      pick = MT.pickNext(trk(op), sub, Math.random, Date.now());
+    }
+    pick.op = op;
+    showQuestion(op, trk(op), pick);
     renderDots(); renderHud();
   }
   function showQuestion(op, T, pick) {
@@ -1350,9 +1393,20 @@ body.testing .round-dots { display: none; }
   function submit() {
     if (!Q.typed) { nudge(); return; }
     if (TEST) return submitTest();
-    const ms = Math.max(0, performance.now() - Q.start);
-    const res = MT.grade(trk(S.op), S, Q.pick.key, parseInt(Q.typed, 10), ms, Date.now(),
+    const ms = Math.max(0, performance.now() - Q.start), op = Q.pick.op, sub = S.subs[op];
+    sub.streak = S.streak; // las estrellas extra cuentan la racha de toda la práctica
+    const res = MT.grade(trk(op), sub, Q.pick.key, parseInt(Q.typed, 10), ms, Date.now(),
       { kind: Q.pick.kind, stage: Q.pick.stage, assisted: Q.pick.preHint });
+    S.streak = sub.streak;
+    S.last = Date.now();
+    S.activeMs += Math.min(ms, MT.CONFIG.TIME_CAP_MS) + MT.CONFIG.FEEDBACK_MS;
+    const R = S.round;
+    R.answered++; R.stars += res.stars;
+    if (res.correct) R.correct++;
+    if (res.up) R.ups++;
+    if (res.mastered) R.mastered.push({ op: op, key: res.key });
+    res.roundDone = R.answered >= roundSize();
+    res.breakDue = S.activeMs >= S.breakAt;
     Q.res = res;
     S.dots.push(res.correct ? 'ok' : 'fix');
     persist();
@@ -1366,7 +1420,14 @@ body.testing .round-dots { display: none; }
     const msg = res.first && res.fast ? '¡Ya te la sabías!' : res.sessionErrors > 0 ? pickOne(COMEBACK_MSGS) : pickOne(OK_MSGS);
     setFeedback(`<span>✓ ${esc(msg)}${res.fast ? ' <span aria-label="rápida">⚡</span>' : ''}</span><span class="plus">+${res.stars} ⭐</span>`, 'good');
     let wait = 1000;
-    if (res.mastered) {
+    const tier = MT.streakTier(S.streak);
+    if (tier) {
+      // Canción de racha: la práctica sigue mientras suena.
+      showStamp(res.mastered ? '¡Dominada!' : `🔥 ${S.streak} seguidas`);
+      Jingle.play(tier);
+      if (tier >= 3 || res.mastered) confetti();
+      wait = 1400;
+    } else if (res.mastered) {
       showStamp('¡Dominada!'); confetti(); Sound.master(); wait = 1500;
     } else if (res.stars > 1) {
       showStamp(`¡Racha de ${res.streak}!`); Sound.ok(true); wait = 1300;
@@ -1410,7 +1471,7 @@ body.testing .round-dots { display: none; }
     const queue = [];
     res.newMedals.forEach(n => queue.push(done => openMedal(n, res.op, done)));
     if (res.allMastered) queue.push(done => openDiploma(true, done, res.op));
-    if (res.roundDone) queue.push(done => openRound(MT.closeRound(S), res.breakDue, done));
+    if (res.roundDone) queue.push(done => { const r = S.round; S.round = freshRound(); openRound(r, res.breakDue, done); });
     (function run() {
       if (current !== 'play') return;
       if (!queue.length) return nextQuestion();
@@ -1490,7 +1551,7 @@ body.testing .round-dots { display: none; }
     $('#tsNo').onclick = () => closeOverlay('o-tstart');
     openOverlay('o-tstart');
   }
-  $('#btnTicket').addEventListener('click', () => openPrize(curOp(), null, false));
+  $('#btnTicket').addEventListener('click', () => openPrize(ticketOp, null, false));
   function startTest() {
     Sound.unlock(); clearTimers();
     const op = curOp(), T = trk(op);
@@ -1524,7 +1585,9 @@ body.testing .round-dots { display: none; }
         : TEST.streak === Math.floor(n / 2) ? '¡Vas por la mitad!' : pickOne(TEST_OK);
       card.classList.add('good');
       setFeedback('✓ ' + esc(msg), 'good');
-      Sound.ok(res.fast);
+      const tier = left > 0 ? MT.streakTier(TEST.streak) : 0; // al completar suena la canción del premio
+      if (tier) { Jingle.play(tier); showStamp(`🔥 ${TEST.streak} seguidas`); if (tier >= 3) confetti(); }
+      else Sound.ok(res.fast);
       persist(); renderHud(res); renderTestBar();
       later(() => (TEST.streak >= n ? finishTest() : nextTestQuestion()), 650);
     } else {
@@ -1580,57 +1643,65 @@ body.testing .round-dots { display: none; }
     if (fresh && P.settings.sound) Song.play();
   }
 
-  /* ===== Canción del premio: original, creada con Web Audio ===== */
+  /* ===== Sintetizador: instrumentos para las canciones (todo original, con Web Audio) ===== */
+  let NOISE = null;
+  function synth(out, bpm) {
+    const c = Sound.ctx, spb = 60 / bpm, t0 = c.currentTime + 0.06;
+    const at = beat => t0 + beat * spb;
+    const hz = m => 440 * Math.pow(2, (m - 69) / 12);
+    if (!NOISE) {
+      const n = c.createBuffer(1, c.sampleRate, c.sampleRate), d = n.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      NOISE = n;
+    }
+    const tone = (beat, beats, m, type, vol, cutoff) => {
+      const t = at(beat), dur = beats * spb * 0.95, rel = Math.min(0.08, dur / 3);
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = type; o.frequency.value = hz(m);
+      let node = o;
+      if (cutoff) { const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cutoff; o.connect(f); node = f; }
+      node.connect(g); g.connect(out);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+      g.gain.setValueAtTime(vol, t + Math.max(0.012, dur - rel));
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.start(t); o.stop(t + dur + 0.05);
+    };
+    const lead = (b, d, m) => { tone(b, d, m, 'square', 0.07, 3200); if (m < 86) tone(b, d, m + 12, 'triangle', 0.022); };
+    const bass = (b, d, m) => tone(b, d, m, 'sawtooth', 0.09, 700);
+    const pad = (b, d, ms) => ms.forEach(m => tone(b, d, m, 'triangle', 0.028));
+    const noise = (beat, dur, vol, type, freq) => {
+      const t = at(beat), src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+      src.buffer = NOISE; f.type = type; f.frequency.value = freq;
+      src.connect(f); f.connect(g); g.connect(out);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      src.start(t); src.stop(t + dur + 0.02);
+    };
+    const kick = b => {
+      const t = at(b), o = c.createOscillator(), g = c.createGain();
+      o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+      g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+      o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.25);
+    };
+    const snare = (b, v) => noise(b, 0.14, v || 0.16, 'highpass', 1400);
+    const hat = b => noise(b, 0.04, 0.045, 'highpass', 7000);
+    const crash = b => noise(b, 1.4, 0.12, 'highpass', 3500);
+    return { at: at, spb: spb, lead: lead, bass: bass, pad: pad, kick: kick, snare: snare, hat: hat, crash: crash };
+  }
+
+  /* ===== Canción del premio ===== */
   const Song = {
-    out: null, noise: null, endAt: 0,
+    out: null, endAt: 0,
     play() {
       Sound.unlock();
       const c = Sound.ctx;
       if (!c) return;
       this.stop();
+      Jingle.stop();
       const out = c.createGain(), comp = c.createDynamicsCompressor();
       out.gain.value = 0.85; out.connect(comp); comp.connect(c.destination);
       this.out = out;
-      const spb = 60 / 150, t0 = c.currentTime + 0.06;
-      const at = beat => t0 + beat * spb;
-      const hz = m => 440 * Math.pow(2, (m - 69) / 12);
-      if (!this.noise) {
-        const n = c.createBuffer(1, c.sampleRate, c.sampleRate), d = n.getChannelData(0);
-        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-        this.noise = n;
-      }
-      const tone = (beat, beats, m, type, vol, cutoff) => {
-        const t = at(beat), dur = beats * spb * 0.95, rel = Math.min(0.08, dur / 3);
-        const o = c.createOscillator(), g = c.createGain();
-        o.type = type; o.frequency.value = hz(m);
-        let node = o;
-        if (cutoff) { const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cutoff; o.connect(f); node = f; }
-        node.connect(g); g.connect(out);
-        g.gain.setValueAtTime(0.0001, t);
-        g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
-        g.gain.setValueAtTime(vol, t + Math.max(0.012, dur - rel));
-        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-        o.start(t); o.stop(t + dur + 0.05);
-      };
-      const lead = (b, d, m) => { tone(b, d, m, 'square', 0.07, 3200); if (m < 86) tone(b, d, m + 12, 'triangle', 0.022); };
-      const bass = (b, d, m) => tone(b, d, m, 'sawtooth', 0.09, 700);
-      const pad = (b, d, ms) => ms.forEach(m => tone(b, d, m, 'triangle', 0.028));
-      const noise = (beat, dur, vol, type, freq) => {
-        const t = at(beat), src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
-        src.buffer = this.noise; f.type = type; f.frequency.value = freq;
-        src.connect(f); f.connect(g); g.connect(out);
-        g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-        src.start(t); src.stop(t + dur + 0.02);
-      };
-      const kick = b => {
-        const t = at(b), o = c.createOscillator(), g = c.createGain();
-        o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
-        g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
-        o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.25);
-      };
-      const snare = (b, v) => noise(b, 0.14, v || 0.16, 'highpass', 1400);
-      const hat = b => noise(b, 0.04, 0.045, 'highpass', 7000);
-      const crash = b => noise(b, 1.4, 0.12, 'highpass', 3500);
+      const { at, lead, bass, pad, kick, snare, hat, crash } = synth(out, 150);
       // Fanfarria de entrada y redoble
       [[0, 67], [1 / 3, 72], [2 / 3, 76]].forEach(x => lead(x[0], 1 / 3, x[1]));
       lead(1, 0.5, 79); lead(1.5, 0.5, 76);
@@ -1673,6 +1744,72 @@ body.testing .round-dots { display: none; }
         const t = Sound.ctx.currentTime;
         out.gain.cancelScheduledValues(t); out.gain.setValueAtTime(out.gain.value, t); out.gain.linearRampToValueAtTime(0, t + 0.15);
       } catch (e) { /* sin audio */ }
+      setTimeout(() => { try { out.disconnect(); } catch (e) { /* ya desconectado */ } }, 300);
+    }
+  };
+
+  /* ===== Canciones de racha =====
+     Siempre el mismo tema, que crece con la racha: 10 → "ta-ta-ta-TAAN" (2 s), 20 → con bajo y batería (4 s),
+     30 → melodía completa con acordes (7 s), 40 → con entrada de batería y platillo (9 s),
+     50, 75, 100… → versión épica con cambio de tono y gran final (13 s). */
+  const Jingle = {
+    out: null, timer: 0,
+    play(tier) {
+      if (!P || !P.settings.sound || Song.out) return; // no tapa la canción del premio
+      Sound.unlock();
+      const c = Sound.ctx;
+      if (!c) return;
+      this.stop();
+      const out = c.createGain(), comp = c.createDynamicsCompressor();
+      out.gain.value = 0.75; out.connect(comp); comp.connect(c.destination);
+      this.out = out;
+      const sy = synth(out, tier >= 5 ? 150 : 140);
+      const { lead, bass, pad, kick, snare, hat, crash } = sy;
+      // Sol mayor: Sol, Do, Re, Sol.
+      const G = [43, [55, 59, 62]], C = [48, [60, 64, 67]], D = [50, [62, 66, 69]];
+      const A = [[0, .5, 79], [.5, .5, 83], [1, .5, 86], [1.5, 2, 91]];
+      const B = [[0, .5, 88], [.5, .5, 86], [1, .5, 84], [1.5, .5, 86], [2, 2, 88]];
+      const Cc = [[0, .5, 90], [.5, .5, 88], [1, .5, 86], [1.5, .5, 81], [2, 1, 86], [3, 1, 90]];
+      const Dd = [[0, .5, 91], [.5, .5, 86], [1, .5, 83], [1.5, .5, 86], [2, 2, 91]];
+      const FULL = { pad: 1, bass: 1, drums: 1 };
+      const bar = (b0, mel, ch, ly, tr) => {
+        tr = tr || 0;
+        mel.forEach(x => lead(b0 + x[0], x[1], x[2] + tr));
+        if (ly.pad) pad(b0, 4, ch[1].map(m => m + tr));
+        if (ly.bass) for (let e = 0; e < 8; e++) bass(b0 + e * 0.5, 0.5, (e % 2 ? ch[0] + 12 : ch[0]) + tr);
+        if (ly.drums) for (let q = 0; q < 4; q++) { if (q % 2) snare(b0 + q); else kick(b0 + q); hat(b0 + q); hat(b0 + q + 0.5); }
+      };
+      const fill = b0 => { kick(b0); kick(b0 + 1); for (let i = 0; i < 8; i++) snare(b0 + 2 + i * 0.25, 0.05 + i * 0.02); };
+      const ending = (b0, tr) => {
+        [79, 83, 86].forEach((m, i) => lead(b0 + i / 3, 1 / 3, m + tr));
+        lead(b0 + 1, 3, 91 + tr); pad(b0 + 1, 3, [55, 59, 62, 67].map(m => m + tr)); bass(b0 + 1, 3, 31 + tr); kick(b0 + 1); crash(b0 + 1);
+      };
+      let len;
+      if (tier <= 1) { A.forEach(x => lead(x[0], x[1], x[2])); pad(1.5, 2, [55, 59, 62, 67]); len = 4; }
+      else if (tier === 2) { bar(0, A, G, { bass: 1, drums: 1 }); bar(4, Dd, G, { bass: 1, drums: 1 }); crash(6); len = 8; }
+      else if (tier === 3) { bar(0, A, G, FULL); bar(4, B, C, FULL); bar(8, Cc, D, FULL); bar(12, Dd, G, FULL); crash(14); len = 16; }
+      else if (tier === 4) { fill(0); crash(4); bar(4, A, G, FULL); bar(8, B, C, FULL); bar(12, Cc, D, FULL); bar(16, Dd, G, FULL); crash(18); len = 20; }
+      else {
+        fill(0); crash(4);
+        bar(4, A, G, FULL); bar(8, B, C, FULL); bar(12, Cc, D, FULL); bar(16, Dd, G, FULL);
+        crash(20); bar(20, A, G, FULL, 2); bar(24, Cc, D, FULL, 2); ending(28, 2); len = 32; // sube un tono
+      }
+      document.documentElement.dataset.jingle = String(tier);
+      clearTimeout(this.timer);
+      this.timer = setTimeout(() => this.stop(true), (len * sy.spb + 1.5) * 1000);
+    },
+    stop(natural) {
+      clearTimeout(this.timer);
+      delete document.documentElement.dataset.jingle;
+      const out = this.out;
+      this.out = null;
+      if (!out || !Sound.ctx) return;
+      if (!natural) {
+        try {
+          const t = Sound.ctx.currentTime;
+          out.gain.cancelScheduledValues(t); out.gain.setValueAtTime(out.gain.value, t); out.gain.linearRampToValueAtTime(0, t + 0.15);
+        } catch (e) { /* sin audio */ }
+      }
       setTimeout(() => { try { out.disconnect(); } catch (e) { /* ya desconectado */ } }, 300);
     }
   };
@@ -1744,7 +1881,7 @@ body.testing .round-dots { display: none; }
     const lines = [];
     if (r.ups) lines.push(r.ups === 1 ? `1 ${noun(S.op, 1)} subió de nivel` : `${r.ups} ${noun(S.op, 2)} subieron de nivel`);
     if (r.mastered.length) {
-      const names = r.mastered.map(k => { const t = MT.parse(k); return fmtFact(S.op, t.a, t.b); });
+      const names = r.mastered.map(m => { const t = MT.parse(m.key); return fmtFact(m.op, t.a, t.b); });
       lines.push('Dominaste: ' + (names.length > 1 ? names.slice(0, -1).join(', ') + ' y ' + names[names.length - 1] : names[0]));
     }
     if (!lines.length) lines.push('Cada respuesta te hace más fuerte.');
@@ -1752,7 +1889,7 @@ body.testing .round-dots { display: none; }
     $('#roundPause').hidden = !breakDue;
     S.dots = [];
     const finish = rest => {
-      if (breakDue) MT.ackBreak(S);
+      if (breakDue) S.breakAt = S.activeMs + MT.CONFIG.BREAK_MS;
       closeOverlay('o-round');
       if (rest) goHome(); else done();
     };
@@ -1824,7 +1961,9 @@ body.testing .round-dots { display: none; }
 
   /* ===== Mapa ===== */
   function renderMap() {
-    const op = curOp(), T = trk(op);
+    const op = mapOp, T = trk(op);
+    $('#mapOps').hidden = curOp() !== 'mix';
+    $$('#mapOps button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.op === op)));
     const F = factors(T), U = new Set(MT.universe(T.settings));
     const grid = $('#mapGrid');
     grid.style.setProperty('--cols', F.length + 1);
@@ -1851,7 +1990,7 @@ body.testing .round-dots { display: none; }
     const c = e.target.closest('.cell[data-k]'); if (!c) return;
     $$('#mapGrid .sel').forEach(x => x.classList.remove('sel'));
     c.classList.add('sel');
-    const op = curOp(), T = trk(op);
+    const op = mapOp, T = trk(op);
     const t = MT.parse(c.dataset.k), f = T.facts[c.dataset.k], name = fmtFact(op, t.a, t.b);
     $('#mapInfo').textContent = f.attempts
       ? `${name} = ${MT.expected(T.settings, t.a, t.b)} · ${MT.LEVELS[f.level]}. ${LEVEL_TEXT[f.level]}`

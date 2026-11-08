@@ -9,6 +9,8 @@ Práctica de las tablas de multiplicar y de dividir del 2 al 9 para niños de 9 
 ## Cómo se juega
 
 - En el inicio se elige **Multiplicar** o **Dividir**. Cada modo tiene su propio progreso, mapa, medallas, refuerzo y diploma.
+- **Mixto** mezcla multiplicaciones y divisiones (mitad y mitad, nunca más de 3 seguidas del mismo tipo). Cada respuesta suma al progreso de su modo, y nunca pregunta 56 ÷ 8 justo después de 7 × 8, porque sería regalar la respuesta.
+- **Canciones de racha:** a las 10, 20, 30 y 40 respuestas seguidas sin error suena el tema de racha, cada vez más largo y completo; a las 50, y luego cada 25, la versión épica (13 s). La práctica sigue mientras suena. Funciona en todos los modos y en el test definitivo.
 - Cada niño crea su jugador con su nombre y un animal. Varios hermanos pueden compartir el mismo dispositivo.
 - La pregunta aparece en grande y se responde con el teclado de la pantalla o con el del computador.
 - Si se equivoca, la app le muestra la respuesta con un dibujo de puntos y un truco, y el niño la escribe para seguir.
