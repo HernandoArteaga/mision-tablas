@@ -389,6 +389,68 @@ with sync_playwright() as pw:
     page.tap('#mapOps button[data-op="div"]'); page.wait_for_timeout(150)
     ok(vis and page.inner_text('#mapGrid .cell.h') == '÷', 'En Mixto el mapa deja ver el de multiplicar y el de dividir')
     ctx.close()
+
+    # ---------- Tiempo de juego: la culebrita ----------
+    ctx = br.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, is_mobile=True)
+    page = ctx.new_page(); watch(page); page.goto(URL); page.wait_for_timeout(500)
+    new_profile(page, 'Leo')
+    ok('locked' in page.get_attribute('#btnGame', 'class') and 'Gana 5 minutos' in page.inner_text('#gameSub'), 'Sin premio ganado, la culebrita aparece cerrada y explica cómo ganarla')
+    open_adult(page)
+    page.tap('#btnGiveGame'); page.wait_for_timeout(150)
+    status = page.inner_text('#gameStatus')
+    page.tap('#s-adult .back'); page.wait_for_timeout(250)
+    ok('Saldo: 5:00' in status and '5:00' in page.inner_text('#gameSub'), 'Papá regala 5 minutos desde su panel')
+    page.tap('#btnGame'); page.wait_for_timeout(400)
+    head0 = page.get_attribute('#snake', 'data-head')
+    msg = page.inner_text('#gameMsg')
+    page.keyboard.press('ArrowUp'); page.wait_for_timeout(1600)
+    head1 = page.get_attribute('#snake', 'data-head'); clock1 = page.inner_text('#gameClock')
+    page.screenshot(path=f'{SHOTS}/g1-game.png')
+    ok(page.is_visible('#s-game') and 'Toca una flecha' in msg and head1 != head0 and clock1 in ('🎮 4:59', '🎮 4:58'),
+       f'La culebrita arranca con la primera flecha: se mueve ({head0} → {head1}) y el reloj corre ({clock1})')
+    page.keyboard.press(' '); page.wait_for_timeout(200)
+    c_a = page.inner_text('#gameClock'); h_a = page.get_attribute('#snake', 'data-head'); page.wait_for_timeout(1500)
+    paused_ok = page.inner_text('#gameClock') == c_a and page.get_attribute('#snake', 'data-head') == h_a
+    page.keyboard.press(' '); page.wait_for_timeout(300)
+    page.tap('#gameExit'); page.wait_for_timeout(300)
+    prof = page.evaluate("JSON.parse(localStorage.getItem('mision-tablas-v1')).profiles[0]")
+    spent = sum(prof['game']['spent'].values())
+    ok(paused_ok and page.is_visible('#s-home') and 1 <= spent <= 4 and '4:5' in page.inner_text('#gameSub'),
+       f'En pausa el reloj se detiene; al salir se guarda lo que sobra ({page.inner_text("#gameSub")})')
+    # Se acaba el tiempo: dejar solo 2 segundos de saldo.
+    page.evaluate("""() => { const K = 'mision-tablas-v1', d = JSON.parse(localStorage.getItem(K)), g = d.profiles[0].game;
+      const earned = Object.values(g.earned).reduce((a, b) => a + b, 0); g.spent = { x: earned - 2 }; localStorage.setItem(K, JSON.stringify(d)); }""")
+    page.reload(); page.wait_for_timeout(600)
+    page.tap('#btnGame'); page.wait_for_timeout(300)
+    page.keyboard.press('ArrowDown')
+    page.wait_for_selector('#o-gameover:not([hidden])', timeout=6000)
+    page.screenshot(path=f'{SHOTS}/g2-over.png')
+    page.tap('#goPractice'); page.wait_for_function(READY)
+    bal = page.evaluate("(() => { const g = JSON.parse(localStorage.getItem('mision-tablas-v1')).profiles[0].game; const s = o => Object.values(o).reduce((a, b) => a + b, 0); return s(g.earned) - s(g.spent); })()")
+    ok(page.is_visible('#s-play') and bal == 0,
+       'Al acabarse el tiempo: "¡Se acabó el tiempo de juego!" y "Seguir con las operaciones" vuelve a la práctica')
+    ctx.close()
+
+    ctx = br.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, is_mobile=True)
+    page = ctx.new_page(); watch(page); page.goto(URL); page.wait_for_timeout(500)
+    new_profile(page, 'Mia')
+    page.tap('#btnPlay'); page.wait_for_function(READY)
+    done, popup = 0, None
+    WAIT2 = f"() => !document.getElementById('o-round').hidden || !document.getElementById('o-gamewin').hidden || ({READY})()"
+    while done < 31:
+        if page.is_visible('#o-gamewin'): popup = (done, page.inner_text('#gwLines')); break
+        if page.is_visible('#o-round'): page.tap('#roundGo'); page.wait_for_function(WAIT2); continue
+        if page.is_visible('#o-medal'): page.tap('#medalOk'); page.wait_for_function(WAIT2); continue
+        a, b, ans, op = qinfo(page)
+        page.keyboard.type(str(ans)); page.keyboard.press('Enter'); done += 1
+        page.wait_for_function(WAIT2, timeout=8000)
+    page.screenshot(path=f'{SHOTS}/g3-win.png')
+    ok(popup and popup[0] == 30 and '30 seguidas' in popup[1] and '5:00' in popup[1], f'Con 30 seguidas gana 5 minutos de juego: "{popup[1].splitlines()[0] if popup else "-"}"')
+    page.tap('#gwPlay'); page.wait_for_timeout(300)
+    ok(page.is_visible('#s-game'), '"¡Jugar ahora!" abre la culebrita')
+    page.tap('#gameExit'); page.wait_for_function(READY)
+    ok(page.is_visible('#s-play'), 'Si sale del juego que ganó practicando, vuelve a las operaciones')
+    ctx.close()
     br.close()
 
 srv.terminate()

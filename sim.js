@@ -385,6 +385,33 @@ out.push('\n12) Puntos de guardado');
   check(okPool === 100, `Tras un error, la nueva tanda trae solo lo que falta (sin repetir) y la fallada sale entre la 3.ª y la 8.ª (${okPool} de 100)`);
 }
 
+out.push('\n13) Tiempo de juego y culebrita');
+{
+  const clone = x => JSON.parse(JSON.stringify(x));
+  const p = MT.newProfile('J', '🦉'), d1 = new Date(2026, 10, 10, 16).getTime(), d2 = d1 + 86400000;
+  MT.gameEarn(p, 'cel', 300, 'medalla del 7', d1);
+  const a1 = MT.gameStreakAward(p, 30, d1), a2 = MT.gameStreakAward(p, 30, d1 + 3600e3), a3 = MT.gameStreakAward(p, 29, d2), a4 = MT.gameStreakAward(p, 30, d2);
+  check(a1 && !a2 && !a3 && a4, '30 seguidas dan 5 minutos una vez al día (no a las 29, no dos veces el mismo día)');
+  MT.gameEarn(p, 'cel', 300, '30 seguidas', d1);
+  const used = MT.gameSpend(p, 'cel', 130), over = MT.gameSpend(p, 'cel', 9999);
+  check(used === 130 && over === 470 && MT.gameBalance(p) === 0, 'Ganó 10 minutos: jugó 2:10, luego gastó el resto (4:50) y el saldo queda en 0, nunca negativo');
+  // Dos dispositivos: gana en el celular, juega en el laptop; unir varias veces no duplica.
+  const q = MT.newProfile('J', '🦉'); MT.gameEarn(q, 'cel', 300, 'medalla', d1);
+  const lap = clone(q); MT.gameSpend(lap, 'lap', 120);
+  const m1 = MT.mergeProfiles(clone(q), clone(lap)), m2 = MT.mergeProfiles(clone(m1), clone(lap)), m3 = MT.mergeProfiles(clone(lap), clone(m1));
+  check(MT.gameBalance(m1) === 180 && MT.gameBalance(m2) === 180 && MT.gameBalance(m3) === 180, 'Unir dispositivos: gana 5:00 en el celular, juega 2:00 en el laptop → quedan 3:00 en ambos, sin duplicar');
+  // Culebrita
+  const rng = rngFrom(7), s = MT.snakeNew(15, rng);
+  const len0 = s.body.length, revOk = !MT.snakeTurn(s, [-1, 0]);
+  for (let i = 0; i < 15; i++) MT.snakeStep(s, rng);
+  const wrapped = s.body[0][0] === (7 + 15) % 15 && s.body.length === len0 + s.eaten;
+  const e = MT.snakeNew(15, rng); e.food = [e.body[0][0] + 1, e.body[0][1]]; MT.snakeStep(e, rng);
+  const ate = e.eaten === 1 && e.body.length === 4 && e.food && !e.body.some(c => c[0] === e.food[0] && c[1] === e.food[1]);
+  const k = MT.snakeNew(15, rng); k.body = [[5, 5], [6, 5], [6, 6], [5, 6], [4, 6], [4, 5]]; k.dir = [0, 1]; k.food = [0, 0];
+  MT.snakeStep(k, rng);
+  check(revOk && wrapped && ate && k.dead, 'Culebrita: no se devuelve sobre sí misma, cruza la pared al otro lado, crece al comer y pierde al chocar con su cuerpo');
+}
+
 out.push('\nExtras');
 {
   let viol = 0, total = 0;

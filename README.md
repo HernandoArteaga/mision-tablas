@@ -11,6 +11,7 @@ Práctica de las tablas de multiplicar y de dividir del 2 al 9 para niños de 9 
 - En el inicio se elige **Multiplicar** o **Dividir**. Cada modo tiene su propio progreso, mapa, medallas, refuerzo y diploma.
 - **Mixto** mezcla multiplicaciones y divisiones (mitad y mitad, nunca más de 3 seguidas del mismo tipo). Cada respuesta suma al progreso de su modo, y nunca pregunta 56 ÷ 8 justo después de 7 × 8, porque sería regalar la respuesta.
 - **Canciones de racha:** a las 10, 20, 30 y 40 respuestas seguidas sin error suena el tema de racha, cada vez más largo y completo; a las 50, y luego cada 25, la versión épica (13 s). La práctica sigue mientras suena. Funciona en todos los modos y en el test definitivo.
+- **Tiempo de juego (la culebrita):** 5 minutos de un juego sencillo tipo Snake al dominar una tabla (medalla), al llegar a 30 seguidas (una vez al día) o al superar el test definitivo; Papá también puede regalarlos. El reloj solo corre mientras juega, lo que sobra queda guardado y al acabarse vuelve a las operaciones.
 - **La racha se guarda cada 10:** un error no la borra; la devuelve al último múltiplo de 10 (37 → 30). Perder todo por un error desmotiva y lleva a evitar el riesgo; así el error se vuelve parte del aprendizaje.
 - Cada niño crea su jugador con su nombre y un animal. Varios hermanos pueden compartir el mismo dispositivo.
 - La pregunta aparece en grande y se responde con el teclado de la pantalla o con el del computador.

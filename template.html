@@ -470,6 +470,26 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
 .test-card.locked .chev { display: none; }
 .test-card.locked:active { transform: none; }
 .test-card.shake { animation: shake .35s ease; }
+/* ---------- La culebrita (tiempo de juego) ---------- */
+.game-card { border-color: var(--ok-edge); background: linear-gradient(135deg, var(--ok-soft), #8FDBA8); box-shadow: 0 5px 0 var(--ok-edge); }
+.game-card:active { box-shadow: 0 2px 0 var(--ok-edge); }
+.game-card .chev { color: var(--ok-edge); }
+.game-main { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 12px; min-height: 0; }
+@media (min-width: 760px) and (orientation: landscape) { .game-main { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr); align-items: center; } }
+.game-board { position: relative; min-height: 0; display: grid; place-items: center; }
+#snake { display: block; border-radius: 16px; border: 3px solid var(--ok-edge); box-shadow: 0 6px 0 var(--key-edge); touch-action: none; background: #DDF0D6; }
+.game-msg {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: 80%; padding: 10px 16px; border-radius: 14px;
+  background: rgba(255, 255, 255, .92); border: 2px solid var(--line); font-family: var(--font-display); font-weight: 800; font-size: 20px; text-align: center; pointer-events: none;
+}
+.game-msg:empty { display: none; }
+.dpad { display: grid; grid-template-columns: repeat(3, 76px); grid-template-rows: repeat(2, 64px); gap: 8px; justify-content: center; }
+.dpad .key { height: 64px; font-size: 26px; }
+.dpad [data-d="up"] { grid-column: 2; grid-row: 1; }
+.dpad [data-d="left"] { grid-column: 1; grid-row: 2; }
+.dpad [data-d="down"] { grid-column: 2; grid-row: 2; }
+.dpad [data-d="right"] { grid-column: 3; grid-row: 2; }
+.glog { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; font-weight: 600; font-size: 15px; color: var(--ink-2); }
 .ticket-banner {
   display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 56px; padding: 8px 16px; border-radius: 18px;
   border: 2px solid var(--stamp); background: var(--stamp-soft); color: var(--stamp); box-shadow: 0 4px 0 var(--stamp);
@@ -595,6 +615,11 @@ body.testing .round-dots { display: none; }
     <p id="homeNote" class="home-note"></p>
     <p id="homeBoost" class="home-note boost" hidden></p>
     <button id="btnTicket" class="ticket-banner" type="button" hidden><span aria-hidden="true">🎟️</span> Tienes un premio para reclamar con Papá</button>
+    <button id="btnGame" class="test-card game-card" type="button">
+      <span class="tc-icon" aria-hidden="true">🐍</span>
+      <span class="tc-text"><b>La culebrita</b><span class="tc-sub" id="gameSub"></span></span>
+      <span class="chev" aria-hidden="true">›</span>
+    </button>
     <button id="btnTest" class="test-card" type="button">
       <span class="tc-icon" id="testIcon" aria-hidden="true">🏆</span>
       <span class="tc-text"><b>Test definitivo</b><span class="tc-sub" id="testSub"></span></span>
@@ -646,6 +671,30 @@ body.testing .round-dots { display: none; }
         <button class="key del" type="button" data-k="del" tabindex="-1" aria-label="Borrar">⌫</button>
         <button class="key" type="button" data-k="0" tabindex="-1">0</button>
         <button class="key ok" type="button" data-k="ok" tabindex="-1" aria-label="Comprobar">✓<small>Comprobar</small></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== La culebrita: tiempo de juego ganado ===== -->
+  <section id="s-game" class="play game" tabindex="-1" hidden>
+    <div class="play-top">
+      <button id="gameExit" class="chip" type="button">← Salir</button>
+      <div class="hud">
+        <span class="hud-item" id="gameClock" aria-label="Tiempo de juego que queda">🎮 5:00</span>
+        <span class="hud-item" id="gameScore">🍎 0</span>
+        <button id="gamePause" class="chip" type="button">Pausa</button>
+      </div>
+    </div>
+    <div class="game-main">
+      <div class="game-board" id="gameBoard">
+        <canvas id="snake" role="img" aria-label="La culebrita"></canvas>
+        <p id="gameMsg" class="game-msg"></p>
+      </div>
+      <div class="dpad" id="dpad" aria-label="Flechas">
+        <button type="button" class="key" data-d="up" aria-label="Arriba" tabindex="-1">▲</button>
+        <button type="button" class="key" data-d="left" aria-label="Izquierda" tabindex="-1">◀</button>
+        <button type="button" class="key" data-d="down" aria-label="Abajo" tabindex="-1">▼</button>
+        <button type="button" class="key" data-d="right" aria-label="Derecha" tabindex="-1">▶</button>
       </div>
     </div>
   </section>
@@ -744,6 +793,15 @@ body.testing .round-dots { display: none; }
       </div>
       <button type="button" class="switch" role="switch" id="setOne" aria-checked="false"><span id="setOneLabel">Incluir ×1</span><span class="track" aria-hidden="true"></span></button>
       <button type="button" class="switch" role="switch" id="setSound" aria-checked="true"><span>Sonidos</span><span class="track" aria-hidden="true"></span></button>
+    </div>
+
+    <div class="panel" id="gamePanel">
+      <h2>Tiempo de juego (la culebrita)</h2>
+      <p class="sub">Gana 5 minutos al dominar una tabla (medalla), al llegar a 30 seguidas (una vez al día) o al superar el test definitivo. Cuando se acaba el tiempo, vuelve a las operaciones.</p>
+      <button type="button" class="switch" role="switch" id="setGameOn" aria-checked="true"><span>Premiar con tiempo de juego</span><span class="track" aria-hidden="true"></span></button>
+      <p class="note" id="gameStatus"></p>
+      <div class="row"><button type="button" class="btn" id="btnGiveGame">Regalar 5 minutos</button></div>
+      <ul class="glog" id="gameLog"></ul>
     </div>
 
     <div class="panel" id="testPanel">
@@ -895,6 +953,30 @@ body.testing .round-dots { display: none; }
       <button type="button" class="btn primary big" id="prizeOk" data-autofocus>¡Genial!</button>
       <button type="button" class="btn ghost" id="prizeSong">♪ Escuchar la canción</button>
       <button type="button" class="chip" id="prizeClaim">Para Papá: ya lo entregué</button>
+    </div>
+  </div>
+</div>
+
+<div id="o-gamewin" class="overlay" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="gwTitle">
+    <div style="font-size:60px;line-height:1" aria-hidden="true">🐍</div>
+    <h2 id="gwTitle">¡Ganaste tiempo de juego!</h2>
+    <div class="lines" id="gwLines"></div>
+    <div class="actions">
+      <button type="button" class="btn go big" id="gwPlay" data-autofocus>¡Jugar ahora!</button>
+      <button type="button" class="btn" id="gwLater">Guardarlo y seguir practicando</button>
+    </div>
+  </div>
+</div>
+
+<div id="o-gameover" class="overlay" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="goTitle">
+    <div style="font-size:60px;line-height:1" aria-hidden="true">⏰</div>
+    <h2 id="goTitle">¡Se acabó el tiempo de juego!</h2>
+    <div class="lines" id="goLines"></div>
+    <div class="actions">
+      <button type="button" class="btn primary big" id="goPractice" data-autofocus>Seguir con las operaciones</button>
+      <button type="button" class="btn" id="goHome">Ir al inicio</button>
     </div>
   </div>
 </div>
@@ -1108,11 +1190,12 @@ body.testing .round-dots { display: none; }
   }
 
   /* ===== Pantallas ===== */
-  const SCREENS = ['profiles', 'new', 'home', 'play', 'map', 'adult'];
+  const SCREENS = ['profiles', 'new', 'home', 'play', 'game', 'map', 'adult'];
   let current = null;
   function show(name) {
     SCREENS.forEach(n => { $('#s-' + n).hidden = n !== name; });
-    document.body.classList.toggle('playing', name === 'play');
+    if (current === 'game' && name !== 'game') leaveGame(); // al salir del juego se descuenta el tiempo usado
+    document.body.classList.toggle('playing', name === 'play' || name === 'game');
     document.body.classList.toggle('testing', name === 'play' && !!TEST);
     $('#testBar').hidden = !(name === 'play' && TEST);
     current = name;
@@ -1258,6 +1341,10 @@ body.testing .round-dots { display: none; }
     const mm = $('#miniMap'); mm.style.setProperty('--cols', F.length);
     mm.innerHTML = F.map(a => F.map(b => { const k = MT.key(a, b); return U.has(k) ? `<i style="background:var(--lv${T.facts[k].level})"></i>` : '<i style="background:transparent"></i>'; }).join('')).join('');
     $('#btnDiploma').hidden = mix || !T.masteredAll;
+    const bal = MT.gameBalance(P);
+    $('#btnGame').hidden = !gameOn();
+    $('#btnGame').classList.toggle('locked', bal <= 0);
+    $('#gameSub').textContent = bal > 0 ? `¡Tienes ${fmtClock(bal)} para jugar!` : 'Gana 5 minutos de juego dominando una tabla o con 30 seguidas.';
     // El test definitivo es de cada modo; en Mixto solo se avisa si hay un premio pendiente.
     $('#btnTest').hidden = mix;
     if (mix) {
@@ -1415,6 +1502,11 @@ body.testing .round-dots { display: none; }
     if (res.mastered) R.mastered.push({ op: op, key: res.key });
     res.roundDone = R.answered >= roundSize();
     res.breakDue = S.activeMs >= S.breakAt;
+    // Premio de juego por logros importantes: medalla o 30 seguidas (una vez al día).
+    const whys = [];
+    if (res.correct && gameOn() && MT.gameStreakAward(P, S.streak, Date.now())) whys.push(`llegar a ${S.streak} seguidas`);
+    res.newMedals.forEach(n => whys.push(op === 'div' ? `dominar dividir entre ${n}` : `dominar la tabla del ${n}`));
+    res.gameWhys = awardGame(whys);
     Q.res = res;
     S.dots.push(res.correct ? 'ok' : 'fix');
     persist();
@@ -1482,6 +1574,7 @@ body.testing .round-dots { display: none; }
     res.newMedals.forEach(n => queue.push(done => openMedal(n, res.op, done)));
     if (res.allMastered) queue.push(done => openDiploma(true, done, res.op));
     if (res.roundDone) queue.push(done => { const r = S.round; S.round = freshRound(); openRound(r, res.breakDue, done); });
+    if (res.gameWhys && res.gameWhys.length) queue.push(done => openGameWin(res.gameWhys, done));
     (function run() {
       if (current !== 'play') return;
       if (!queue.length) return nextQuestion();
@@ -1594,6 +1687,7 @@ body.testing .round-dots { display: none; }
     if (res.correct) {
       TEST.streak++; TEST.i++;
       TEST.done.push(Q.pick.key);
+      if (res.newMedals.length) awardGame(res.newMedals.map(m => TEST.op === 'div' ? `dominar dividir entre ${m}` : `dominar la tabla del ${m}`));
       TEST.best = Math.max(TEST.best, TEST.streak);
       const left = n - TEST.streak, checkpoint = left > 0 && TEST.streak % TEST.cp === 0;
       if (checkpoint) TEST.saved = TEST.streak;
@@ -1629,6 +1723,7 @@ body.testing .round-dots { display: none; }
   function finishTest() {
     const t = TEST, T = trk(t.op), n = t.n;
     const r = MT.recordTest(T, n, n, Date.now());
+    r.gameWon = awardGame(['superar el test definitivo']).length > 0;
     TEST = null; Q = null;
     persist();
     goHome();
@@ -1645,7 +1740,7 @@ body.testing .round-dots { display: none; }
     $('#prizeTitle').setAttribute('aria-label', title);
     let li = 0; // letras animadas, agrupadas por palabra para que no se corten
     $('#prizeTitle').innerHTML = title.split(' ').map(w => `<span class="word" aria-hidden="true">${Array.from(w).map(ch => `<span class="ltr" style="--i:${li++}">${esc(ch)}</span>`).join('')}</span>`).join(' ');
-    $('#prizeScore').textContent = !r ? `Ganado el ${fmtDate(pz.wonAt)}` : `¡Las ${r.total} bien! ${r.correct} de ${r.total}`;
+    $('#prizeScore').textContent = !r ? `Ganado el ${fmtDate(pz.wonAt)}` : `¡Las ${r.total} bien! ${r.correct} de ${r.total}` + (r.gameWon ? ' · 🐍 +5 min de juego' : '');
     const showTicket = !!pz.wonAt && (pending || (r && r.prizeWon));
     $('#prizeTicket').hidden = !showTicket;
     $('#tPrize').textContent = pz.text || T.settings.prizeText;
@@ -1896,6 +1991,179 @@ body.testing .round-dots { display: none; }
     stop() { cancelAnimationFrame(this.raf); this.raf = 0; const cv = $('#fireworks'); cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); }
   };
 
+  /* ===== Tiempo de juego: la culebrita =====
+     Se gana con logros importantes. El reloj solo corre mientras juega; lo que sobra queda guardado.
+     Al acabarse, vuelve a las operaciones. */
+  const GAME_N = 15;
+  const gameOn = () => P.settings.gameOn !== false;
+  function fmtClock(sec) { sec = Math.max(0, Math.ceil(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); }
+  function awardGame(whys) {
+    if (!gameOn() || !whys.length) return [];
+    whys.forEach(w => MT.gameEarn(P, data.device, MT.CONFIG.GAME_SEC, w, Date.now()));
+    return whys;
+  }
+  function openGameWin(whys, done) {
+    const min = whys.length * MT.CONFIG.GAME_SEC / 60;
+    $('#gwLines').innerHTML = [`Por ${whys.join(' y ')}: +${min} minutos.`, `Tienes ${fmtClock(MT.gameBalance(P))} para jugar a la culebrita.`].map(l => `<p>${esc(l)}</p>`).join('');
+    $('#gwPlay').onclick = () => { closeOverlay('o-gamewin'); startGame('practice'); };
+    $('#gwLater').onclick = () => { closeOverlay('o-gamewin'); done(); };
+    openOverlay('o-gamewin');
+  }
+  $('#btnGame').addEventListener('click', () => {
+    const card = $('#btnGame');
+    if (MT.gameBalance(P) <= 0) { card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); return; }
+    startGame('home');
+  });
+  let G = null;
+  const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+  function startGame(from) {
+    if (MT.gameBalance(P) <= 0) return;
+    Sound.unlock(); clearTimers(); Q = null;
+    G = { from: from, s: MT.snakeNew(GAME_N, Math.random), started: false, paused: false, usedMs: 0, chargedMs: 0, acc: 0, last: performance.now(), deadAt: 0, raf: 0, apples: 0 };
+    show('game');
+    $('#gamePause').textContent = 'Pausa';
+    sizeBoard();
+    setGameMsg('Toca una flecha o desliza para empezar');
+    renderGameHud(); drawGame();
+    G.raf = requestAnimationFrame(gameLoop);
+  }
+  function setGameMsg(t) { $('#gameMsg').textContent = t; }
+  const stepMs = () => Math.max(85, 150 - G.s.eaten * 3);
+  const gameLeftMs = () => MT.gameBalance(P) * 1000 - (G.usedMs - G.chargedMs);
+  function chargeGame(all) {
+    const ms = G.usedMs - G.chargedMs, sec = all ? Math.round(ms / 1000) : Math.floor(ms / 1000);
+    if (sec > 0) { MT.gameSpend(P, data.device, sec); G.chargedMs += sec * 1000; }
+    persist();
+  }
+  function gameLoop(now) {
+    if (!G || current !== 'game') return;
+    const dt = Math.min(100, now - G.last);
+    G.last = now;
+    if (G.started && !G.paused && !document.hidden && !overlayOpen()) {
+      G.usedMs += dt;
+      if (G.usedMs - G.chargedMs >= 5000) chargeGame(false);
+      if (G.deadAt) {
+        if (now - G.deadAt > 900) { G.s = MT.snakeNew(GAME_N, Math.random); G.deadAt = 0; G.acc = 0; setGameMsg(''); }
+      } else {
+        G.acc += dt;
+        while (G.acc >= stepMs() && !G.s.dead) {
+          G.acc -= stepMs();
+          const before = G.s.eaten;
+          MT.snakeStep(G.s, Math.random);
+          if (G.s.eaten > before) {
+            G.apples++;
+            P.game.best = Math.max(P.game.best, G.s.eaten);
+            if (Sound.on()) Sound.tone(880, 0, 0.08, 'square', 0.05);
+          }
+          if (G.s.dead) { G.deadAt = now; Sound.soft(); setGameMsg('¡Ups! Otra vez…'); }
+        }
+      }
+      if (gameLeftMs() <= 0) { drawGame(); return endGameTime(); }
+    }
+    drawGame(); renderGameHud();
+    G.raf = requestAnimationFrame(gameLoop);
+  }
+  function renderGameHud() {
+    const clock = '🎮 ' + fmtClock(gameLeftMs() / 1000), score = `🍎 ${G.s.eaten} · récord ${P.game.best}`;
+    if ($('#gameClock').textContent !== clock) $('#gameClock').textContent = clock;
+    if ($('#gameScore').textContent !== score) $('#gameScore').textContent = score;
+  }
+  function sizeBoard() {
+    const b = $('#gameBoard'), cv = $('#snake'), dpr = Math.min(2, window.devicePixelRatio || 1);
+    const side = Math.max(GAME_N * 12, Math.floor(Math.min(b.clientWidth, b.clientHeight) / GAME_N) * GAME_N - 6);
+    cv.style.width = side + 'px'; cv.style.height = side + 'px';
+    cv.width = side * dpr; cv.height = side * dpr;
+  }
+  window.addEventListener('resize', () => { if (current === 'game' && G) { sizeBoard(); drawGame(); } });
+  function drawGame() {
+    const cv = $('#snake'), cx = cv.getContext('2d'), N = GAME_N, c = cv.width / N, s = G.s;
+    for (let x = 0; x < N; x++) for (let y = 0; y < N; y++) { cx.fillStyle = (x + y) % 2 ? '#E7F5E1' : '#D8EED0'; cx.fillRect(x * c, y * c, c, c); }
+    if (s.food) {
+      const fx = (s.food[0] + 0.5) * c, fy = (s.food[1] + 0.55) * c;
+      cx.fillStyle = '#E8473C'; cx.beginPath(); cx.arc(fx, fy, c * 0.36, 0, 6.283); cx.fill();
+      cx.fillStyle = 'rgba(255,255,255,.55)'; cx.beginPath(); cx.arc(fx - c * 0.12, fy - c * 0.1, c * 0.09, 0, 6.283); cx.fill();
+      cx.fillStyle = '#2E9E4F'; cx.beginPath(); cx.ellipse(fx + c * 0.1, fy - c * 0.38, c * 0.14, c * 0.07, -0.6, 0, 6.283); cx.fill();
+    }
+    const L = s.body.length, pad = c * 0.08;
+    for (let i = L - 1; i >= 0; i--) {
+      const p = s.body[i], k = L > 1 ? i / (L - 1) : 0;
+      const g = Math.round(138 - 50 * (1 - k)), r = Math.round(31 + 80 * k), bl = Math.round(76 + 60 * k);
+      cx.fillStyle = s.dead && i === 0 ? '#E07B2E' : `rgb(${r},${g + 40},${bl})`;
+      const x = p[0] * c + pad, y = p[1] * c + pad, w = c - 2 * pad;
+      cx.beginPath();
+      if (cx.roundRect) cx.roundRect(x, y, w, w, c * 0.3); else cx.rect(x, y, w, w);
+      cx.fill();
+    }
+    const h = s.body[0], d = s.dir, ex = (h[0] + 0.5) * c, ey = (h[1] + 0.5) * c;
+    const px = -d[1], py = d[0];
+    [-1, 1].forEach(side => {
+      const x = ex + d[0] * c * 0.14 + px * side * c * 0.17, y = ey + d[1] * c * 0.14 + py * side * c * 0.17;
+      cx.fillStyle = '#fff'; cx.beginPath(); cx.arc(x, y, c * 0.11, 0, 6.283); cx.fill();
+      cx.fillStyle = '#1D2A57'; cx.beginPath(); cx.arc(x + d[0] * c * 0.04, y + d[1] * c * 0.04, c * 0.055, 0, 6.283); cx.fill();
+    });
+    cv.dataset.head = h[0] + ',' + h[1];
+    cv.dataset.len = String(L);
+  }
+  function steer(name) {
+    if (!G || G.paused || G.deadAt || current !== 'game') return;
+    const d = DIRS[name];
+    if (!G.started) {
+      // Puede empezar hacia cualquier lado: si es hacia atrás, la culebrita se da vuelta.
+      if (d[0] === -G.s.dir[0] && d[1] === -G.s.dir[1]) G.s.body.reverse();
+      G.s.dir = d; G.s.queue = [];
+      G.started = true; G.last = performance.now(); G.acc = 0;
+      setGameMsg('');
+      return;
+    }
+    MT.snakeTurn(G.s, d);
+  }
+  function togglePause() {
+    if (!G || !G.started) return;
+    G.paused = !G.paused;
+    $('#gamePause').textContent = G.paused ? 'Seguir' : 'Pausa';
+    setGameMsg(G.paused ? 'Pausa' : '');
+    if (!G.paused) G.last = performance.now();
+  }
+  function leaveGame() {
+    if (!G) return;
+    chargeGame(true);
+    cancelAnimationFrame(G.raf);
+    G = null;
+  }
+  function endGameTime() {
+    const apples = G.apples;
+    leaveGame();
+    $('#goLines').innerHTML = [`Comiste ${apples} ${apples === 1 ? 'manzana' : 'manzanas'}. Récord: ${P.game.best}.`, 'Ahora, ¡a seguir con las operaciones!'].map(l => `<p>${esc(l)}</p>`).join('');
+    $('#goPractice').onclick = () => { closeOverlay('o-gameover'); startPlay(); };
+    $('#goHome').onclick = () => { closeOverlay('o-gameover'); goHome(); };
+    openOverlay('o-gameover');
+  }
+  $('#gameExit').addEventListener('click', () => { const from = G ? G.from : 'home'; leaveGame(); if (from === 'practice') startPlay(); else goHome(); });
+  $('#gamePause').addEventListener('click', togglePause);
+  $('#dpad').addEventListener('pointerdown', e => { const b = e.target.closest('[data-d]'); if (b) { e.preventDefault(); steer(b.dataset.d); } });
+  $('#dpad').addEventListener('click', e => { const b = e.target.closest('[data-d]'); if (b && e.detail === 0) steer(b.dataset.d); });
+  (function swipe() {
+    let sx = 0, sy = 0, on = false;
+    const cv = $('#snake');
+    cv.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; on = true; });
+    cv.addEventListener('pointerup', e => {
+      if (!on) return;
+      on = false;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+      steer(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+    });
+  })();
+  document.addEventListener('keydown', e => {
+    if (current !== 'game' || overlayOpen() || e.altKey || e.ctrlKey || e.metaKey) return;
+    const k = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right' }[e.key];
+    if (k) { e.preventDefault(); steer(k); return; }
+    if (e.key === ' ' || e.key === 'p' || e.key === 'P') {
+      if (e.target && e.target.tagName === 'BUTTON' && e.key === ' ') return;
+      e.preventDefault(); togglePause();
+    }
+  });
+
   /* ===== Ventanas del juego ===== */
   function openRound(r, breakDue, done) {
     $('#roundStars').textContent = `+${r.stars} ⭐`;
@@ -2103,6 +2371,9 @@ body.testing .round-dots { display: none; }
       (st.testAlways ? 'Ahora está abierto aunque no las domine todas.' : `Se abre cuando domine todas (lleva ${sm.mastered} de ${sm.total}).`);
     if (document.activeElement !== $('#setPrize')) $('#setPrize').value = pz.wonAt && !pz.claimedAt ? (pz.text || st.prizeText) : st.prizeText;
     $('#setTestAlways').setAttribute('aria-checked', String(st.testAlways));
+    $('#setGameOn').setAttribute('aria-checked', String(gameOn()));
+    $('#gameStatus').textContent = `Saldo: ${fmtClock(MT.gameBalance(P))} de juego. Récord en la culebrita: ${P.game.best} ${P.game.best === 1 ? 'manzana' : 'manzanas'}.`;
+    $('#gameLog').innerHTML = P.game.log.slice(-5).reverse().map(e => `<li>${esc(fmtDate(e.at))} · ${esc(e.why)} · +${Math.round(e.sec / 60)} min</li>`).join('');
     $('#prizeStatus').textContent = !pz.wonAt
       ? (tt.attempts ? `Aún no gana el premio. Mejor marca: ${tt.best} de ${tt.total}.` : 'Aún no ha hecho el test.')
       : !pz.claimedAt ? `Ganó el premio el ${fmtDate(pz.wonAt)}. Pendiente de entregar.`
@@ -2181,6 +2452,8 @@ body.testing .round-dots { display: none; }
     persist();
   });
   $('#setPrize').addEventListener('change', () => renderAdult());
+  $('#setGameOn').addEventListener('click', () => { P.settings.gameOn = !gameOn(); changed(false); });
+  $('#btnGiveGame').addEventListener('click', () => { MT.gameEarn(P, data.device, MT.CONFIG.GAME_SEC, 'regalo de Papá', Date.now()); changed(false); });
   $('#setTestAlways').addEventListener('click', () => { const st = AT().settings; st.testAlways = !st.testAlways; changed(false); });
   $('#btnClaim').addEventListener('click', () => { MT.claimPrize(AT(), Date.now()); changed(false); });
   $('#btnNewPrize').addEventListener('click', () => { MT.newPrize(AT()); changed(false); });

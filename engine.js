@@ -19,6 +19,8 @@
     STREAK_EPIC_STEP: 25,          // …y luego cada 25 (75, 100, 125…)
     STREAK_SAVE: 10,               // la racha se guarda cada 10: un error la devuelve al último punto guardado, no a 0
     TEST_SAVE_PARTS: 4,            // test definitivo: punto guardado cada cuarto (16, 32 y 48 de 64)
+    GAME_SEC: 300,                 // premio de juego: 5 minutos de la culebrita
+    GAME_STREAK: 30,               // …al llegar a 30 seguidas (una vez al día), con cada medalla o al superar el test
     ROUND_SIZE: 10,                // preguntas por ronda
     MIX_BASE: { reto: 0.5, confianza: 0.3, nueva: 0.2 },
     MIX_LOW: { reto: 0.35, confianza: 0.55, nueva: 0.1 },  // aciertos recientes < 70 %
@@ -56,7 +58,7 @@
   function defaultSettings(op) {
     const div = op === 'div';
     const s = { op: div ? 'div' : 'mul', fastMs: div ? CONFIG.FAST_MS_DIV : CONFIG.FAST_MS, tables: TABLES.slice(), includeOne: false, roundSize: CONFIG.ROUND_SIZE, boost: { on: false, keys: [] }, testAlways: false, prizeText: CONFIG.PRIZE_DEFAULT };
-    if (!div) s.sound = true;
+    if (!div) { s.sound = true; s.gameOn = true; }
     return s;
   }
   const isDiv = st => !!st && st.op === 'div';
@@ -125,8 +127,14 @@
     p.prize = { round: +pr.round || 0, wonAt: +pr.wonAt || 0, claimedAt: +pr.claimedAt || 0, text: typeof pr.text === 'string' ? pr.text : '' };
     return p;
   }
+  function ensureGame(p) {
+    const g = p.game || {};
+    const num = o => { const r = {}; if (o && typeof o === 'object') for (const k in o) if (+o[k] > 0) r[k] = +o[k]; return r; };
+    p.game = { earned: num(g.earned), spent: num(g.spent), best: +g.best || 0, streakDay: typeof g.streakDay === 'string' ? g.streakDay : '', log: Array.isArray(g.log) ? g.log.slice(-20) : [] };
+  }
   function ensure(p) {
     ensureTrack(p, 'mul');
+    ensureGame(p);
     p.div = ensureTrack(p.div && typeof p.div === 'object' ? p.div : {}, 'div');
     p.mode = p.mode === 'div' || p.mode === 'mix' ? p.mode : 'mul';
     return p;
@@ -135,7 +143,7 @@
   function resetProgress(p, op) {
     // El premio se conserva: si ya lo ganó, sigue pendiente de reclamar.
     if (op === 'div') { p.div = ensureTrack({ settings: p.div.settings, prize: p.div.prize }, 'div'); return p; }
-    const keep = { v: 1, id: p.id, name: p.name, avatar: p.avatar, createdAt: p.createdAt, settings: p.settings, div: p.div, mode: p.mode, prize: p.prize };
+    const keep = { v: 1, id: p.id, name: p.name, avatar: p.avatar, createdAt: p.createdAt, settings: p.settings, div: p.div, mode: p.mode, prize: p.prize, game: p.game };
     for (const k of Object.keys(p)) delete p[k];
     return ensure(Object.assign(p, keep));
   }
@@ -616,6 +624,69 @@
   function testCheckpoint(total) { return Math.max(1, Math.round(total / CONFIG.TEST_SAVE_PARTS)); }
   function testSaved(progress, total) { const cp = testCheckpoint(total); return Math.floor(progress / cp) * cp; }
 
+  /* ===== Tiempo de juego (premio) =====
+     Cada dispositivo anota lo que gana y lo que gasta; el saldo es la suma de lo ganado menos lo gastado.
+     Así, al unir dispositivos nada se cuenta dos veces. */
+  const sumVals = o => Object.keys(o).reduce((t, k) => t + o[k], 0);
+  function gameBalance(p) { return Math.max(0, sumVals(p.game.earned) - sumVals(p.game.spent)); }
+  function gameEarn(p, dev, sec, why, now) {
+    const g = p.game;
+    g.earned[dev] = (g.earned[dev] || 0) + sec;
+    g.log.push({ at: now || Date.now(), why: why, sec: sec });
+    if (g.log.length > 20) g.log.shift();
+  }
+  function gameSpend(p, dev, sec) {
+    const use = Math.max(0, Math.min(Math.round(sec), gameBalance(p)));
+    if (use) p.game.spent[dev] = (p.game.spent[dev] || 0) + use;
+    return use;
+  }
+  // 30 seguidas dan premio una vez al día.
+  function gameStreakAward(p, streak, now) {
+    if (streak !== CONFIG.GAME_STREAK) return false;
+    const day = ymd(now || Date.now());
+    if (p.game.streakDay === day) return false;
+    p.game.streakDay = day;
+    return true;
+  }
+  function mergeGame(x, y) {
+    const mx = (a, b) => { const r = Object.assign({}, a); for (const k in b) r[k] = Math.max(r[k] || 0, b[k]); return r; };
+    const seen = new Set(), log = [];
+    x.log.concat(y.log).sort((u, v) => u.at - v.at).forEach(e => { const id = e.at + '|' + e.why; if (!seen.has(id)) { seen.add(id); log.push(e); } });
+    return { earned: mx(x.earned, y.earned), spent: mx(x.spent, y.spent), best: Math.max(x.best, y.best), streakDay: x.streakDay > y.streakDay ? x.streakDay : y.streakDay, log: log.slice(-20) };
+  }
+
+  /* ===== La culebrita: reglas puras =====
+     Tablero de N × N; las paredes no matan (sale por el lado opuesto); chocar con su cuerpo termina la partida. */
+  function snakeFood(s, rng) {
+    const busy = new Set(s.body.map(c => c[0] + ',' + c[1])), free = [];
+    for (let x = 0; x < s.N; x++) for (let y = 0; y < s.N; y++) if (!busy.has(x + ',' + y)) free.push([x, y]);
+    return free.length ? free[Math.floor((rng || Math.random)() * free.length)] : null;
+  }
+  function snakeNew(N, rng) {
+    const m = Math.floor(N / 2);
+    const s = { N: N, body: [[m, m], [m - 1, m], [m - 2, m]], dir: [1, 0], queue: [], food: null, eaten: 0, dead: false };
+    s.food = snakeFood(s, rng);
+    return s;
+  }
+  function snakeTurn(s, d) {
+    const last = s.queue.length ? s.queue[s.queue.length - 1] : s.dir;
+    if (s.queue.length >= 2 || (d[0] === -last[0] && d[1] === -last[1]) || (d[0] === last[0] && d[1] === last[1])) return false;
+    s.queue.push(d);
+    return true;
+  }
+  function snakeStep(s, rng) {
+    if (s.dead) return s;
+    if (s.queue.length) s.dir = s.queue.shift();
+    const h = s.body[0], N = s.N;
+    const nh = [(h[0] + s.dir[0] + N) % N, (h[1] + s.dir[1] + N) % N];
+    const eats = !!s.food && nh[0] === s.food[0] && nh[1] === s.food[1];
+    const body = eats ? s.body : s.body.slice(0, -1); // la cola se mueve, salvo al comer
+    if (body.some(c => c[0] === nh[0] && c[1] === nh[1])) { s.dead = true; return s; }
+    s.body.unshift(nh);
+    if (eats) { s.eaten++; s.food = snakeFood(s, rng); } else s.body.pop();
+    return s;
+  }
+
   /* ===== Test definitivo =====
      Preguntas al azar sin parar, sin pistas. Gana al responder bien todas las del modo.
      Cada cuarto se guarda el avance. Si falla, vuelve al último punto guardado: lo que respondió
@@ -774,6 +845,7 @@
     mul.createdAt = Math.min(a.createdAt || Date.now(), b.createdAt || Date.now());
     Object.assign(a, mul);
     Object.assign(a.div, div);
+    a.game = mergeGame(a.game, b.game);
     return ensure(a);
   }
 
@@ -783,6 +855,7 @@
     expected, inTable, track, hintFor, confusionFor, divHint, divConfusion,
     testNeeded, testOpen, testOrder, testValid, recordTest, claimPrize, newPrize,
     pickMixed, sameFamily, streakTier, streakAfterError, testCheckpoint, testSaved,
+    gameBalance, gameEarn, gameSpend, gameStreakAward, snakeNew, snakeTurn, snakeStep,
     newSession, closeRound, ackBreak, allowed, pickNext, grade, hint, confusion,
     summary, tables, weaknesses, avgOkMs, dayStreak, ymd
   };
