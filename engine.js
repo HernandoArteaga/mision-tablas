@@ -19,8 +19,10 @@
     STREAK_EPIC_STEP: 25,          // …y luego cada 25 (75, 100, 125…)
     STREAK_SAVE: 10,               // la racha se guarda cada 10: un error la devuelve al último punto guardado, no a 0
     TEST_SAVE_PARTS: 4,            // test definitivo: punto guardado cada cuarto (16, 32 y 48 de 64)
-    GAME_SEC: 300,                 // premio de juego: 5 minutos de la culebrita
-    GAME_STREAK: 30,               // …al llegar a 30 seguidas (una vez al día), con cada medalla o al superar el test
+    GAME_SEC: 300,                 // premio de juego: 5 minutos de la culebrita…
+    GAME_PER: 100,                 // …cada 100 respuestas buenas (≈ 11 a 15 min de práctica: 3 de práctica por 1 de juego)
+    GAME_DAY_MAX: 15,              // máximo de minutos por día ganados con respuestas (≈ 40 min de práctica)
+    GAME_TEST_SEC: 600,            // superar el test definitivo: 10 minutos (las medallas dan 5, sin tope)
     ROUND_SIZE: 10,                // preguntas por ronda
     MIX_BASE: { reto: 0.5, confianza: 0.3, nueva: 0.2 },
     MIX_LOW: { reto: 0.35, confianza: 0.55, nueva: 0.1 },  // aciertos recientes < 70 %
@@ -58,7 +60,7 @@
   function defaultSettings(op) {
     const div = op === 'div';
     const s = { op: div ? 'div' : 'mul', fastMs: div ? CONFIG.FAST_MS_DIV : CONFIG.FAST_MS, tables: TABLES.slice(), includeOne: false, roundSize: CONFIG.ROUND_SIZE, boost: { on: false, keys: [] }, testAlways: false, prizeText: CONFIG.PRIZE_DEFAULT };
-    if (!div) { s.sound = true; s.gameOn = true; }
+    if (!div) { s.sound = true; s.gameOn = true; s.gamePer = CONFIG.GAME_PER; s.gameDayMax = CONFIG.GAME_DAY_MAX; }
     return s;
   }
   const isDiv = st => !!st && st.op === 'div';
@@ -130,7 +132,10 @@
   function ensureGame(p) {
     const g = p.game || {};
     const num = o => { const r = {}; if (o && typeof o === 'object') for (const k in o) if (+o[k] > 0) r[k] = +o[k]; return r; };
-    p.game = { earned: num(g.earned), spent: num(g.spent), best: +g.best || 0, streakDay: typeof g.streakDay === 'string' ? g.streakDay : '', log: Array.isArray(g.log) ? g.log.slice(-20) : [] };
+    p.game = {
+      earned: num(g.earned), spent: num(g.spent), best: +g.best || 0, log: Array.isArray(g.log) ? g.log.slice(-20) : [],
+      prog: +g.prog || 0, progAt: +g.progAt || 0, day: typeof g.day === 'string' ? g.day : '', dayEarned: +g.dayEarned || 0
+    };
   }
   function ensure(p) {
     ensureTrack(p, 'mul');
@@ -640,19 +645,31 @@
     if (use) p.game.spent[dev] = (p.game.spent[dev] || 0) + use;
     return use;
   }
-  // 30 seguidas dan premio una vez al día.
-  function gameStreakAward(p, streak, now) {
-    if (streak !== CONFIG.GAME_STREAK) return false;
-    const day = ymd(now || Date.now());
-    if (p.game.streakDay === day) return false;
-    p.game.streakDay = day;
+  /* Cada respuesta buena suma; al completar gamePer (100) gana 5 minutos. Los errores no restan nada.
+     Tope diario de lo que se gana con respuestas (las medallas y el test no tienen tope). */
+  function gameProgress(p, now) {
+    const g = p.game, st = p.settings, today = g.day === ymd(now || Date.now());
+    const earnedToday = today ? g.dayEarned : 0, max = st.gameDayMax * 60;
+    return { prog: Math.min(g.prog, st.gamePer), per: st.gamePer, earnedToday: earnedToday, max: max, capped: earnedToday >= max };
+  }
+  function gameCount(p, dev, now) {
+    now = now || Date.now();
+    const g = p.game, st = p.settings, day = ymd(now);
+    if (g.day !== day) { g.day = day; g.dayEarned = 0; }
+    if (g.dayEarned >= st.gameDayMax * 60) return false;
+    g.prog++; g.progAt = now;
+    if (g.prog < st.gamePer) return false;
+    g.prog = 0; g.dayEarned += CONFIG.GAME_SEC;
+    gameEarn(p, dev, CONFIG.GAME_SEC, `${st.gamePer} respuestas buenas`, now);
     return true;
   }
   function mergeGame(x, y) {
     const mx = (a, b) => { const r = Object.assign({}, a); for (const k in b) r[k] = Math.max(r[k] || 0, b[k]); return r; };
     const seen = new Set(), log = [];
     x.log.concat(y.log).sort((u, v) => u.at - v.at).forEach(e => { const id = e.at + '|' + e.why; if (!seen.has(id)) { seen.add(id); log.push(e); } });
-    return { earned: mx(x.earned, y.earned), spent: mx(x.spent, y.spent), best: Math.max(x.best, y.best), streakDay: x.streakDay > y.streakDay ? x.streakDay : y.streakDay, log: log.slice(-20) };
+    const pr = x.progAt >= y.progAt ? x : y;
+    const dy = x.day === y.day ? { day: x.day, dayEarned: Math.max(x.dayEarned, y.dayEarned) } : (x.day > y.day ? { day: x.day, dayEarned: x.dayEarned } : { day: y.day, dayEarned: y.dayEarned });
+    return { earned: mx(x.earned, y.earned), spent: mx(x.spent, y.spent), best: Math.max(x.best, y.best), log: log.slice(-20), prog: pr.prog, progAt: pr.progAt, day: dy.day, dayEarned: dy.dayEarned };
   }
 
   /* ===== La culebrita: reglas puras =====
@@ -855,7 +872,7 @@
     expected, inTable, track, hintFor, confusionFor, divHint, divConfusion,
     testNeeded, testOpen, testOrder, testValid, recordTest, claimPrize, newPrize,
     pickMixed, sameFamily, streakTier, streakAfterError, testCheckpoint, testSaved,
-    gameBalance, gameEarn, gameSpend, gameStreakAward, snakeNew, snakeTurn, snakeStep,
+    gameBalance, gameEarn, gameSpend, gameProgress, gameCount, snakeNew, snakeTurn, snakeStep,
     newSession, closeRound, ackBreak, allowed, pickNext, grade, hint, confusion,
     summary, tables, weaknesses, avgOkMs, dayStreak, ymd
   };

@@ -389,10 +389,18 @@ out.push('\n13) Tiempo de juego y culebrita');
 {
   const clone = x => JSON.parse(JSON.stringify(x));
   const p = MT.newProfile('J', '🦉'), d1 = new Date(2026, 10, 10, 16).getTime(), d2 = d1 + 86400000;
+  let wins = [];
+  for (let i = 1; i <= 350; i++) if (MT.gameCount(p, 'cel', d1 + i * 1000)) wins.push(i);
+  const g1 = MT.gameProgress(p, d1 + 400e3);
+  const nextDay = []; for (let i = 1; i <= 100; i++) if (MT.gameCount(p, 'cel', d2 + i * 1000)) nextDay.push(i);
+  check(wins.join(',') === '100,200,300' && g1.capped && g1.prog === 0 && nextDay.join(',') === '100' && MT.gameBalance(p) === 1200,
+    'Cada 100 buenas: +5 min (a las 100, 200 y 300); tope de 15 min al día con respuestas; al otro día vuelve a sumar');
+  const q0 = MT.newProfile('J', '🦉'); for (let i = 0; i < 72; i++) MT.gameCount(q0, 'cel', d1);
+  const q0b = JSON.parse(JSON.stringify(q0)); MT.ensure(q0b);
+  check(MT.gameProgress(q0b, d2).prog === 72 && !MT.gameProgress(q0b, d2).capped, 'El avance (72 de 100) no se pierde de un día a otro');
+  MT.gameSpend(p, 'cel', MT.gameBalance(p));
   MT.gameEarn(p, 'cel', 300, 'medalla del 7', d1);
-  const a1 = MT.gameStreakAward(p, 30, d1), a2 = MT.gameStreakAward(p, 30, d1 + 3600e3), a3 = MT.gameStreakAward(p, 29, d2), a4 = MT.gameStreakAward(p, 30, d2);
-  check(a1 && !a2 && !a3 && a4, '30 seguidas dan 5 minutos una vez al día (no a las 29, no dos veces el mismo día)');
-  MT.gameEarn(p, 'cel', 300, '30 seguidas', d1);
+  MT.gameEarn(p, 'cel', 300, 'test', d1);
   const used = MT.gameSpend(p, 'cel', 130), over = MT.gameSpend(p, 'cel', 9999);
   check(used === 130 && over === 470 && MT.gameBalance(p) === 0, 'Ganó 10 minutos: jugó 2:10, luego gastó el resto (4:50) y el saldo queda en 0, nunca negativo');
   // Dos dispositivos: gana en el celular, juega en el laptop; unir varias veces no duplica.

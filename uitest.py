@@ -394,7 +394,7 @@ with sync_playwright() as pw:
     ctx = br.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, is_mobile=True)
     page = ctx.new_page(); watch(page); page.goto(URL); page.wait_for_timeout(500)
     new_profile(page, 'Leo')
-    ok('locked' in page.get_attribute('#btnGame', 'class') and 'Gana 5 minutos' in page.inner_text('#gameSub'), 'Sin premio ganado, la culebrita aparece cerrada y explica cómo ganarla')
+    ok('locked' in page.get_attribute('#btnGame', 'class') and 'Llevas 0 de 100 buenas' in page.inner_text('#gameSub'), 'Sin tiempo ganado, la culebrita aparece cerrada y muestra el avance: "Llevas 0 de 100 buenas…"')
     open_adult(page)
     page.tap('#btnGiveGame'); page.wait_for_timeout(150)
     status = page.inner_text('#gameStatus')
@@ -434,18 +434,29 @@ with sync_playwright() as pw:
     ctx = br.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, is_mobile=True)
     page = ctx.new_page(); watch(page); page.goto(URL); page.wait_for_timeout(500)
     new_profile(page, 'Mia')
+    open_adult(page)
+    page.tap('#setGamePer button[data-v="50"]'); page.wait_for_timeout(150)
+    page.tap('#s-adult .back'); page.wait_for_timeout(250)
     page.tap('#btnPlay'); page.wait_for_function(READY)
-    done, popup = 0, None
+    done, popup, round_line = 0, None, ''
     WAIT2 = f"() => !document.getElementById('o-round').hidden || !document.getElementById('o-gamewin').hidden || ({READY})()"
-    while done < 31:
+    while done < 70:
         if page.is_visible('#o-gamewin'): popup = (done, page.inner_text('#gwLines')); break
-        if page.is_visible('#o-round'): page.tap('#roundGo'); page.wait_for_function(WAIT2); continue
+        if page.is_visible('#o-round'):
+            if not round_line: round_line = page.inner_text('#roundLines')
+            page.tap('#roundGo'); page.wait_for_function(WAIT2); continue
         if page.is_visible('#o-medal'): page.tap('#medalOk'); page.wait_for_function(WAIT2); continue
         a, b, ans, op = qinfo(page)
-        page.keyboard.type(str(ans)); page.keyboard.press('Enter'); done += 1
+        wrong = done in (12, 33)
+        page.keyboard.type(str(wrong_val(a, b, ans, op) if wrong else ans)); page.keyboard.press('Enter'); done += 1
+        if wrong:
+            page.wait_for_timeout(400)
+            for ch in str(ans): page.keyboard.type(ch)
         page.wait_for_function(WAIT2, timeout=8000)
     page.screenshot(path=f'{SHOTS}/g3-win.png')
-    ok(popup and popup[0] == 30 and '30 seguidas' in popup[1] and '5:00' in popup[1], f'Con 30 seguidas gana 5 minutos de juego: "{popup[1].splitlines()[0] if popup else "-"}"')
+    ok('Llevas 10 de 50 buenas' in round_line, 'Al final de cada ronda ve su avance: "Llevas 10 de 50 buenas para 5 minutos de juego"')
+    ok(popup and popup[0] == 52 and '50 respuestas buenas' in popup[1] and '5:00' in popup[1],
+       f'Con 50 buenas (y 2 errores que no restan) gana 5 minutos: "{popup[1].splitlines()[0] if popup else "-"}" en la respuesta {popup[0] if popup else "-"}')
     page.tap('#gwPlay'); page.wait_for_timeout(300)
     ok(page.is_visible('#s-game'), '"¡Jugar ahora!" abre la culebrita')
     page.tap('#gameExit'); page.wait_for_function(READY)

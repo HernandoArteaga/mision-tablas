@@ -489,6 +489,8 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
 .dpad [data-d="left"] { grid-column: 1; grid-row: 2; }
 .dpad [data-d="down"] { grid-column: 2; grid-row: 2; }
 .dpad [data-d="right"] { grid-column: 3; grid-row: 2; }
+.gbar { display: block; height: 10px; margin-top: 4px; border-radius: 999px; background: rgba(255, 255, 255, .7); border: 1.5px solid var(--ok-edge); overflow: hidden; }
+.gbar i { display: block; height: 100%; background: var(--ok); border-radius: 999px; }
 .glog { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; font-weight: 600; font-size: 15px; color: var(--ink-2); }
 .ticket-banner {
   display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 56px; padding: 8px 16px; border-radius: 18px;
@@ -617,7 +619,7 @@ body.testing .round-dots { display: none; }
     <button id="btnTicket" class="ticket-banner" type="button" hidden><span aria-hidden="true">🎟️</span> Tienes un premio para reclamar con Papá</button>
     <button id="btnGame" class="test-card game-card" type="button">
       <span class="tc-icon" aria-hidden="true">🐍</span>
-      <span class="tc-text"><b>La culebrita</b><span class="tc-sub" id="gameSub"></span></span>
+      <span class="tc-text"><b>La culebrita</b><span class="tc-sub" id="gameSub"></span><span class="gbar" id="gameBar" aria-hidden="true"><i></i></span></span>
       <span class="chev" aria-hidden="true">›</span>
     </button>
     <button id="btnTest" class="test-card" type="button">
@@ -797,8 +799,21 @@ body.testing .round-dots { display: none; }
 
     <div class="panel" id="gamePanel">
       <h2>Tiempo de juego (la culebrita)</h2>
-      <p class="sub">Gana 5 minutos al dominar una tabla (medalla), al llegar a 30 seguidas (una vez al día) o al superar el test definitivo. Cuando se acaba el tiempo, vuelve a las operaciones.</p>
+      <p class="sub">Cada respuesta buena suma y los errores no restan. Con 100 buenas (unos 11 a 15 minutos de práctica) gana 5 minutos: 3 de práctica por 1 de juego. También gana 5 minutos con cada medalla y 10 al superar el test definitivo. Cuando se acaba el tiempo, vuelve a las operaciones.</p>
       <button type="button" class="switch" role="switch" id="setGameOn" aria-checked="true"><span>Premiar con tiempo de juego</span><span class="track" aria-hidden="true"></span></button>
+      <div class="setting">
+        <span>Respuestas buenas para ganar 5 minutos</span>
+        <div class="seg" role="group" aria-label="Respuestas buenas por premio" id="setGamePer">
+          <button type="button" data-v="50">50</button><button type="button" data-v="100">100</button><button type="button" data-v="150">150</button><button type="button" data-v="200">200</button>
+        </div>
+      </div>
+      <div class="setting">
+        <span>Máximo de juego por día ganado con respuestas</span>
+        <div class="seg" role="group" aria-label="Máximo por día" id="setGameMax">
+          <button type="button" data-v="5">5 min</button><button type="button" data-v="10">10 min</button><button type="button" data-v="15">15 min</button><button type="button" data-v="30">30 min</button>
+        </div>
+        <span class="note">Las medallas y el test definitivo dan tiempo aparte, sin tope.</span>
+      </div>
       <p class="note" id="gameStatus"></p>
       <div class="row"><button type="button" class="btn" id="btnGiveGame">Regalar 5 minutos</button></div>
       <ul class="glog" id="gameLog"></ul>
@@ -1344,7 +1359,11 @@ body.testing .round-dots { display: none; }
     const bal = MT.gameBalance(P);
     $('#btnGame').hidden = !gameOn();
     $('#btnGame').classList.toggle('locked', bal <= 0);
-    $('#gameSub').textContent = bal > 0 ? `¡Tienes ${fmtClock(bal)} para jugar!` : 'Gana 5 minutos de juego dominando una tabla o con 30 seguidas.';
+    const gp = MT.gameProgress(P, Date.now());
+    const next = gp.capped ? 'Hoy ya ganaste el máximo con respuestas. ¡Mañana sigues sumando!' : `Llevas ${gp.prog} de ${gp.per} buenas para 5 minutos más.`;
+    $('#gameSub').textContent = bal > 0 ? `¡Tienes ${fmtClock(bal)} para jugar! ${next}` : (gp.capped ? next : `Llevas ${gp.prog} de ${gp.per} buenas para ganar 5 minutos de juego.`);
+    $('#gameBar').hidden = gp.capped;
+    $('#gameBar i').style.width = (100 * gp.prog / gp.per) + '%';
     // El test definitivo es de cada modo; en Mixto solo se avisa si hay un premio pendiente.
     $('#btnTest').hidden = mix;
     if (mix) {
@@ -1502,11 +1521,8 @@ body.testing .round-dots { display: none; }
     if (res.mastered) R.mastered.push({ op: op, key: res.key });
     res.roundDone = R.answered >= roundSize();
     res.breakDue = S.activeMs >= S.breakAt;
-    // Premio de juego por logros importantes: medalla o 30 seguidas (una vez al día).
-    const whys = [];
-    if (res.correct && gameOn() && MT.gameStreakAward(P, S.streak, Date.now())) whys.push(`llegar a ${S.streak} seguidas`);
-    res.newMedals.forEach(n => whys.push(op === 'div' ? `dominar dividir entre ${n}` : `dominar la tabla del ${n}`));
-    res.gameWhys = awardGame(whys);
+    // Tiempo de juego: cada respuesta buena suma (100 = 5 min) y cada medalla da 5 min.
+    res.gameWins = (res.correct ? countGame() : []).concat(awardGame(res.newMedals.map(n => medalWin(op, n))));
     Q.res = res;
     S.dots.push(res.correct ? 'ok' : 'fix');
     persist();
@@ -1574,7 +1590,7 @@ body.testing .round-dots { display: none; }
     res.newMedals.forEach(n => queue.push(done => openMedal(n, res.op, done)));
     if (res.allMastered) queue.push(done => openDiploma(true, done, res.op));
     if (res.roundDone) queue.push(done => { const r = S.round; S.round = freshRound(); openRound(r, res.breakDue, done); });
-    if (res.gameWhys && res.gameWhys.length) queue.push(done => openGameWin(res.gameWhys, done));
+    if (res.gameWins && res.gameWins.length) queue.push(done => openGameWin(res.gameWins, done));
     (function run() {
       if (current !== 'play') return;
       if (!queue.length) return nextQuestion();
@@ -1687,14 +1703,14 @@ body.testing .round-dots { display: none; }
     if (res.correct) {
       TEST.streak++; TEST.i++;
       TEST.done.push(Q.pick.key);
-      if (res.newMedals.length) awardGame(res.newMedals.map(m => TEST.op === 'div' ? `dominar dividir entre ${m}` : `dominar la tabla del ${m}`));
+      const tWins = countGame().concat(awardGame(res.newMedals.map(m => medalWin(TEST.op, m))));
       TEST.best = Math.max(TEST.best, TEST.streak);
       const left = n - TEST.streak, checkpoint = left > 0 && TEST.streak % TEST.cp === 0;
       if (checkpoint) TEST.saved = TEST.streak;
       const msg = left === 0 ? '¡Todas!' : checkpoint ? `¡Punto guardado! 🚩 ${TEST.streak}` : left === 1 ? '¡Solo falta 1!' : left === 5 ? '¡Solo faltan 5!'
         : TEST.streak === Math.floor(n / 2) ? '¡Vas por la mitad!' : pickOne(TEST_OK);
       card.classList.add('good');
-      setFeedback('✓ ' + esc(msg), 'good');
+      setFeedback('✓ ' + esc(msg) + (tWins.length ? ` <span class="plus">🐍 +${tWins.reduce((a, w) => a + w.sec, 0) / 60} min</span>` : ''), 'good');
       const tier = left > 0 ? MT.streakTier(TEST.streak) : 0; // al completar suena la canción del premio
       if (tier) Jingle.play(tier);
       if (checkpoint) { showStamp('🚩 ¡Guardado!'); if (!tier) Sound.master(); }
@@ -1723,7 +1739,7 @@ body.testing .round-dots { display: none; }
   function finishTest() {
     const t = TEST, T = trk(t.op), n = t.n;
     const r = MT.recordTest(T, n, n, Date.now());
-    r.gameWon = awardGame(['superar el test definitivo']).length > 0;
+    r.gameWon = awardGame([{ why: 'superar el test definitivo', sec: MT.CONFIG.GAME_TEST_SEC }]).length > 0;
     TEST = null; Q = null;
     persist();
     goHome();
@@ -1740,7 +1756,7 @@ body.testing .round-dots { display: none; }
     $('#prizeTitle').setAttribute('aria-label', title);
     let li = 0; // letras animadas, agrupadas por palabra para que no se corten
     $('#prizeTitle').innerHTML = title.split(' ').map(w => `<span class="word" aria-hidden="true">${Array.from(w).map(ch => `<span class="ltr" style="--i:${li++}">${esc(ch)}</span>`).join('')}</span>`).join(' ');
-    $('#prizeScore').textContent = !r ? `Ganado el ${fmtDate(pz.wonAt)}` : `¡Las ${r.total} bien! ${r.correct} de ${r.total}` + (r.gameWon ? ' · 🐍 +5 min de juego' : '');
+    $('#prizeScore').textContent = !r ? `Ganado el ${fmtDate(pz.wonAt)}` : `¡Las ${r.total} bien! ${r.correct} de ${r.total}` + (r.gameWon ? ` · 🐍 +${MT.CONFIG.GAME_TEST_SEC / 60} min de juego` : '');
     const showTicket = !!pz.wonAt && (pending || (r && r.prizeWon));
     $('#prizeTicket').hidden = !showTicket;
     $('#tPrize').textContent = pz.text || T.settings.prizeText;
@@ -1997,14 +2013,21 @@ body.testing .round-dots { display: none; }
   const GAME_N = 15;
   const gameOn = () => P.settings.gameOn !== false;
   function fmtClock(sec) { sec = Math.max(0, Math.ceil(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); }
-  function awardGame(whys) {
-    if (!gameOn() || !whys.length) return [];
-    whys.forEach(w => MT.gameEarn(P, data.device, MT.CONFIG.GAME_SEC, w, Date.now()));
-    return whys;
+  // Premios: lista de { why, sec }.
+  function awardGame(list) {
+    if (!gameOn() || !list.length) return [];
+    list.forEach(w => MT.gameEarn(P, data.device, w.sec, w.why, Date.now()));
+    return list;
   }
-  function openGameWin(whys, done) {
-    const min = whys.length * MT.CONFIG.GAME_SEC / 60;
-    $('#gwLines').innerHTML = [`Por ${whys.join(' y ')}: +${min} minutos.`, `Tienes ${fmtClock(MT.gameBalance(P))} para jugar a la culebrita.`].map(l => `<p>${esc(l)}</p>`).join('');
+  const medalWin = (op, n) => ({ why: op === 'div' ? `dominar dividir entre ${n}` : `dominar la tabla del ${n}`, sec: MT.CONFIG.GAME_SEC });
+  // Una respuesta buena más; si completa el bloque (100), gana 5 minutos.
+  function countGame() {
+    if (!gameOn() || !MT.gameCount(P, data.device, Date.now())) return [];
+    return [{ why: `${P.settings.gamePer} respuestas buenas`, sec: MT.CONFIG.GAME_SEC }];
+  }
+  function openGameWin(wins, done) {
+    const min = wins.reduce((a, w) => a + w.sec, 0) / 60;
+    $('#gwLines').innerHTML = [`Por ${wins.map(w => w.why).join(' y ')}: +${min} minutos.`, `Tienes ${fmtClock(MT.gameBalance(P))} para jugar a la culebrita.`].map(l => `<p>${esc(l)}</p>`).join('');
     $('#gwPlay').onclick = () => { closeOverlay('o-gamewin'); startGame('practice'); };
     $('#gwLater').onclick = () => { closeOverlay('o-gamewin'); done(); };
     openOverlay('o-gamewin');
@@ -2174,6 +2197,10 @@ body.testing .round-dots { display: none; }
       lines.push('Dominaste: ' + (names.length > 1 ? names.slice(0, -1).join(', ') + ' y ' + names[names.length - 1] : names[0]));
     }
     if (!lines.length) lines.push('Cada respuesta te hace más fuerte.');
+    if (gameOn()) {
+      const gp = MT.gameProgress(P, Date.now());
+      lines.push(gp.capped ? '🐍 Hoy ya ganaste tu máximo de juego. ¡Mañana sigues!' : `🐍 Llevas ${gp.prog} de ${gp.per} buenas para 5 minutos de juego.`);
+    }
     $('#roundLines').innerHTML = lines.map(l => `<p>${esc(l)}</p>`).join('');
     $('#roundPause').hidden = !breakDue;
     S.dots = [];
@@ -2372,7 +2399,10 @@ body.testing .round-dots { display: none; }
     if (document.activeElement !== $('#setPrize')) $('#setPrize').value = pz.wonAt && !pz.claimedAt ? (pz.text || st.prizeText) : st.prizeText;
     $('#setTestAlways').setAttribute('aria-checked', String(st.testAlways));
     $('#setGameOn').setAttribute('aria-checked', String(gameOn()));
-    $('#gameStatus').textContent = `Saldo: ${fmtClock(MT.gameBalance(P))} de juego. Récord en la culebrita: ${P.game.best} ${P.game.best === 1 ? 'manzana' : 'manzanas'}.`;
+    const gp = MT.gameProgress(P, Date.now());
+    $$('#setGamePer button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === gp.per)));
+    $$('#setGameMax button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v * 60 === gp.max)));
+    $('#gameStatus').textContent = `Saldo: ${fmtClock(MT.gameBalance(P))} de juego. Avance: ${gp.prog} de ${gp.per} buenas. Hoy ganó ${Math.round(gp.earnedToday / 60)} de ${gp.max / 60} min con respuestas. Récord en la culebrita: ${P.game.best} ${P.game.best === 1 ? 'manzana' : 'manzanas'}.`;
     $('#gameLog').innerHTML = P.game.log.slice(-5).reverse().map(e => `<li>${esc(fmtDate(e.at))} · ${esc(e.why)} · +${Math.round(e.sec / 60)} min</li>`).join('');
     $('#prizeStatus').textContent = !pz.wonAt
       ? (tt.attempts ? `Aún no gana el premio. Mejor marca: ${tt.best} de ${tt.total}.` : 'Aún no ha hecho el test.')
@@ -2453,6 +2483,8 @@ body.testing .round-dots { display: none; }
   });
   $('#setPrize').addEventListener('change', () => renderAdult());
   $('#setGameOn').addEventListener('click', () => { P.settings.gameOn = !gameOn(); changed(false); });
+  $('#setGamePer').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { P.settings.gamePer = +b.dataset.v; changed(false); } });
+  $('#setGameMax').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { P.settings.gameDayMax = +b.dataset.v; changed(false); } });
   $('#btnGiveGame').addEventListener('click', () => { MT.gameEarn(P, data.device, MT.CONFIG.GAME_SEC, 'regalo de Papá', Date.now()); changed(false); });
   $('#setTestAlways').addEventListener('click', () => { const st = AT().settings; st.testAlways = !st.testAlways; changed(false); });
   $('#btnClaim').addEventListener('click', () => { MT.claimPrize(AT(), Date.now()); changed(false); });
