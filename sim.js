@@ -368,6 +368,23 @@ out.push('\n11) Mixto y canciones de racha');
     `Cada respuesta suma a su modo: ${R.prof.answered} multiplicaciones y ${R.prof.div.answered} divisiones; dominadas ${MT.summary(R.prof).mastered} × y ${MT.summary(R.prof.div).mastered} ÷`);
 }
 
+out.push('\n12) Puntos de guardado');
+{
+  const after = [3, 9, 10, 17, 37, 40, 58].map(n => `${n}→${MT.streakAfterError(n)}`).join(' ');
+  check(after === '3→0 9→0 10→10 17→10 37→30 40→40 58→50', `Racha tras un error: ${after}`);
+  const cps = [[64, 16], [15, 4], [80, 20]].map(([n, c]) => MT.testCheckpoint(n) === c).every(Boolean);
+  const sv = [5, 16, 37, 63].map(x => `${x}→${MT.testSaved(x, 64)}`).join(' ');
+  check(cps && sv === '5→0 16→16 37→32 63→48', `Test de 64: punto guardado cada 16; tras un error: ${sv}`);
+  const p = MT.newProfile('J', '🦉'), all = MT.universe(p.settings);
+  let okPool = 0;
+  for (let seed = 1; seed <= 100; seed++) {
+    const pool = all.filter((k, i) => (i * 7 + seed) % 3 !== 0), missed = pool[seed % pool.length];
+    const o = MT.testOrder(p, rngFrom(seed), ['2x2', missed], missed, pool), pos = o.indexOf(missed);
+    if (o.length === pool.length && new Set(o).size === pool.length && o.every(k => pool.includes(k)) && pos >= 3 && pos <= 8) okPool++;
+  }
+  check(okPool === 100, `Tras un error, la nueva tanda trae solo lo que falta (sin repetir) y la fallada sale entre la 3.ª y la 8.ª (${okPool} de 100)`);
+}
+
 out.push('\nExtras');
 {
   let viol = 0, total = 0;

@@ -11,6 +11,7 @@ Práctica de las tablas de multiplicar y de dividir del 2 al 9 para niños de 9 
 - En el inicio se elige **Multiplicar** o **Dividir**. Cada modo tiene su propio progreso, mapa, medallas, refuerzo y diploma.
 - **Mixto** mezcla multiplicaciones y divisiones (mitad y mitad, nunca más de 3 seguidas del mismo tipo). Cada respuesta suma al progreso de su modo, y nunca pregunta 56 ÷ 8 justo después de 7 × 8, porque sería regalar la respuesta.
 - **Canciones de racha:** a las 10, 20, 30 y 40 respuestas seguidas sin error suena el tema de racha, cada vez más largo y completo; a las 50, y luego cada 25, la versión épica (13 s). La práctica sigue mientras suena. Funciona en todos los modos y en el test definitivo.
+- **La racha se guarda cada 10:** un error no la borra; la devuelve al último múltiplo de 10 (37 → 30). Perder todo por un error desmotiva y lleva a evitar el riesgo; así el error se vuelve parte del aprendizaje.
 - Cada niño crea su jugador con su nombre y un animal. Varios hermanos pueden compartir el mismo dispositivo.
 - La pregunta aparece en grande y se responde con el teclado de la pantalla o con el del computador.
 - Si se equivoca, la app le muestra la respuesta con un dibujo de puntos y un truco, y el niño la escribe para seguir.
@@ -28,8 +29,8 @@ Práctica de las tablas de multiplicar y de dividir del 2 al 9 para niños de 9 
 ## Test definitivo y premio
 
 - En el inicio hay un botón **Test definitivo**. Se abre cuando el niño domina todas las multiplicaciones (o todas las divisiones, en ese modo); el adulto puede abrirlo antes desde su panel o con su clave en el mismo botón.
-- Las preguntas salen al azar, sin pistas ni reloj, y no se acaban. Gana al responder todas bien seguidas (64 de 64).
-- Si se equivoca, el test sigue y solo el contador de seguidas vuelve a 0. La próxima racha vuelve a incluir todas, y la fallada sale de nuevo a las pocas preguntas.
+- Las preguntas salen al azar, sin pistas ni reloj, y no se acaban. Gana al responderlas todas bien (64 de 64).
+- **Puntos de guardado:** cada 16 buenas seguidas se guarda el avance (16, 32 y 48). Si se equivoca, el test sigue y vuelve al último punto guardado, no a 0: lo que respondió después vuelve a la pila, y la fallada sale de nuevo a las pocas preguntas.
 - Los errores del test también vuelven a la práctica como Difíciles, para reforzarlos.
 - Al ganar: celebración con fuegos artificiales y trofeo, una canción original creada con Web Audio y un vale "VALE POR…" para reclamar con Papá. El adulto escribe el premio en su panel y lo marca como entregado (también desde el vale, con la barrera para adultos). Con "Preparar otro premio" se puede ganar uno nuevo.
 

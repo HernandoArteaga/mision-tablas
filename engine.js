@@ -17,6 +17,8 @@
     STREAK_STEP: 10,               // canción de racha a las 10, 20, 30 y 40 seguidas…
     STREAK_EPIC: 50,               // …la épica a las 50…
     STREAK_EPIC_STEP: 25,          // …y luego cada 25 (75, 100, 125…)
+    STREAK_SAVE: 10,               // la racha se guarda cada 10: un error la devuelve al último punto guardado, no a 0
+    TEST_SAVE_PARTS: 4,            // test definitivo: punto guardado cada cuarto (16, 32 y 48 de 64)
     ROUND_SIZE: 10,                // preguntas por ronda
     MIX_BASE: { reto: 0.5, confianza: 0.3, nueva: 0.2 },
     MIX_LOW: { reto: 0.35, confianza: 0.55, nueva: 0.1 },  // aciertos recientes < 70 %
@@ -607,10 +609,17 @@
     return (n - CONFIG.STREAK_EPIC) % CONFIG.STREAK_EPIC_STEP === 0 ? 5 : 0;
   }
 
+  /* ===== Puntos de guardado =====
+     Como en los videojuegos: perder todo por un error desmotiva. La racha se guarda cada 10
+     y un error la devuelve al último punto guardado (37 → 30; antes de 10, a 0). */
+  function streakAfterError(n) { return Math.floor(Math.max(0, n) / CONFIG.STREAK_SAVE) * CONFIG.STREAK_SAVE; }
+  function testCheckpoint(total) { return Math.max(1, Math.round(total / CONFIG.TEST_SAVE_PARTS)); }
+  function testSaved(progress, total) { const cp = testCheckpoint(total); return Math.floor(progress / cp) * cp; }
+
   /* ===== Test definitivo =====
-     Preguntas al azar sin parar, sin pistas. Gana al responder todas las del modo bien y seguidas.
-     Si falla, el test sigue pero el contador de seguidas vuelve a 0: las próximas vuelven a ser
-     todas las del modo, en otro orden, y la fallada sale pronto. */
+     Preguntas al azar sin parar, sin pistas. Gana al responder bien todas las del modo.
+     Cada cuarto se guarda el avance. Si falla, vuelve al último punto guardado: lo que respondió
+     después vuelve a la pila (junto con la fallada, que sale pronto) en otro orden. */
   function testNeeded(total) { return Math.ceil(total * CONFIG.TEST_PASS); }
   function testOpen(p) { return !!p.settings.testAlways || summary(p).maintenance; }
   function testValid(seq, hist) {
@@ -622,11 +631,11 @@
     }
     return true;
   }
-  // hist: últimas preguntas antes de esta tanda; early: la que falló, para que salga pronto.
-  function testOrder(p, rng, hist, early) {
+  // hist: últimas preguntas antes de esta tanda; early: la que falló, para que salga pronto; pool: solo estas.
+  function testOrder(p, rng, hist, early, pool) {
     rng = rng || Math.random;
     hist = (hist || []).slice(-2);
-    const keys = universe(p.settings);
+    const keys = pool ? pool.slice() : universe(p.settings);
     let best = null;
     for (let attempt = 0; attempt < 60; attempt++) {
       const left = keys.slice(), out = [];
@@ -773,7 +782,7 @@
     CONFIG, TABLES, LEVELS, key, parse, universe, group, defaultSettings, boostKeys, newFact, newProfile, ensure, resetProgress,
     expected, inTable, track, hintFor, confusionFor, divHint, divConfusion,
     testNeeded, testOpen, testOrder, testValid, recordTest, claimPrize, newPrize,
-    pickMixed, sameFamily, streakTier,
+    pickMixed, sameFamily, streakTier, streakAfterError, testCheckpoint, testSaved,
     newSession, closeRound, ackBreak, allowed, pickNext, grade, hint, confusion,
     summary, tables, weaknesses, avgOkMs, dayStreak, ymd
   };

@@ -306,11 +306,11 @@ with sync_playwright() as pw:
     page.screenshot(path=f'{SHOTS}/w1-home.png')
     seen, counters = run_test(page, {7, 30})
     n = 64
-    ok(len(seen) == 31 + 64 and counters[6].startswith('Seguidas: 7') and counters[7].startswith('Seguidas: 0 de 64 · mejor: 7')
-       and counters[30].startswith('Seguidas: 0 de 64 · mejor: 22'),
-       f'Se equivoca en la 8.ª y en la 31.ª: el test sigue y el contador vuelve a 0; gana tras 64 seguidas ({len(seen)} respuestas)')
-    last64 = set(seen[-64:])
-    ok(len(last64) == 64, 'Las 64 seguidas del final son las 64 multiplicaciones distintas')
+    ok(len(seen) == 31 + 48 and counters[6].startswith('Llevas 7 de 64') and counters[7].startswith('Llevas 0 de 64')
+       and counters[23].startswith('Llevas 16 de 64 · 🚩 guardado en 16') and counters[30].startswith('Llevas 16 de 64 · 🚩 guardado en 16'),
+       f'Falla en la 8.ª (antes del primer punto: vuelve a 0) y en la 31.ª (con 22: vuelve al 16 guardado); gana con {len(seen)} respuestas')
+    final = set(seen[8:24] + seen[31:])
+    ok(len(final) == 64, 'Al ganar respondió bien las 64 multiplicaciones distintas')
     page.wait_for_selector('#o-prize:not([hidden])', timeout=8000)
     page.wait_for_timeout(2600)
     page.screenshot(path=f'{SHOTS}/w2-prize.png')
@@ -339,11 +339,11 @@ with sync_playwright() as pw:
     page.screenshot(path=f'{SHOTS}/w3-streak.png')
     missed = seen[5]
     back = [i for i in range(6, 16) if seen[i] == missed]
-    ok(back and 9 <= back[0] <= 14 and counters[5].startswith('Seguidas: 0 de 15 · mejor: 5') and not page.is_visible('#o-prize'),
+    ok(back and 9 <= back[0] <= 14 and counters[5].startswith('Llevas 4 de 15 · 🚩 guardado en 4') and not page.is_visible('#o-prize'),
        f'Con 15 preguntas: falla {missed[0]} × {missed[1]} y vuelve a salir {back[0] - 5 if back else "?"} preguntas después; sigue sin ganar')
     page.tap('#btnExit'); page.wait_for_timeout(300)
-    ok('mejor racha: 10 de 15' in page.inner_text('#testSub') and page.is_visible('#s-home'),
-       f'Al salir guarda la mejor racha: "{page.inner_text("#testSub")}"')
+    ok('mejor marca: 14 de 15' in page.inner_text('#testSub') and page.is_visible('#s-home'),
+       f'Al salir guarda la mejor marca: "{page.inner_text("#testSub")}"')
     ctx.close()
 
     # ---------- Mixto y canciones de racha ----------
@@ -372,10 +372,16 @@ with sync_playwright() as pw:
     gifts = sum(1 for i in range(1, len(seen)) if seen[i][0] != seen[i - 1][0] and fam(seen[i]) == fam(seen[i - 1]))
     nmul = sum(1 for x in seen if x[0] == '×')
     ok(0 < nmul < len(seen) and gifts == 0, f'Mixto: {nmul} multiplicaciones y {len(seen) - nmul} divisiones en {len(seen)} preguntas, sin regalar respuestas')
-    ok(jingles.get(9) == '' and jingles.get(10) == '1' and jingles.get(20) == '2' and '10 seguidas' in stamps.get(10, ''),
+    ok(jingles.get(9) == '' and jingles.get(10) == '1' and jingles.get(20) == '2' and '10 ¡guardada!' in stamps.get(10, ''),
        f'Canción de racha: nada a las 9; nivel {jingles.get(10)} a las 10 ("{stamps.get(10)}") y nivel {jingles.get(20)} a las 20')
+    a, b, ans, op = qinfo(page)
+    page.keyboard.type(str(wrong_val(a, b, ans, op))); page.keyboard.press('Enter'); page.wait_for_timeout(450)
+    fb = page.inner_text('#feedback')
+    ok(page.inner_text('#hudStreakN') == '20' and 'quedó guardada en 20' in fb,
+       f'Con 21 seguidas se equivoca: la racha no cae a 0, queda en {page.inner_text("#hudStreakN")} ("{fb.splitlines()[-1]}")')
+    page.screenshot(path=f'{SHOTS}/x3-saved.png')
     prof = page.evaluate("JSON.parse(localStorage.getItem('mision-tablas-v1')).profiles[0]")
-    ok(prof['answered'] > 0 and prof['div']['answered'] > 0 and prof['answered'] + prof['div']['answered'] == 21,
+    ok(prof['answered'] > 0 and prof['div']['answered'] > 0 and prof['answered'] + prof['div']['answered'] == 22,
        f"Cada respuesta suma a su modo: {prof['answered']} × y {prof['div']['answered']} ÷")
     page.tap('#btnExit'); page.wait_for_timeout(250)
     page.tap('#btnMap'); page.wait_for_timeout(250)

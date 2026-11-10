@@ -487,10 +487,15 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
 .test-bar { order: 3; flex-basis: 100%; display: grid; gap: 4px; justify-items: center; }
 @media (min-width: 600px) { .test-bar { order: 0; flex: 1 1 auto; max-width: 340px; } }
 .test-bar span { font-weight: 800; font-size: 15px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.tb-track { width: 100%; height: 12px; border-radius: 999px; background: var(--lv0); border: 1.5px solid var(--line); overflow: hidden; }
-.tb-track i { display: block; height: 100%; width: 0; background: var(--gold); border-radius: 999px; transition: width .3s ease; }
+.tb-track { position: relative; width: 100%; height: 14px; border-radius: 999px; background: var(--lv0); border: 1.5px solid var(--line); overflow: hidden; }
+.tb-track i, .tb-track b { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 999px; transition: width .3s ease; }
+.tb-track i { background: var(--gold); }
+.tb-track b { background: var(--gold-deep); }
+/* Marcas de los puntos de guardado */
+.tb-track::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent calc(100% - 2px), rgba(29, 42, 87, .45) 0) 0 0 / var(--cpw, 25%) 100% repeat-x; }
 body.testing .round-dots { display: none; }
 .q-card.testwrong { background: var(--warm-soft); border-color: var(--warm-line); }
+.feedback .saved { flex-basis: 100%; font-size: .72em; color: var(--ink-2); }
 
 /* ---------- Gran celebración ---------- */
 .overlay.prize { display: flex; flex-direction: column; background: radial-gradient(circle at 50% 28%, var(--night-2) 0%, var(--night) 58%, #0B1030 100%); }
@@ -622,7 +627,7 @@ body.testing .round-dots { display: none; }
     <div class="play-top">
       <button id="btnExit" class="chip" type="button">← Salir</button>
       <div id="roundDots" class="round-dots" role="img" aria-label="Avance de la ronda"></div>
-      <div id="testBar" class="test-bar" hidden><span id="testCount"></span><div class="tb-track" aria-hidden="true"><i id="testFill"></i></div></div>
+      <div id="testBar" class="test-bar" hidden><span id="testCount"></span><div class="tb-track" id="testTrack" aria-hidden="true"><i id="testFill"></i><b id="testSavedFill"></b></div></div>
       <div class="hud">
         <span class="hud-item" id="hudStars" aria-label="Estrellas"><span aria-hidden="true">⭐</span> <span id="hudStarsN">0</span></span>
         <span class="hud-item" id="hudStreak" aria-label="Racha de aciertos"><span aria-hidden="true">🔥</span> <span id="hudStreakN">0</span></span>
@@ -938,6 +943,8 @@ body.testing .round-dots { display: none; }
     STREAK_STEP: 10,               // canción de racha a las 10, 20, 30 y 40 seguidas…
     STREAK_EPIC: 50,               // …la épica a las 50…
     STREAK_EPIC_STEP: 25,          // …y luego cada 25 (75, 100, 125…)
+    STREAK_SAVE: 10,               // la racha se guarda cada 10: un error la devuelve al último punto guardado, no a 0
+    TEST_SAVE_PARTS: 4,            // test definitivo: punto guardado cada cuarto (16, 32 y 48 de 64)
     ROUND_SIZE: 10,                // preguntas por ronda
     MIX_BASE: { reto: 0.5, confianza: 0.3, nueva: 0.2 },
     MIX_LOW: { reto: 0.35, confianza: 0.55, nueva: 0.1 },  // aciertos recientes < 70 %
@@ -1528,10 +1535,17 @@ body.testing .round-dots { display: none; }
     return (n - CONFIG.STREAK_EPIC) % CONFIG.STREAK_EPIC_STEP === 0 ? 5 : 0;
   }
 
+  /* ===== Puntos de guardado =====
+     Como en los videojuegos: perder todo por un error desmotiva. La racha se guarda cada 10
+     y un error la devuelve al último punto guardado (37 → 30; antes de 10, a 0). */
+  function streakAfterError(n) { return Math.floor(Math.max(0, n) / CONFIG.STREAK_SAVE) * CONFIG.STREAK_SAVE; }
+  function testCheckpoint(total) { return Math.max(1, Math.round(total / CONFIG.TEST_SAVE_PARTS)); }
+  function testSaved(progress, total) { const cp = testCheckpoint(total); return Math.floor(progress / cp) * cp; }
+
   /* ===== Test definitivo =====
-     Preguntas al azar sin parar, sin pistas. Gana al responder todas las del modo bien y seguidas.
-     Si falla, el test sigue pero el contador de seguidas vuelve a 0: las próximas vuelven a ser
-     todas las del modo, en otro orden, y la fallada sale pronto. */
+     Preguntas al azar sin parar, sin pistas. Gana al responder bien todas las del modo.
+     Cada cuarto se guarda el avance. Si falla, vuelve al último punto guardado: lo que respondió
+     después vuelve a la pila (junto con la fallada, que sale pronto) en otro orden. */
   function testNeeded(total) { return Math.ceil(total * CONFIG.TEST_PASS); }
   function testOpen(p) { return !!p.settings.testAlways || summary(p).maintenance; }
   function testValid(seq, hist) {
@@ -1543,11 +1557,11 @@ body.testing .round-dots { display: none; }
     }
     return true;
   }
-  // hist: últimas preguntas antes de esta tanda; early: la que falló, para que salga pronto.
-  function testOrder(p, rng, hist, early) {
+  // hist: últimas preguntas antes de esta tanda; early: la que falló, para que salga pronto; pool: solo estas.
+  function testOrder(p, rng, hist, early, pool) {
     rng = rng || Math.random;
     hist = (hist || []).slice(-2);
-    const keys = universe(p.settings);
+    const keys = pool ? pool.slice() : universe(p.settings);
     let best = null;
     for (let attempt = 0; attempt < 60; attempt++) {
       const left = keys.slice(), out = [];
@@ -1694,7 +1708,7 @@ body.testing .round-dots { display: none; }
     CONFIG, TABLES, LEVELS, key, parse, universe, group, defaultSettings, boostKeys, newFact, newProfile, ensure, resetProgress,
     expected, inTable, track, hintFor, confusionFor, divHint, divConfusion,
     testNeeded, testOpen, testOrder, testValid, recordTest, claimPrize, newPrize,
-    pickMixed, sameFamily, streakTier,
+    pickMixed, sameFamily, streakTier, streakAfterError, testCheckpoint, testSaved,
     newSession, closeRound, ackBreak, allowed, pickNext, grade, hint, confusion,
     summary, tables, weaknesses, avgOkMs, dayStreak, ymd
   };
@@ -2184,10 +2198,13 @@ body.testing .round-dots { display: none; }
     if (!Q.typed) { nudge(); return; }
     if (TEST) return submitTest();
     const ms = Math.max(0, performance.now() - Q.start), op = Q.pick.op, sub = S.subs[op];
+    const prevStreak = S.streak;
     sub.streak = S.streak; // las estrellas extra cuentan la racha de toda la práctica
     const res = MT.grade(trk(op), sub, Q.pick.key, parseInt(Q.typed, 10), ms, Date.now(),
       { kind: Q.pick.kind, stage: Q.pick.stage, assisted: Q.pick.preHint });
-    S.streak = sub.streak;
+    // Un error no borra la racha: vuelve al último punto guardado (cada 10).
+    S.streak = res.correct ? sub.streak : MT.streakAfterError(prevStreak);
+    res.prevStreak = prevStreak;
     S.last = Date.now();
     S.activeMs += Math.min(ms, MT.CONFIG.TIME_CAP_MS) + MT.CONFIG.FEEDBACK_MS;
     const R = S.round;
@@ -2213,7 +2230,7 @@ body.testing .round-dots { display: none; }
     const tier = MT.streakTier(S.streak);
     if (tier) {
       // Canción de racha: la práctica sigue mientras suena.
-      showStamp(res.mastered ? '¡Dominada!' : `🔥 ${S.streak} seguidas`);
+      showStamp(res.mastered ? '¡Dominada!' : `🔥 ${S.streak} ¡guardada!`);
       Jingle.play(tier);
       if (tier >= 3 || res.mastered) confetti();
       wait = 1400;
@@ -2232,7 +2249,9 @@ body.testing .round-dots { display: none; }
     $('#preHint').hidden = true;
     // A una multiplicación fácil no se le dice "difícil".
     const easy = MT.group(res.a, res.b) <= 1;
-    setFeedback(esc(pickOne(easy ? ERR_MSGS.filter(m => !/difícil/.test(m)) : ERR_MSGS)), 'soft');
+    const keep = res.prevStreak >= MT.CONFIG.STREAK_SAVE
+      ? `<span class="saved">🔥 Tu racha ${S.streak === res.prevStreak ? 'sigue' : 'quedó guardada'} en ${S.streak}</span>` : '';
+    setFeedback(esc(pickOne(easy ? ERR_MSGS.filter(m => !/difícil/.test(m)) : ERR_MSGS)) + keep, 'soft');
     const h = MT.hintFor({ op: res.op }, res.a, res.b);
     const cap = res.op === 'div' ? `${res.product} en ${res.a} filas: ${res.b} en cada una` : `${res.a} filas de ${res.b}`;
     $('#fixBox').innerHTML =
@@ -2319,7 +2338,7 @@ body.testing .round-dots { display: none; }
     card.classList.toggle('locked', !open);
     $('#testIcon').textContent = open ? '🏆' : '🔒';
     $('#testSub').textContent = !open ? `Se abre cuando domines las ${sm.total} (llevas ${sm.mastered}) o con la clave de Papá. Premio: ${T.settings.prizeText}.`
-      : !pz.wonAt ? `Responde las ${need} bien seguidas y ganas: ${T.settings.prizeText}.${tt.best ? ` Tu mejor racha: ${tt.best} de ${tt.total}.` : ''}`
+      : !pz.wonAt ? `Responde las ${need} bien y ganas: ${T.settings.prizeText}.${tt.best ? ` Tu mejor marca: ${tt.best} de ${tt.total}.` : ''}`
         : !pz.claimedAt ? '¡Ganaste el premio! Puedes repetir el test cuando quieras.'
           : 'Ya lo superaste. ¡Puedes repetirlo cuando quieras!';
     $('#btnTicket').hidden = !(pz.wonAt && !pz.claimedAt);
@@ -2331,10 +2350,10 @@ body.testing .round-dots { display: none; }
     openTestStart(op, T);
   });
   function openTestStart(op, T) {
-    const n = MT.universe(T.settings).length, need = MT.testNeeded(n);
+    const n = MT.universe(T.settings).length, need = MT.testNeeded(n), cp = MT.testCheckpoint(n);
     const lines = [`Las ${n} ${noun(op, 2)} salen al azar, sin pistas y sin reloj.`,
-      `Para ganar, respóndelas todas bien seguidas: ${need} de ${need}.`,
-      'Si te equivocas, el test sigue, pero el contador de seguidas vuelve a 0.',
+      `Para ganar, respóndelas todas bien: ${need} de ${need}.`,
+      `Cada ${cp} buenas seguidas guardas tu avance 🚩. Si te equivocas, vuelves al último punto guardado, no a 0.`,
       T.prize.wonAt ? '¡Demuestra otra vez que te las sabes todas!' : `Premio: ${T.settings.prizeText}`];
     $('#tsLines').innerHTML = lines.map(l => `<p>${esc(l)}</p>`).join('');
     $('#tsGo').onclick = () => { closeOverlay('o-tstart'); startTest(); };
@@ -2345,15 +2364,19 @@ body.testing .round-dots { display: none; }
   function startTest() {
     Sound.unlock(); clearTimers();
     const op = curOp(), T = trk(op);
-    TEST = { op: op, keys: MT.testOrder(T, Math.random), i: 0, streak: 0, best: 0, sess: MT.newSession(T, Date.now()) };
+    const n = MT.universe(T.settings).length;
+    // keys: lo que falta, en orden; done: las que lleva bien; saved: el último punto guardado.
+    TEST = { op: op, n: n, cp: MT.testCheckpoint(n), keys: MT.testOrder(T, Math.random), i: 0, streak: 0, saved: 0, best: 0, done: [], sess: MT.newSession(T, Date.now()) };
     S = null;
     show('play'); renderSound(); renderHud();
     nextTestQuestion();
   }
   function renderTestBar() {
-    const n = TEST.keys.length;
-    $('#testCount').textContent = `Seguidas: ${TEST.streak} de ${n}` + (TEST.best ? ` · mejor: ${TEST.best}` : '');
+    const n = TEST.n;
+    $('#testCount').textContent = `Llevas ${TEST.streak} de ${n}` + (TEST.saved ? ` · 🚩 guardado en ${TEST.saved}` : '');
     $('#testFill').style.width = (100 * TEST.streak / n) + '%';
+    $('#testSavedFill').style.width = (100 * TEST.saved / n) + '%';
+    $('#testTrack').style.setProperty('--cpw', (100 * TEST.cp / n) + '%');
   }
   function nextTestQuestion() {
     clearTimers();
@@ -2366,37 +2389,44 @@ body.testing .round-dots { display: none; }
     const ms = Math.max(0, performance.now() - Q.start);
     const res = MT.grade(trk(TEST.op), TEST.sess, Q.pick.key, parseInt(Q.typed, 10), ms, Date.now(), { kind: 'test' });
     Q.res = res; Q.phase = 'right';
-    const n = TEST.keys.length, T = trk(TEST.op), card = $('#qCard');
+    const n = TEST.n, T = trk(TEST.op), card = $('#qCard');
     if (res.correct) {
       TEST.streak++; TEST.i++;
+      TEST.done.push(Q.pick.key);
       TEST.best = Math.max(TEST.best, TEST.streak);
-      const left = n - TEST.streak;
-      const msg = left === 0 ? '¡Todas!' : left === 1 ? '¡Solo falta 1!' : left === 5 ? '¡Solo faltan 5!'
+      const left = n - TEST.streak, checkpoint = left > 0 && TEST.streak % TEST.cp === 0;
+      if (checkpoint) TEST.saved = TEST.streak;
+      const msg = left === 0 ? '¡Todas!' : checkpoint ? `¡Punto guardado! 🚩 ${TEST.streak}` : left === 1 ? '¡Solo falta 1!' : left === 5 ? '¡Solo faltan 5!'
         : TEST.streak === Math.floor(n / 2) ? '¡Vas por la mitad!' : pickOne(TEST_OK);
       card.classList.add('good');
       setFeedback('✓ ' + esc(msg), 'good');
       const tier = left > 0 ? MT.streakTier(TEST.streak) : 0; // al completar suena la canción del premio
-      if (tier) { Jingle.play(tier); showStamp(`🔥 ${TEST.streak} seguidas`); if (tier >= 3) confetti(); }
-      else Sound.ok(res.fast);
+      if (tier) Jingle.play(tier);
+      if (checkpoint) { showStamp('🚩 ¡Guardado!'); if (!tier) Sound.master(); }
+      else if (tier) showStamp(`🔥 ${TEST.streak}`);
+      if (!tier && !checkpoint) Sound.ok(res.fast);
+      if (tier >= 3) confetti();
       persist(); renderHud(res); renderTestBar();
-      later(() => (TEST.streak >= n ? finishTest() : nextTestQuestion()), 650);
+      later(() => (TEST.streak >= n ? finishTest() : nextTestQuestion()), checkpoint ? 1100 : 650);
     } else {
-      // El test sigue: solo vuelve a 0 el contador. La próxima tanda trae otra vez todas, y la fallada sale pronto.
+      // El test sigue: vuelve al último punto guardado. Lo de después, y la fallada, vuelven a la pila.
       const lost = TEST.streak;
       if (lost) MT.recordTest(T, lost, n, Date.now());
-      TEST.streak = 0; TEST.i = 0;
-      TEST.keys = MT.testOrder(T, Math.random, TEST.sess.hist.slice(-2), Q.pick.key);
+      TEST.streak = TEST.saved; TEST.done = TEST.done.slice(0, TEST.saved); TEST.i = 0;
+      const doneSet = new Set(TEST.done);
+      const pool = MT.universe(T.settings).filter(k => !doneSet.has(k));
+      TEST.keys = MT.testOrder(T, Math.random, TEST.sess.hist.slice(-2), Q.pick.key, pool);
       card.classList.add('testwrong');
       $('#slot').className = 'slot';
       $('#slot').innerHTML = `<span class="ghost">${res.expected}</span>`;
-      setFeedback(`Era ${res.expected}. Las seguidas vuelven a 0, ¡tú puedes!`, 'soft');
+      setFeedback(TEST.saved ? `Era ${res.expected}. Vuelves a tu punto guardado: 🚩 ${TEST.saved}.` : `Era ${res.expected}. ¡Sigue, tú puedes!`, 'soft');
       Sound.soft();
       persist(); renderHud(res); renderTestBar();
       later(nextTestQuestion, 1800);
     }
   }
   function finishTest() {
-    const t = TEST, T = trk(t.op), n = t.keys.length;
+    const t = TEST, T = trk(t.op), n = t.n;
     const r = MT.recordTest(T, n, n, Date.now());
     TEST = null; Q = null;
     persist();
@@ -2405,7 +2435,7 @@ body.testing .round-dots { display: none; }
   }
   // Al salir a la mitad se guarda la racha que llevaba.
   function leaveTest() {
-    if (TEST && TEST.streak) { MT.recordTest(trk(TEST.op), TEST.streak, TEST.keys.length, Date.now()); persist(); }
+    if (TEST && TEST.streak) { MT.recordTest(trk(TEST.op), TEST.streak, TEST.n, Date.now()); persist(); }
     TEST = null;
   }
   function openPrize(op, r, fresh) {
@@ -2414,7 +2444,7 @@ body.testing .round-dots { display: none; }
     $('#prizeTitle').setAttribute('aria-label', title);
     let li = 0; // letras animadas, agrupadas por palabra para que no se corten
     $('#prizeTitle').innerHTML = title.split(' ').map(w => `<span class="word" aria-hidden="true">${Array.from(w).map(ch => `<span class="ltr" style="--i:${li++}">${esc(ch)}</span>`).join('')}</span>`).join(' ');
-    $('#prizeScore').textContent = !r ? `Ganado el ${fmtDate(pz.wonAt)}` : `¡${r.correct} de ${r.total} seguidas, sin un error!`;
+    $('#prizeScore').textContent = !r ? `Ganado el ${fmtDate(pz.wonAt)}` : `¡Las ${r.total} bien! ${r.correct} de ${r.total}`;
     const showTicket = !!pz.wonAt && (pending || (r && r.prizeWon));
     $('#prizeTicket').hidden = !showTicket;
     $('#tPrize').textContent = pz.text || T.settings.prizeText;
@@ -2868,12 +2898,12 @@ body.testing .round-dots { display: none; }
     $('#setSound').setAttribute('aria-checked', String(!!P.settings.sound));
     $('#btnBackup').hidden = !canSave();
     const need = MT.testNeeded(sm.total), pz = T.prize, tt = T.test;
-    $('#testInfo').textContent = `${sm.total} ${noun(op, 2)} al azar y sin pistas; gana al responderlas todas bien seguidas (${need} de ${need}). Si falla, solo el contador vuelve a 0. ` +
+    $('#testInfo').textContent = `${sm.total} ${noun(op, 2)} al azar y sin pistas; gana al responderlas todas bien (${need} de ${need}). Cada ${MT.testCheckpoint(sm.total)} seguidas se guarda el avance; si falla, vuelve al último punto guardado. ` +
       (st.testAlways ? 'Ahora está abierto aunque no las domine todas.' : `Se abre cuando domine todas (lleva ${sm.mastered} de ${sm.total}).`);
     if (document.activeElement !== $('#setPrize')) $('#setPrize').value = pz.wonAt && !pz.claimedAt ? (pz.text || st.prizeText) : st.prizeText;
     $('#setTestAlways').setAttribute('aria-checked', String(st.testAlways));
     $('#prizeStatus').textContent = !pz.wonAt
-      ? (tt.attempts ? `Aún no gana el premio. Mejor racha: ${tt.best} de ${tt.total}.` : 'Aún no ha hecho el test.')
+      ? (tt.attempts ? `Aún no gana el premio. Mejor marca: ${tt.best} de ${tt.total}.` : 'Aún no ha hecho el test.')
       : !pz.claimedAt ? `Ganó el premio el ${fmtDate(pz.wonAt)}. Pendiente de entregar.`
         : `Premio entregado el ${fmtDate(pz.claimedAt)}. Con "Preparar otro premio", la próxima vez que lo supere gana uno nuevo.`;
     $('#btnClaim').hidden = !(pz.wonAt && !pz.claimedAt);
