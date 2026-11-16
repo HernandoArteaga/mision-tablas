@@ -395,13 +395,13 @@ out.push('\n13) Tiempo de juego y culebrita');
   const nextDay = []; for (let i = 1; i <= 100; i++) if (MT.gameCount(p, 'cel', d2 + i * 1000)) nextDay.push(i);
   check(wins.join(',') === '100,200,300' && g1.capped && g1.prog === 0 && nextDay.join(',') === '100' && MT.gameBalance(p) === 1200,
     'Cada 100 buenas: +5 min (a las 100, 200 y 300); tope de 15 min al día con respuestas; al otro día vuelve a sumar');
-  // Residuo vale 2: 50 buenas dan 5 min; si va en 99, una de residuo completa el bloque y sobra 1.
+  // Residuo vale 3: 34 buenas dan 5 min (102 de 100, sobran 2); si va en 99, una de residuo completa el bloque y sobran 2.
   const r0 = MT.newProfile('J', '🦉'), w = MT.gameWorth('res'); let rw = [];
   for (let i = 1; i <= 60; i++) if (MT.gameCount(r0, 'cel', d1 + i * 1000, w)) rw.push(i);
   const r1 = MT.newProfile('J', '🦉'); for (let i = 0; i < 99; i++) MT.gameCount(r1, 'cel', d1, MT.gameWorth('mul'));
   const r1win = MT.gameCount(r1, 'cel', d1, w);
-  check(w === 2 && MT.gameWorth('div') === 1 && MT.gameWorth('mix') === 1 && rw.join(',') === '50' && r1win && MT.gameProgress(r1, d1).prog === 1,
-    'Con residuo cada buena vale 2: 50 buenas = 5 min; de 99, una de residuo gana y sobra 1');
+  check(w === 3 && MT.gameWorth('div') === 1 && MT.gameWorth('mix') === 1 && rw.join(',') === '34' && r1win && MT.gameProgress(r1, d1).prog === 2,
+    'Con residuo cada buena vale 3: 34 buenas = 5 min; de 99, una de residuo gana y sobran 2');
   const q0 = MT.newProfile('J', '🦉'); for (let i = 0; i < 72; i++) MT.gameCount(q0, 'cel', d1);
   const q0b = JSON.parse(JSON.stringify(q0)); MT.ensure(q0b);
   check(MT.gameProgress(q0b, d2).prog === 72 && !MT.gameProgress(q0b, d2).capped, 'El avance (72 de 100) no se pierde de un día a otro');

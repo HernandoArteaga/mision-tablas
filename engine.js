@@ -23,7 +23,7 @@
     TEST_SAVE_PARTS: 4,            // test definitivo: punto guardado cada cuarto (16, 32 y 48 de 64)
     GAME_SEC: 300,                 // premio de juego: 5 minutos de la culebrita…
     GAME_PER: 100,                 // …cada 100 respuestas buenas (≈ 11 a 15 min de práctica: 3 de práctica por 1 de juego)
-    GAME_RES_WORTH: 2,             // una buena con residuo vale 2: toma el doble (dos respuestas, comprobación, más errores)
+    GAME_RES_WORTH: 3,             // una buena con residuo vale 3 (decisión de Papá): dos respuestas, comprobación y más errores
     GAME_DAY_MAX: 15,              // máximo de minutos por día ganados con respuestas (≈ 40 min de práctica)
     GAME_TEST_SEC: 600,            // superar el test definitivo: 10 minutos (las medallas dan 5, sin tope)
     ROUND_SIZE: 10,                // preguntas por ronda

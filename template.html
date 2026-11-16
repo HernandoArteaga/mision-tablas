@@ -825,7 +825,7 @@ body.testing .round-dots { display: none; }
 
     <div class="panel" id="gamePanel">
       <h2>Tiempo de juego (la culebrita)</h2>
-      <p class="sub">Cada respuesta buena suma 1 (las de residuo suman 2, porque toman el doble) y los errores no restan. Con 100 (unos 11 a 15 minutos de práctica) gana 5 minutos: 3 de práctica por 1 de juego. También gana 5 minutos con cada medalla y 10 al superar el test definitivo. Cuando se acaba el tiempo, vuelve a las operaciones.</p>
+      <p class="sub">Cada respuesta buena suma 1 (las de residuo suman 3, porque tienen dos respuestas y más que pensar) y los errores no restan. Con 100 (unos 11 a 15 minutos de práctica) gana 5 minutos: 3 de práctica por 1 de juego. También gana 5 minutos con cada medalla y 10 al superar el test definitivo. Cuando se acaba el tiempo, vuelve a las operaciones.</p>
       <button type="button" class="switch" role="switch" id="setGameOn" aria-checked="true"><span>Premiar con tiempo de juego</span><span class="track" aria-hidden="true"></span></button>
       <div class="setting">
         <span>Respuestas buenas para ganar 5 minutos</span>
@@ -2154,7 +2154,7 @@ body.testing .round-dots { display: none; }
     return list;
   }
   const medalWin = (op, n) => ({ why: op === 'res' ? `dominar residuo entre ${n}` : op === 'div' ? `dominar dividir entre ${n}` : `dominar la tabla del ${n}`, sec: MT.CONFIG.GAME_SEC });
-  // Una respuesta buena más (con residuo vale 2); si completa el bloque (100), gana 5 minutos.
+  // Una respuesta buena más (con residuo vale 3); si completa el bloque (100), gana 5 minutos.
   function countGame(op) {
     if (!gameOn() || !MT.gameCount(P, data.device, Date.now(), MT.gameWorth(op))) return [];
     return [{ why: `${P.settings.gamePer} respuestas buenas`, sec: MT.CONFIG.GAME_SEC }];
