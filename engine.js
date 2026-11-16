@@ -726,7 +726,9 @@
   }
 
   /* ===== La culebrita: reglas puras =====
-     Tablero de N × N; las paredes no matan (sale por el lado opuesto); chocar con su cuerpo termina la partida. */
+     Tablero de N × N; las paredes no matan (sale por el lado opuesto); chocar con su cuerpo termina la partida.
+     Con multiplicación (s.foods): hay dos comidas con números y solo una es la respuesta. La buena la hace crecer;
+     la otra la encoge un poco (nunca a menos de 3) y no suma. Después de comer cualquiera, sale otra multiplicación. */
   function snakeFood(s, rng) {
     const busy = new Set(s.body.map(c => c[0] + ',' + c[1])), free = [];
     for (let x = 0; x < s.N; x++) for (let y = 0; y < s.N; y++) if (!busy.has(x + ',' + y)) free.push([x, y]);
@@ -749,12 +751,53 @@
     if (s.queue.length) s.dir = s.queue.shift();
     const h = s.body[0], N = s.N;
     const nh = [(h[0] + s.dir[0] + N) % N, (h[1] + s.dir[1] + N) % N];
-    const eats = !!s.food && nh[0] === s.food[0] && nh[1] === s.food[1];
+    const hit = s.foods ? s.foods.find(f => f.x === nh[0] && f.y === nh[1]) : null;
+    const eats = hit ? hit.ok : !!s.food && nh[0] === s.food[0] && nh[1] === s.food[1];
     const body = eats ? s.body : s.body.slice(0, -1); // la cola se mueve, salvo al comer
     if (body.some(c => c[0] === nh[0] && c[1] === nh[1])) { s.dead = true; return s; }
     s.body.unshift(nh);
-    if (eats) { s.eaten++; s.food = snakeFood(s, rng); } else s.body.pop();
+    if (eats) s.eaten++; else s.body.pop();
+    if (hit) {
+      s.hit = hit.ok ? 'ok' : 'bad';
+      if (!hit.ok && s.body.length > 3) s.body.pop(); // la equivocada la encoge un poco
+      s.foods = null;
+    } else if (eats) s.food = snakeFood(s, rng);
     return s;
+  }
+  // Dos comidas para la multiplicación q: la respuesta y una equivocada, lejos de la cabeza y separadas entre sí.
+  function snakeFoods(s, q, rng) {
+    rng = rng || Math.random;
+    const N = s.N, h = s.body[0];
+    const dist = (a, b) => { const dx = Math.abs(a[0] - b[0]), dy = Math.abs(a[1] - b[1]); return Math.min(dx, N - dx) + Math.min(dy, N - dy); };
+    const busy = new Set(s.body.map(c => c[0] + ',' + c[1])), free = [];
+    for (let x = 0; x < N; x++) for (let y = 0; y < N; y++) if (!busy.has(x + ',' + y)) free.push([x, y]);
+    const pickFrom = list => list[Math.floor(rng() * list.length)];
+    const far = free.filter(c => dist(c, h) >= 4);
+    const one = pickFrom(far.length ? far : free);
+    const rest = (far.length ? far : free).filter(c => dist(c, one) >= 3 && dist(c, h) >= 4);
+    const two = pickFrom(rest.length ? rest : free.filter(c => c[0] !== one[0] || c[1] !== one[1]));
+    const okFirst = rng() < 0.5;
+    s.q = q; s.food = null; s.hit = null;
+    s.foods = [{ x: one[0], y: one[1], v: okFirst ? q.ans : q.wrong, ok: okFirst }, { x: two[0], y: two[1], v: okFirst ? q.wrong : q.ans, ok: !okFirst }];
+    return s;
+  }
+  /* Multiplicación para la culebrita: casi siempre de las que ya practicó (es un premio, tiene que ser divertido);
+     de vez en cuando una de las difíciles. La equivocada se parece a la buena (un grupo más o menos, ±10, cifras al revés). */
+  function snakeQuestion(p, rng, avoid) {
+    rng = rng || Math.random;
+    const keys = universe(p.settings).filter(k => { const t = parse(k); return t.a > 1 && t.b > 1; });
+    const lv = k => (p.facts[k] ? p.facts[k].level : 0);
+    const known = keys.filter(k => lv(k) >= 2), weak = keys.filter(k => lv(k) === 1);
+    let pool = known.length >= 6 ? known : keys;
+    if (weak.length && rng() < 0.25) pool = weak;
+    let k = pool[Math.floor(rng() * pool.length)];
+    for (let t = 0; t < 10 && pool.length > 1 && k === avoid; t++) k = pool[Math.floor(rng() * pool.length)];
+    const f = parse(k), ans = f.a * f.b;
+    const c = [f.a * (f.b + 1), f.a * (f.b - 1), (f.a + 1) * f.b, (f.a - 1) * f.b, ans + 10, ans - 10];
+    const rev = Number(String(ans).split('').reverse().join(''));
+    if (ans >= 10 && ans % 10 !== 0 && rev !== ans) c.push(rev);
+    const opts = Array.from(new Set(c.filter(v => v > 0 && v < 100 && v !== ans)));
+    return { a: f.a, b: f.b, k: k, ans: ans, wrong: opts[Math.floor(rng() * opts.length)] };
   }
 
   /* ===== Test definitivo =====
@@ -926,7 +969,7 @@
     expected, inTable, track, hintFor, confusionFor, divHint, divConfusion, resHint, resConfusion, resRemainder, resGroup,
     testNeeded, testOpen, testOrder, testValid, recordTest, claimPrize, newPrize,
     pickMixed, sameFamily, streakTier, streakAfterError, testCheckpoint, testSaved,
-    gameBalance, gameEarn, gameSpend, gameProgress, gameCount, gameWorth, snakeNew, snakeTurn, snakeStep,
+    gameBalance, gameEarn, gameSpend, gameProgress, gameCount, gameWorth, snakeNew, snakeTurn, snakeStep, snakeFoods, snakeQuestion,
     newSession, closeRound, ackBreak, allowed, pickNext, grade, hint, confusion,
     summary, tables, weaknesses, avgOkMs, dayStreak, ymd
   };

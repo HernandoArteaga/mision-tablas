@@ -425,6 +425,33 @@ out.push('\n13) Tiempo de juego y culebrita');
   const k = MT.snakeNew(15, rng); k.body = [[5, 5], [6, 5], [6, 6], [5, 6], [4, 6], [4, 5]]; k.dir = [0, 1]; k.food = [0, 0];
   MT.snakeStep(k, rng);
   check(revOk && wrapped && ate && k.dead, 'Culebrita: no se devuelve sobre sí misma, cruza la pared al otro lado, crece al comer y pierde al chocar con su cuerpo');
+  // Culebrita de multiplicaciones: dos comidas, una es la respuesta.
+  const jp = MT.newProfile('J', '🦉');
+  ['7x8', '6x9', '3x4', '5x5', '9x2', '8x8', '4x6'].forEach(x => { jp.facts[x].level = 4; });
+  jp.facts['7x6'].level = 1;
+  const qr = rngFrom(31);
+  let qBad = [], fromKnown = 0, n = 0;
+  for (let i = 0; i < 300; i++) {
+    const q = MT.snakeQuestion(jp, qr);
+    n++; if (jp.facts[q.k].level >= 2) fromKnown++;
+    if (q.ans !== q.a * q.b || !(q.wrong > 0) || q.wrong === q.ans || q.wrong >= 100) qBad.push(`${q.a}×${q.b}: ${q.wrong}`);
+  }
+  check(!qBad.length && fromKnown / n > 0.6 && fromKnown < n, `Multiplicaciones de la culebrita: casi siempre de las que ya practicó (${Math.round(100 * fromKnown / n)} %), a veces una difícil; la equivocada siempre es otra ${qBad.slice(0, 3).join(', ')}`);
+  let fBad = 0;
+  for (let i = 0; i < 200; i++) {
+    const g = MT.snakeNew(12, qr); MT.snakeFoods(g, MT.snakeQuestion(jp, qr), qr);
+    const [f1, f2] = g.foods, h = g.body[0];
+    const d = (u, v) => Math.min(Math.abs(u[0] - v[0]), 12 - Math.abs(u[0] - v[0])) + Math.min(Math.abs(u[1] - v[1]), 12 - Math.abs(u[1] - v[1]));
+    if (g.foods.filter(f => f.ok).length !== 1 || g.body.some(c => (c[0] === f1.x && c[1] === f1.y) || (c[0] === f2.x && c[1] === f2.y)) || d([f1.x, f1.y], h) < 4 || d([f2.x, f2.y], h) < 4 || d([f1.x, f1.y], [f2.x, f2.y]) < 3) fBad++;
+  }
+  const good = MT.snakeNew(12, qr), q1 = MT.snakeQuestion(jp, qr); MT.snakeFoods(good, q1, qr);
+  const okF = good.foods.find(f => f.ok); okF.x = good.body[0][0] + 1; okF.y = good.body[0][1];
+  MT.snakeStep(good, qr);
+  const bad = MT.snakeNew(12, qr); bad.body.push([0, 0]); MT.snakeFoods(bad, q1, qr);
+  const bf = bad.foods.find(f => !f.ok); bf.x = bad.body[0][0] + 1; bf.y = bad.body[0][1];
+  MT.snakeStep(bad, qr);
+  check(!fBad && good.hit === 'ok' && good.eaten === 1 && good.body.length === 4 && !good.foods && bad.hit === 'bad' && bad.eaten === 0 && bad.body.length === 3 && !bad.dead,
+    'Dos comidas lejos de la cabeza y separadas; la respuesta la hace crecer, la equivocada la encoge un poco (nunca a menos de 3) y no suma');
 }
 
 out.push('\n14) Misión Residuo');

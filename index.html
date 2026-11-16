@@ -505,7 +505,13 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
 .game-card .chev { color: var(--ok-edge); }
 .game-main { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 12px; min-height: 0; }
 @media (min-width: 760px) and (orientation: landscape) { .game-main { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr); align-items: center; } }
-.game-board { position: relative; min-height: 0; display: grid; place-items: center; }
+.game-left { min-height: 0; height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 8px; align-self: stretch; }
+.game-board { position: relative; min-height: 0; display: grid; place-items: start center; }
+.game-q { display: flex; align-items: baseline; justify-content: center; gap: 6px 14px; flex-wrap: wrap; min-height: 1.3em; font-family: var(--font-display); font-weight: 800; font-size: clamp(30px, 7vw, 46px); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.game-fb { font-size: .5em; padding: 2px 12px; border-radius: 999px; }
+.game-fb:empty { display: none; }
+.game-fb.ok { background: var(--ok-soft); color: var(--ok-edge); }
+.game-fb.bad { background: var(--warm-soft); color: var(--warm); }
 #snake { display: block; border-radius: 16px; border: 3px solid var(--ok-edge); box-shadow: 0 6px 0 var(--key-edge); touch-action: none; background: #DDF0D6; }
 .game-msg {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: 80%; padding: 10px 16px; border-radius: 14px;
@@ -723,9 +729,12 @@ body.testing .round-dots { display: none; }
       </div>
     </div>
     <div class="game-main">
-      <div class="game-board" id="gameBoard">
-        <canvas id="snake" role="img" aria-label="La culebrita"></canvas>
-        <p id="gameMsg" class="game-msg"></p>
+      <div class="game-left">
+        <div class="game-q" aria-live="polite"><span id="gameQ">7 × 8 = ?</span><span id="gameFb" class="game-fb"></span></div>
+        <div class="game-board" id="gameBoard">
+          <canvas id="snake" role="img" aria-label="La culebrita"></canvas>
+          <p id="gameMsg" class="game-msg"></p>
+        </div>
       </div>
       <div class="dpad" id="dpad" aria-label="Flechas">
         <button type="button" class="key" data-d="up" aria-label="Arriba" tabindex="-1">▲</button>
@@ -1775,7 +1784,9 @@ body.testing .round-dots { display: none; }
   }
 
   /* ===== La culebrita: reglas puras =====
-     Tablero de N × N; las paredes no matan (sale por el lado opuesto); chocar con su cuerpo termina la partida. */
+     Tablero de N × N; las paredes no matan (sale por el lado opuesto); chocar con su cuerpo termina la partida.
+     Con multiplicación (s.foods): hay dos comidas con números y solo una es la respuesta. La buena la hace crecer;
+     la otra la encoge un poco (nunca a menos de 3) y no suma. Después de comer cualquiera, sale otra multiplicación. */
   function snakeFood(s, rng) {
     const busy = new Set(s.body.map(c => c[0] + ',' + c[1])), free = [];
     for (let x = 0; x < s.N; x++) for (let y = 0; y < s.N; y++) if (!busy.has(x + ',' + y)) free.push([x, y]);
@@ -1798,12 +1809,53 @@ body.testing .round-dots { display: none; }
     if (s.queue.length) s.dir = s.queue.shift();
     const h = s.body[0], N = s.N;
     const nh = [(h[0] + s.dir[0] + N) % N, (h[1] + s.dir[1] + N) % N];
-    const eats = !!s.food && nh[0] === s.food[0] && nh[1] === s.food[1];
+    const hit = s.foods ? s.foods.find(f => f.x === nh[0] && f.y === nh[1]) : null;
+    const eats = hit ? hit.ok : !!s.food && nh[0] === s.food[0] && nh[1] === s.food[1];
     const body = eats ? s.body : s.body.slice(0, -1); // la cola se mueve, salvo al comer
     if (body.some(c => c[0] === nh[0] && c[1] === nh[1])) { s.dead = true; return s; }
     s.body.unshift(nh);
-    if (eats) { s.eaten++; s.food = snakeFood(s, rng); } else s.body.pop();
+    if (eats) s.eaten++; else s.body.pop();
+    if (hit) {
+      s.hit = hit.ok ? 'ok' : 'bad';
+      if (!hit.ok && s.body.length > 3) s.body.pop(); // la equivocada la encoge un poco
+      s.foods = null;
+    } else if (eats) s.food = snakeFood(s, rng);
     return s;
+  }
+  // Dos comidas para la multiplicación q: la respuesta y una equivocada, lejos de la cabeza y separadas entre sí.
+  function snakeFoods(s, q, rng) {
+    rng = rng || Math.random;
+    const N = s.N, h = s.body[0];
+    const dist = (a, b) => { const dx = Math.abs(a[0] - b[0]), dy = Math.abs(a[1] - b[1]); return Math.min(dx, N - dx) + Math.min(dy, N - dy); };
+    const busy = new Set(s.body.map(c => c[0] + ',' + c[1])), free = [];
+    for (let x = 0; x < N; x++) for (let y = 0; y < N; y++) if (!busy.has(x + ',' + y)) free.push([x, y]);
+    const pickFrom = list => list[Math.floor(rng() * list.length)];
+    const far = free.filter(c => dist(c, h) >= 4);
+    const one = pickFrom(far.length ? far : free);
+    const rest = (far.length ? far : free).filter(c => dist(c, one) >= 3 && dist(c, h) >= 4);
+    const two = pickFrom(rest.length ? rest : free.filter(c => c[0] !== one[0] || c[1] !== one[1]));
+    const okFirst = rng() < 0.5;
+    s.q = q; s.food = null; s.hit = null;
+    s.foods = [{ x: one[0], y: one[1], v: okFirst ? q.ans : q.wrong, ok: okFirst }, { x: two[0], y: two[1], v: okFirst ? q.wrong : q.ans, ok: !okFirst }];
+    return s;
+  }
+  /* Multiplicación para la culebrita: casi siempre de las que ya practicó (es un premio, tiene que ser divertido);
+     de vez en cuando una de las difíciles. La equivocada se parece a la buena (un grupo más o menos, ±10, cifras al revés). */
+  function snakeQuestion(p, rng, avoid) {
+    rng = rng || Math.random;
+    const keys = universe(p.settings).filter(k => { const t = parse(k); return t.a > 1 && t.b > 1; });
+    const lv = k => (p.facts[k] ? p.facts[k].level : 0);
+    const known = keys.filter(k => lv(k) >= 2), weak = keys.filter(k => lv(k) === 1);
+    let pool = known.length >= 6 ? known : keys;
+    if (weak.length && rng() < 0.25) pool = weak;
+    let k = pool[Math.floor(rng() * pool.length)];
+    for (let t = 0; t < 10 && pool.length > 1 && k === avoid; t++) k = pool[Math.floor(rng() * pool.length)];
+    const f = parse(k), ans = f.a * f.b;
+    const c = [f.a * (f.b + 1), f.a * (f.b - 1), (f.a + 1) * f.b, (f.a - 1) * f.b, ans + 10, ans - 10];
+    const rev = Number(String(ans).split('').reverse().join(''));
+    if (ans >= 10 && ans % 10 !== 0 && rev !== ans) c.push(rev);
+    const opts = Array.from(new Set(c.filter(v => v > 0 && v < 100 && v !== ans)));
+    return { a: f.a, b: f.b, k: k, ans: ans, wrong: opts[Math.floor(rng() * opts.length)] };
   }
 
   /* ===== Test definitivo =====
@@ -1975,7 +2027,7 @@ body.testing .round-dots { display: none; }
     expected, inTable, track, hintFor, confusionFor, divHint, divConfusion, resHint, resConfusion, resRemainder, resGroup,
     testNeeded, testOpen, testOrder, testValid, recordTest, claimPrize, newPrize,
     pickMixed, sameFamily, streakTier, streakAfterError, testCheckpoint, testSaved,
-    gameBalance, gameEarn, gameSpend, gameProgress, gameCount, gameWorth, snakeNew, snakeTurn, snakeStep,
+    gameBalance, gameEarn, gameSpend, gameProgress, gameCount, gameWorth, snakeNew, snakeTurn, snakeStep, snakeFoods, snakeQuestion,
     newSession, closeRound, ackBreak, allowed, pickNext, grade, hint, confusion,
     summary, tables, weaknesses, avgOkMs, dayStreak, ymd
   };
@@ -3087,7 +3139,7 @@ body.testing .round-dots { display: none; }
   /* ===== Tiempo de juego: la culebrita =====
      Se gana con logros importantes. El reloj solo corre mientras juega; lo que sobra queda guardado.
      Al acabarse, vuelve a las operaciones. */
-  const GAME_N = 15;
+  const GAME_N = 12; // cuadros más grandes: las comidas llevan números
   const gameOn = () => P.settings.gameOn !== false;
   function fmtClock(sec) { sec = Math.max(0, Math.ceil(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); }
   // Premios: lista de { why, sec }.
@@ -3119,16 +3171,29 @@ body.testing .round-dots { display: none; }
   function startGame(from) {
     if (MT.gameBalance(P) <= 0) return;
     Sound.unlock(); clearTimers(); Q = null;
-    G = { from: from, s: MT.snakeNew(GAME_N, Math.random), started: false, paused: false, usedMs: 0, chargedMs: 0, acc: 0, last: performance.now(), deadAt: 0, raf: 0, apples: 0 };
+    G = { from: from, s: MT.snakeNew(GAME_N, Math.random), started: false, paused: false, usedMs: 0, chargedMs: 0, acc: 0, last: performance.now(), deadAt: 0, raf: 0, apples: 0, q: null };
+    newGameQuestion(); setGameFb('', '');
     show('game');
     $('#gamePause').textContent = 'Pausa';
     sizeBoard();
-    setGameMsg('Toca una flecha o desliza para empezar');
+    setGameMsg('Toca una flecha o desliza para empezar. ¡Come la respuesta!');
     renderGameHud(); drawGame();
     G.raf = requestAnimationFrame(gameLoop);
   }
   function setGameMsg(t) { $('#gameMsg').textContent = t; }
-  const stepMs = () => Math.max(85, 150 - G.s.eaten * 3);
+  // Una multiplicación y dos comidas: la respuesta y una que se le parece.
+  function newGameQuestion() {
+    G.q = MT.snakeQuestion(P, Math.random, G.q && G.q.k);
+    MT.snakeFoods(G.s, G.q, Math.random);
+    $('#gameQ').textContent = `${G.q.a} × ${G.q.b} = ?`;
+  }
+  let fbTimer = 0;
+  function setGameFb(text, cls) {
+    const f = $('#gameFb'); f.textContent = text; f.className = 'game-fb ' + (cls || '');
+    clearTimeout(fbTimer); if (text) fbTimer = setTimeout(() => { f.textContent = ''; }, 2200);
+  }
+  // Más despacio que antes: tiene que leer la multiplicación y escoger. Acelera poco a poco con cada acierto.
+  const stepMs = () => Math.max(170, 280 - G.s.eaten * 3);
   const gameLeftMs = () => MT.gameBalance(P) * 1000 - (G.usedMs - G.chargedMs);
   function chargeGame(all) {
     const ms = G.usedMs - G.chargedMs, sec = all ? Math.round(ms / 1000) : Math.floor(ms / 1000);
@@ -3143,17 +3208,24 @@ body.testing .round-dots { display: none; }
       G.usedMs += dt;
       if (G.usedMs - G.chargedMs >= 5000) chargeGame(false);
       if (G.deadAt) {
-        if (now - G.deadAt > 900) { G.s = MT.snakeNew(GAME_N, Math.random); G.deadAt = 0; G.acc = 0; setGameMsg(''); }
+        if (now - G.deadAt > 900) { G.s = MT.snakeNew(GAME_N, Math.random); MT.snakeFoods(G.s, G.q, Math.random); G.deadAt = 0; G.acc = 0; setGameMsg(''); }
       } else {
         G.acc += dt;
         while (G.acc >= stepMs() && !G.s.dead) {
           G.acc -= stepMs();
-          const before = G.s.eaten;
           MT.snakeStep(G.s, Math.random);
-          if (G.s.eaten > before) {
-            G.apples++;
-            P.game.best = Math.max(P.game.best, G.s.eaten);
-            if (Sound.on()) Sound.tone(880, 0, 0.08, 'square', 0.05);
+          if (G.s.hit) {
+            const q = G.q;
+            if (G.s.hit === 'ok') {
+              G.apples++;
+              P.game.best = Math.max(P.game.best, G.s.eaten);
+              if (Sound.on()) Sound.tone(880, 0, 0.08, 'square', 0.05);
+              setGameFb(`¡Sí! ${q.a} × ${q.b} = ${q.ans}`, 'ok');
+            } else {
+              Sound.soft();
+              setGameFb(`${q.a} × ${q.b} = ${q.ans}, no ${q.wrong}`, 'bad');
+            }
+            newGameQuestion();
           }
           if (G.s.dead) { G.deadAt = now; Sound.soft(); setGameMsg('¡Ups! Otra vez…'); }
         }
@@ -3178,6 +3250,15 @@ body.testing .round-dots { display: none; }
   function drawGame() {
     const cv = $('#snake'), cx = cv.getContext('2d'), N = GAME_N, c = cv.width / N, s = G.s;
     for (let x = 0; x < N; x++) for (let y = 0; y < N; y++) { cx.fillStyle = (x + y) % 2 ? '#E7F5E1' : '#D8EED0'; cx.fillRect(x * c, y * c, c, c); }
+    (s.foods || []).forEach(f => {
+      const fx = (f.x + 0.5) * c, fy = (f.y + 0.53) * c;
+      cx.fillStyle = '#E8473C'; cx.beginPath(); cx.arc(fx, fy, c * 0.47, 0, 6.283); cx.fill();
+      cx.fillStyle = '#2E9E4F'; cx.beginPath(); cx.ellipse(fx + c * 0.12, fy - c * 0.47, c * 0.15, c * 0.07, -0.6, 0, 6.283); cx.fill();
+      const txt = String(f.v);
+      cx.fillStyle = '#FFFFFF'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+      cx.font = `800 ${Math.round(c * (txt.length > 1 ? 0.5 : 0.58))}px Nunito, system-ui, sans-serif`;
+      cx.fillText(txt, fx, fy + c * 0.02);
+    });
     if (s.food) {
       const fx = (s.food[0] + 0.5) * c, fy = (s.food[1] + 0.55) * c;
       cx.fillStyle = '#E8473C'; cx.beginPath(); cx.arc(fx, fy, c * 0.36, 0, 6.283); cx.fill();
@@ -3202,6 +3283,7 @@ body.testing .round-dots { display: none; }
       cx.fillStyle = '#1D2A57'; cx.beginPath(); cx.arc(x + d[0] * c * 0.04, y + d[1] * c * 0.04, c * 0.055, 0, 6.283); cx.fill();
     });
     cv.dataset.head = h[0] + ',' + h[1];
+    cv.dataset.foods = (s.foods || []).map(f => `${f.x},${f.y},${f.v},${f.ok ? 1 : 0}`).join(';');
     cv.dataset.len = String(L);
   }
   function steer(name) {
