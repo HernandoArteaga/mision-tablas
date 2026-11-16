@@ -825,7 +825,7 @@ body.testing .round-dots { display: none; }
 
     <div class="panel" id="gamePanel">
       <h2>Tiempo de juego (la culebrita)</h2>
-      <p class="sub">Cada respuesta buena suma y los errores no restan. Con 100 buenas (unos 11 a 15 minutos de práctica) gana 5 minutos: 3 de práctica por 1 de juego. También gana 5 minutos con cada medalla y 10 al superar el test definitivo. Cuando se acaba el tiempo, vuelve a las operaciones.</p>
+      <p class="sub">Cada respuesta buena suma 1 (las de residuo suman 2, porque toman el doble) y los errores no restan. Con 100 (unos 11 a 15 minutos de práctica) gana 5 minutos: 3 de práctica por 1 de juego. También gana 5 minutos con cada medalla y 10 al superar el test definitivo. Cuando se acaba el tiempo, vuelve a las operaciones.</p>
       <button type="button" class="switch" role="switch" id="setGameOn" aria-checked="true"><span>Premiar con tiempo de juego</span><span class="track" aria-hidden="true"></span></button>
       <div class="setting">
         <span>Respuestas buenas para ganar 5 minutos</span>
@@ -1605,8 +1605,8 @@ body.testing .round-dots { display: none; }
     if (res.mastered) R.mastered.push({ op: op, key: res.key });
     res.roundDone = R.answered >= roundSize();
     res.breakDue = S.activeMs >= S.breakAt;
-    // Tiempo de juego: cada respuesta buena suma (100 = 5 min) y cada medalla da 5 min.
-    res.gameWins = (res.correct ? countGame() : []).concat(awardGame(res.newMedals.map(n => medalWin(op, n))));
+    // Tiempo de juego: cada respuesta buena suma (con residuo, 2; 100 = 5 min) y cada medalla da 5 min.
+    res.gameWins = (res.correct ? countGame(op) : []).concat(awardGame(res.newMedals.map(n => medalWin(op, n))));
     Q.res = res;
     S.dots.push(res.correct ? 'ok' : 'fix');
     persist();
@@ -1620,7 +1620,7 @@ body.testing .round-dots { display: none; }
     const msg = res.first && res.fast ? '¡Ya te la sabías!' : res.sessionErrors > 0 ? pickOne(COMEBACK_MSGS) : pickOne(OK_MSGS);
     // Con residuo, siempre la comprobación: así se vuelve costumbre (la usará en la división larga).
     const check = res.op === 'res' ? `<span class="check">${res.a} × ${res.b} + ${res.r} = ${res.product} ✓</span>` : '';
-    setFeedback(`<span>✓ ${esc(msg)}${res.fast ? ' <span aria-label="rápida">⚡</span>' : ''}</span><span class="plus">+${res.stars} ⭐</span>${check}`, 'good');
+    setFeedback(`<span>✓ ${esc(msg)}${res.fast ? ' <span aria-label="rápida">⚡</span>' : ''}</span><span class="plus">+${res.stars} ⭐${res.op === 'res' && gameOn() ? ` · 🐍 +${MT.gameWorth('res')}` : ''}</span>${check}`, 'good');
     let wait = 1000;
     const tier = MT.streakTier(S.streak);
     if (tier) {
@@ -2153,10 +2153,10 @@ body.testing .round-dots { display: none; }
     list.forEach(w => MT.gameEarn(P, data.device, w.sec, w.why, Date.now()));
     return list;
   }
-  const medalWin = (op, n) => ({ why: op === 'div' ? `dominar dividir entre ${n}` : `dominar la tabla del ${n}`, sec: MT.CONFIG.GAME_SEC });
-  // Una respuesta buena más; si completa el bloque (100), gana 5 minutos.
-  function countGame() {
-    if (!gameOn() || !MT.gameCount(P, data.device, Date.now())) return [];
+  const medalWin = (op, n) => ({ why: op === 'res' ? `dominar residuo entre ${n}` : op === 'div' ? `dominar dividir entre ${n}` : `dominar la tabla del ${n}`, sec: MT.CONFIG.GAME_SEC });
+  // Una respuesta buena más (con residuo vale 2); si completa el bloque (100), gana 5 minutos.
+  function countGame(op) {
+    if (!gameOn() || !MT.gameCount(P, data.device, Date.now(), MT.gameWorth(op))) return [];
     return [{ why: `${P.settings.gamePer} respuestas buenas`, sec: MT.CONFIG.GAME_SEC }];
   }
   function openGameWin(wins, done) {

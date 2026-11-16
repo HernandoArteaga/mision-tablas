@@ -23,6 +23,7 @@
     TEST_SAVE_PARTS: 4,            // test definitivo: punto guardado cada cuarto (16, 32 y 48 de 64)
     GAME_SEC: 300,                 // premio de juego: 5 minutos de la culebrita…
     GAME_PER: 100,                 // …cada 100 respuestas buenas (≈ 11 a 15 min de práctica: 3 de práctica por 1 de juego)
+    GAME_RES_WORTH: 2,             // una buena con residuo vale 2: toma el doble (dos respuestas, comprobación, más errores)
     GAME_DAY_MAX: 15,              // máximo de minutos por día ganados con respuestas (≈ 40 min de práctica)
     GAME_TEST_SEC: 600,            // superar el test definitivo: 10 minutos (las medallas dan 5, sin tope)
     ROUND_SIZE: 10,                // preguntas por ronda
@@ -694,21 +695,24 @@
     if (use) p.game.spent[dev] = (p.game.spent[dev] || 0) + use;
     return use;
   }
-  /* Cada respuesta buena suma; al completar gamePer (100) gana 5 minutos. Los errores no restan nada.
+  /* Cada respuesta buena suma (con residuo, 2); al completar gamePer (100) gana 5 minutos. Los errores no restan nada.
      Tope diario de lo que se gana con respuestas (las medallas y el test no tienen tope). */
   function gameProgress(p, now) {
     const g = p.game, st = p.settings, today = g.day === ymd(now || Date.now());
     const earnedToday = today ? g.dayEarned : 0, max = st.gameDayMax * 60;
     return { prog: Math.min(g.prog, st.gamePer), per: st.gamePer, earnedToday: earnedToday, max: max, capped: earnedToday >= max };
   }
-  function gameCount(p, dev, now) {
+  // Valor de una respuesta buena para el tiempo de juego, según la operación.
+  function gameWorth(op) { return op === 'res' ? CONFIG.GAME_RES_WORTH : 1; }
+  function gameCount(p, dev, now, n) {
     now = now || Date.now();
     const g = p.game, st = p.settings, day = ymd(now);
     if (g.day !== day) { g.day = day; g.dayEarned = 0; }
     if (g.dayEarned >= st.gameDayMax * 60) return false;
-    g.prog++; g.progAt = now;
+    g.prog += Math.max(1, Math.round(n || 1)); g.progAt = now;
     if (g.prog < st.gamePer) return false;
-    g.prog = 0; g.dayEarned += CONFIG.GAME_SEC;
+    g.prog -= st.gamePer; g.dayEarned += CONFIG.GAME_SEC;
+    if (g.dayEarned >= st.gameDayMax * 60) g.prog = 0;
     gameEarn(p, dev, CONFIG.GAME_SEC, `${st.gamePer} respuestas buenas`, now);
     return true;
   }
@@ -922,7 +926,7 @@
     expected, inTable, track, hintFor, confusionFor, divHint, divConfusion, resHint, resConfusion, resRemainder, resGroup,
     testNeeded, testOpen, testOrder, testValid, recordTest, claimPrize, newPrize,
     pickMixed, sameFamily, streakTier, streakAfterError, testCheckpoint, testSaved,
-    gameBalance, gameEarn, gameSpend, gameProgress, gameCount, snakeNew, snakeTurn, snakeStep,
+    gameBalance, gameEarn, gameSpend, gameProgress, gameCount, gameWorth, snakeNew, snakeTurn, snakeStep,
     newSession, closeRound, ackBreak, allowed, pickNext, grade, hint, confusion,
     summary, tables, weaknesses, avgOkMs, dayStreak, ymd
   };
