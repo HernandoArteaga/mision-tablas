@@ -22,7 +22,7 @@ function simulate(kid, n, seed, sessionLen, setup, op) {
   const prof = MT.newProfile(kid.name, '🦊', now);
   if (setup) { setup(prof); MT.ensure(prof); }
   const p = MT.track(prof, op);
-  const known = op === 'div' ? new Set(Object.keys(prof.facts).filter(k => prof.facts[k].level >= 3)) : null;
+  const known = op === 'div' || op === 'res' ? new Set(Object.keys(prof.facts).filter(k => prof.facts[k].level >= 3)) : null;
   let s = MT.newSession(p, now), session = 0, idx = 0;
   s.known = known;
   const log = [];
@@ -34,7 +34,7 @@ function simulate(kid, n, seed, sessionLen, setup, op) {
     if (!pick || !pick.key) { log.push(null); break; }
     const ans = kid.answer(pick, i, rng);
     now += ans.ms + 1500;
-    const r = MT.grade(p, s, pick.key, ans.value, ans.ms, now, { kind: pick.kind, stage: pick.stage, assisted: pick.preHint });
+    const r = MT.grade(p, s, pick.key, ans.value, ans.ms, now, { kind: pick.kind, stage: pick.stage, assisted: pick.preHint, r: pick.r });
     if (r.roundDone) MT.closeRound(s);
     log.push({ i, session, idx, key: pick.key, a: pick.a, b: pick.b, kind: pick.kind, mode: pick.mode, lb: pick.level, L1,
       ok: r.correct, level: r.level, pre: pick.preHint, sessErr: r.sessionErrors, all: r.allMastered });
@@ -418,6 +418,73 @@ out.push('\n13) Tiempo de juego y culebrita');
   const k = MT.snakeNew(15, rng); k.body = [[5, 5], [6, 5], [6, 6], [5, 6], [4, 6], [4, 5]]; k.dir = [0, 1]; k.food = [0, 0];
   MT.snakeStep(k, rng);
   check(revOk && wrapped && ate && k.dead, 'Culebrita: no se devuelve sobre sí misma, cruza la pared al otro lado, crece al comer y pierde al chocar con su cuerpo');
+}
+
+out.push('\n14) Misión Residuo');
+{
+  const clone = x => JSON.parse(JSON.stringify(x));
+  const p0 = MT.newProfile('J', '🦉');
+  check(MT.universe(p0.res.settings).length === 80 && MT.tables(p0.res).every(t => t.total === 10), '80 familias: divisor del 2 al 9 × cabe de 0 a 9 veces');
+  // Residuos al azar
+  const rng = rngFrom(51); let n = 0, exact = 0, bad = 0, zeroQ = 0;
+  for (let d = 2; d <= 9; d++) for (let q = 0; q <= 9; q++) for (let i = 0; i < 200; i++) {
+    const r = MT.resRemainder(d, q, rng), N = d * q + r; n++;
+    if (r === 0) exact++;
+    if (r < 0 || r >= d || N >= 10 * d || (q === 0 && r === 0)) bad++;
+    if (q === 0) zeroQ++;
+  }
+  check(bad === 0 && Math.abs(exact / n - 0.225) < 0.03, `Residuo siempre menor que el divisor y el número menor que 10 × divisor; ${(100 * exact / n).toFixed(0)} % exactas; "no cabe" nunca es 0 ÷ d`);
+  // Niños simulados
+  const rres = (pk, ms) => ({ value: { q: pk.b, r: pk.r }, ms });
+  const fast = simulate({ name: 'Rápido', answer: pk => rres(pk, 5000) }, 700, 61, 60, null, 'res');
+  const at = fast.log.findIndex(e => e && e.all);
+  check(at > 0 && fast.p.medals.length === 8 && fast.log.length === 700 && fast.prof.answered === 0 && fast.prof.div.answered === 0,
+    `Niña que responde bien en 5 s: domina las 80 familias en la pregunta ${at + 1}, gana las 8 medallas y sigue sin cortarse; los otros modos quedan intactos`);
+  const slow = simulate({ name: 'Lenta', answer: pk => rres(pk, 9500) }, 400, 62, 60, null, 'res');
+  check(slow.log.every(e => e.level < 4), 'Con respuestas de más de 8 s nada llega a Dominada');
+  // Falla "una vez menos" en la familia 7 × 8 (56 a 62 ÷ 7): responde 7 y sobran r + 7.
+  const shortKid = { name: 'Corta', answer: pk => pk.key === '7x8' ? { value: { q: 7, r: pk.r + 7 }, ms: 4000 } : rres(pk, 4000) };
+  const A = simulate(shortKid, 600, 63, 60, null, 'res');
+  const from = A.log.find(e => e.key === '7x8').session + 1;
+  let minR = Infinity;
+  for (let sIdx = from; sIdx < 10; sIdx++) {
+    const L = A.log.filter(e => e.session === sIdx), c = L.filter(e => e.key === '7x8').length;
+    minR = Math.min(minR, c / ((L.length - c) / 79));
+  }
+  const w = MT.weaknesses(A.p, 1)[0];
+  check(minR >= 3 && w.key === '7x8' && /sobran/.test(w.confusion.answer), `La familia que falla sale ${minR.toFixed(1)}+ veces más que las demás y es la mayor falencia (respondió "${w.confusion.answer}")`);
+  const c = MT.resConfusion;
+  check(c(5, 8, 2, { q: 7, r: 7 }).type === 'corto' && c(5, 8, 2, { q: 8, r: 3 }).type === 'resta' && c(5, 8, 2, { q: 9, r: 0 }).type === 'pasado'
+    && c(5, 8, 2, { q: 2, r: 8 }).type === 'invertido' && /no cabe 1 vez/.test(c(7, 0, 3, { q: 1, r: 0 }).text) && c(5, 8, 2, { q: 8, r: 9 }).type === 'residuo',
+    'Errores típicos: quedarse corto (sobra más que el divisor), restar mal, pasarse, invertir, "no cabe"');
+  // Pistas de todas las combinaciones
+  const badH = [];
+  for (let d = 2; d <= 9; d++) for (let q = 0; q <= 9; q++) for (let r = 0; r < d; r++) {
+    if (q === 0 && r === 0) continue;
+    const h = MT.resHint(d, q, r), N = d * q + r, all = h.full + ' ' + h.swap;
+    for (const m of all.matchAll(/(\d+) × (\d+) = (\d+)/g)) if (+m[1] * +m[2] !== +m[3]) badH.push(`${N}÷${d} ×`);
+    for (const m of all.matchAll(/(\d+) − (\d+) = (\d+)/g)) if (+m[1] - +m[2] !== +m[3]) badH.push(`${N}÷${d} −`);
+    const ck = h.swap.match(/(\d+) × (\d+) \+ (\d+) = (\d+)/);
+    if (!ck || +ck[1] * +ck[2] + +ck[3] !== +ck[4] || +ck[4] !== N) badH.push(`${N}÷${d} comprobar`);
+    if (!new RegExp(`Cabe ${q} `).test(h.full)) badH.push(`${N}÷${d} cabe`);
+    const cueNums = (h.cue.match(/\d+/g) || []).map(Number);
+    if (cueNums.some(x => x !== d && x !== N)) badH.push(`${N}÷${d} pista previa`);
+  }
+  check(badH.length === 0, `Pistas de las 360 divisiones posibles correctas, con "Comprueba: d × q + r = N", sin revelar antes de tiempo ${badH.slice(0, 5).join(', ')}`);
+  // Si ya sabe 7 × 8 y 6 × 7, esas familias entran antes
+  const known = ['6x7', '7x6', '7x8', '8x7'];
+  const K = simulate({ name: 'Sabe', answer: pk => rres(pk, 4000) }, 200, 64, 60, p => { for (const k of known) p.facts[k].level = 4; }, 'res');
+  const nuevas = K.log.filter(e => e.kind === 'nueva');
+  const firstNew = nuevas.filter(e => e.b >= 2).slice(0, 3).map(e => e.key);
+  check(nuevas[0].b <= 1 && firstNew.length === 3 && firstNew.every(k => known.includes(k)),
+    `Empieza por las familias fáciles ("cabe 0 o 1 vez"); luego, como sabe 7 × 8 y 6 × 7, siguen ${firstNew.join(', ')}`);
+  // Unir dispositivos y perfiles antiguos
+  const X = simulate({ name: 'X', answer: pk => rres(pk, 4000) }, 60, 65, 60, null, 'res').prof, Y = simulate({ name: 'Y', answer: pk => rres(pk, 4000) }, 40, 66, 60, null, 'res').prof;
+  MT.syncContrib(X, 'cel/' + X.id); MT.syncContrib(Y, 'lap/' + Y.id);
+  const M = MT.mergeProfiles(clone(X), clone(Y));
+  const old = clone(runs.A.p); delete old.res; const before = JSON.stringify(old.facts); MT.ensure(old);
+  check(M.res.answered === 100 && M.res.stars === X.res.stars + Y.res.stars && Object.keys(old.res.facts).length === 80 && JSON.stringify(old.facts) === before,
+    'Unir dispositivos suma el progreso de Residuo; un perfil de antes recibe la misión vacía sin tocar lo demás');
 }
 
 out.push('\nExtras');

@@ -157,18 +157,19 @@ body.playing #app { height: 100%; }
 .home-top .who { display: flex; align-items: center; gap: 14px; flex: 1 1 260px; min-width: 0; }
 .home-top h1 { font-size: clamp(28px, 6vw, 40px); font-weight: 800; overflow-wrap: anywhere; }
 .home-top .tools { display: flex; gap: 8px; flex-wrap: wrap; }
-.modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.modes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+@media (min-width: 700px) { .modes { grid-template-columns: repeat(4, 1fr); } }
 .mode {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 80px; padding: 8px 6px;
+  display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px; min-height: 62px; padding: 8px 8px;
   border-radius: 20px; border: 2px solid var(--key-edge); background: var(--card); box-shadow: 0 4px 0 var(--key-edge);
   font-family: var(--font-display); font-weight: 800; font-size: clamp(16px, 4.4vw, 24px); line-height: 1.1; color: var(--ink-2); touch-action: manipulation;
 }
-@media (min-width: 640px) { .mode { flex-direction: row; gap: 10px; min-height: 64px; } }
 .mode .sym.two { width: auto; padding: 0 6px; font-size: 22px; letter-spacing: -.02em; }
 .mode .sym { flex: none; display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: var(--lv0); color: var(--ink); font-size: 28px; line-height: 1; }
 .mode[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; box-shadow: 0 4px 0 rgba(29, 42, 87, .45); }
 .mode[aria-pressed="true"] .sym { background: var(--sun); }
 .mode:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-edge); }
+.ad-ops { flex-wrap: wrap; }
 .ad-ops button { min-height: 52px; font-size: 17px; }
 .map-ops { justify-self: start; }
 .mission {
@@ -280,6 +281,26 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-e
 .slot .ghost { color: var(--warm-line); opacity: .45; }
 .q-card.good .slot { color: var(--ok-edge); border-color: var(--ok); }
 .slot.shake { animation: shake .35s ease; }
+/* Residuo: "Cabe [8] veces y sobran [2]" */
+.res-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 22px; font-family: var(--font-display); font-weight: 700; font-size: clamp(26px, 7vw, 42px); color: var(--ink-2); line-height: 1.1; }
+.q-card.fixing .res-row { font-size: clamp(22px, 5.5vw, 34px); }
+.res-grp { display: inline-flex; align-items: baseline; gap: 10px; white-space: nowrap; }
+.rslot {
+  display: inline-block; min-width: 1.3em; padding: 0 .1em .02em; border: 0; border-bottom: .09em solid var(--ink); border-radius: 10px 10px 0 0; background: transparent;
+  font: inherit; font-weight: 800; font-size: 1.35em; line-height: 1; color: var(--ink); text-align: center; font-variant-numeric: tabular-nums;
+}
+.rslot.empty { color: var(--ink-3); }
+.rslot.active { background: var(--gold-soft); border-bottom-color: var(--gold-deep); }
+.rslot .ghost { color: var(--warm-line); opacity: .45; }
+.q-card.good .rslot { color: var(--ok-edge); border-color: var(--ok); background: transparent; }
+.rslot.shake { animation: shake .35s ease; }
+.ladder { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.ladder span { min-width: 2.4em; padding: 3px 6px; border-radius: 9px; border: 2px solid var(--line); background: var(--card); font-family: var(--font-display); font-weight: 800; font-size: 18px; text-align: center; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.ladder .hit { border-color: var(--ok); background: var(--ok-soft); color: var(--ok-edge); }
+.ladder .n { border-style: dashed; border-color: var(--gold-deep); background: var(--gold-soft); color: var(--ink); }
+.ladder .over { text-decoration: line-through; color: var(--ink-3); }
+.ladder-cap { text-align: center; font-weight: 700; font-size: 14px; color: var(--ink-2); margin-top: -4px; }
+.feedback .check { flex-basis: 100%; font-size: .72em; color: var(--ok-edge); }
 .feedback {
   min-height: 1.5em; font-family: var(--font-display); font-weight: 800; font-size: clamp(20px, 4.6vw, 28px);
   text-align: center; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;
@@ -612,6 +633,7 @@ body.testing .round-dots { display: none; }
       <button type="button" class="mode" data-op="mul" aria-pressed="true"><span class="sym" aria-hidden="true">×</span>Multiplicar</button>
       <button type="button" class="mode" data-op="div" aria-pressed="false"><span class="sym" aria-hidden="true">÷</span>Dividir</button>
       <button type="button" class="mode" data-op="mix" aria-pressed="false"><span class="sym two" aria-hidden="true">×÷</span>Mixto</button>
+      <button type="button" class="mode" data-op="res" aria-pressed="false"><span class="sym two" aria-hidden="true">÷r</span>Residuo</button>
     </div>
     <div class="mission">
       <div class="count"><b id="homeCount">0</b><span>de <span id="homeTotal">64</span></span><small id="homeCountLabel">multiplicaciones dominadas</small></div>
@@ -666,7 +688,11 @@ body.testing .round-dots { display: none; }
         <div id="stamp" class="stamp" hidden></div>
         <p id="preHint" class="prehint" hidden></p>
         <p id="feedback" class="feedback" aria-live="polite"></p>
-        <div class="q" id="qText"><span id="qa">7</span><span class="op" id="qop">×</span><span id="qb">8</span><span class="op">=</span><span id="slot" class="slot empty">?</span></div>
+        <div class="q" id="qText"><span id="qa">7</span><span class="op" id="qop">×</span><span id="qb">8</span><span class="op" id="qEq">=</span><span id="slot" class="slot empty">?</span></div>
+        <div class="res-row" id="resRow" hidden>
+          <span class="res-grp">Cabe <button type="button" class="rslot empty" id="slotQ" data-f="q" tabindex="-1" aria-label="Cuántas veces cabe">?</button> <span id="resVeces">veces</span></span>
+          <span class="res-grp">y sobran <button type="button" class="rslot empty" id="slotR" data-f="r" tabindex="-1" aria-label="Cuánto sobra">?</button></span>
+        </div>
         <div id="fixBox" class="fix" hidden></div>
       </div>
       <div id="keypad" class="keypad" aria-label="Teclado numérico">
@@ -739,7 +765,7 @@ body.testing .round-dots { display: none; }
     <h1 class="title" tabindex="-1" data-focus>Panel para adultos</h1>
     <p class="lead" id="adWho"></p>
     <div class="seg ad-ops" role="group" aria-label="Qué revisar" id="adOps">
-      <button type="button" data-op="mul" aria-pressed="true">× Multiplicar</button><button type="button" data-op="div" aria-pressed="false">÷ Dividir</button>
+      <button type="button" data-op="mul" aria-pressed="true">× Multiplicar</button><button type="button" data-op="div" aria-pressed="false">÷ Dividir</button><button type="button" data-op="res" aria-pressed="false">÷r Residuo</button>
     </div>
     <p id="adStorage" class="confirm" hidden>Este navegador no deja guardar datos: el progreso se perderá al cerrar la página.</p>
 
@@ -1031,6 +1057,8 @@ body.testing .round-dots { display: none; }
   const CONFIG = {
     FAST_MS: 4000,                 // umbral de rapidez por defecto (ms)
     FAST_MS_DIV: 5000,             // en división el recuerdo es más lento al comienzo
+    FAST_MS_RES: 8000,             // con residuo hay dos respuestas y más que pensar
+    RES_EXACT: 0.25,               // residuo: 1 de cada 4 preguntas es exacta (residuo 0)
     UNKNOWN_MUL_PENALTY: 2.5,      // división nueva cuya multiplicación aún no sabe: entra más tarde
     TEST_PASS: 1,                  // test definitivo: hay que responderlas todas bien seguidas (64 de 64)
     TEST_COMEBACK: [3, 8],         // tras un error en el test, la fallada vuelve entre la 3.ª y la 8.ª pregunta
@@ -1081,17 +1109,26 @@ body.testing .round-dots { display: none; }
   /* Cada perfil tiene dos pistas con su propio progreso: multiplicar (el perfil mismo) y dividir (p.div).
      Una división se guarda como el par (divisor, resultado): 'axb' es (a × b) ÷ a = b. */
   function defaultSettings(op) {
-    const div = op === 'div';
-    const s = { op: div ? 'div' : 'mul', fastMs: div ? CONFIG.FAST_MS_DIV : CONFIG.FAST_MS, tables: TABLES.slice(), includeOne: false, roundSize: CONFIG.ROUND_SIZE, boost: { on: false, keys: [] }, testAlways: false, prizeText: CONFIG.PRIZE_DEFAULT };
+    const div = op === 'div' || op === 'res';
+    const s = { op: op === 'div' || op === 'res' ? op : 'mul', fastMs: op === 'res' ? CONFIG.FAST_MS_RES : div ? CONFIG.FAST_MS_DIV : CONFIG.FAST_MS, tables: TABLES.slice(), includeOne: false, roundSize: CONFIG.ROUND_SIZE, boost: { on: false, keys: [] }, testAlways: false, prizeText: CONFIG.PRIZE_DEFAULT };
     if (!div) { s.sound = true; s.gameOn = true; s.gamePer = CONFIG.GAME_PER; s.gameDayMax = CONFIG.GAME_DAY_MAX; }
     return s;
   }
   const isDiv = st => !!st && st.op === 'div';
+  /* Residuo: 'axb' es una familia: divisor a, cabe b veces (0 a 9). Cada pregunta elige un residuo r < a,
+     así que el número a dividir es a × b + r (siempre menor que 10 × a, como en cada paso de la división larga). */
+  const isRes = st => !!st && st.op === 'res';
   /* Respuesta esperada: el producto al multiplicar, el resultado al dividir. */
-  function expected(st, a, b) { return isDiv(st) ? b : a * b; }
-  /* "Tabla del n": al multiplicar, donde aparece n; al dividir, las que dividen entre n. */
-  function inTable(st, k, n) { const t = parse(k); return isDiv(st) ? t.a === n : t.a === n || t.b === n; }
-  function track(p, op) { return op === 'div' ? p.div : p; }
+  function expected(st, a, b, r) { return isRes(st) ? { q: b, r: r || 0 } : isDiv(st) ? b : a * b; }
+  /* "Tabla del n": al multiplicar, donde aparece n; al dividir (con o sin residuo), las que dividen entre n. */
+  function inTable(st, k, n) { const t = parse(k); return isDiv(st) || isRes(st) ? t.a === n : t.a === n || t.b === n; }
+  function track(p, op) { return op === 'div' ? p.div : op === 'res' ? p.res : p; }
+  // Residuo para una pregunta de la familia (d, q): 1 de cada 4 exacta; si no cabe (q = 0), nunca 0 ÷ d.
+  function resRemainder(d, q, rng) {
+    rng = rng || Math.random;
+    if (q > 0 && rng() < CONFIG.RES_EXACT) return 0;
+    return 1 + Math.floor(rng() * (d - 1));
+  }
   /* Multiplicaciones de refuerzo activas (vacío si el refuerzo está apagado). */
   function boostKeys(st) {
     return st.boost && st.boost.on ? (st.boost.keys || []).slice() : [];
@@ -1106,12 +1143,19 @@ body.testing .round-dots { display: none; }
     const F = st.includeOne ? [1, 2, 3, 4, 5, 6, 7, 8, 9] : TABLES;
     const act = activeTables(st), div = isDiv(st);
     const out = [];
+    if (isRes(st)) { for (const a of act) for (let b = 0; b <= 9; b++) out.push(key(a, b)); return out; }
     for (const a of F) for (const b of F) {
       if (div ? act.includes(a) || a === 1 : act.includes(a) || act.includes(b)) out.push(key(a, b));
     }
     return out;
   }
   /* Dificultad natural: ×1 → ×2 y ×5 → ×3, ×4, ×9 y cuadrados → 6, 7 y 8 combinados. */
+  // Residuo: por divisor (÷2 y ÷5 primero; ÷6, ÷7 y ÷8 al final); "no cabe" (0 veces) después de practicar un poco.
+  function resGroup(d, q) {
+    const g = d === 2 || d === 5 ? 1 : d === 3 || d === 4 || d === 9 ? 2 : 3;
+    return q === 0 ? Math.max(g, 2) : g;
+  }
+  function groupFor(st, a, b) { return isRes(st) ? resGroup(a, b) : group(a, b); }
   function group(a, b) {
     if (a === 1 || b === 1) return 0;
     if (a === 2 || a === 5 || b === 2 || b === 5) return 1;
@@ -1133,8 +1177,8 @@ body.testing .round-dots { display: none; }
   }
   function ensureTrack(p, op) {
     p.settings = Object.assign(defaultSettings(op), p.settings || {});
-    p.settings.op = op === 'div' ? 'div' : 'mul';
-    if (op === 'div') delete p.settings.sound;
+    p.settings.op = op === 'div' || op === 'res' ? op : 'mul';
+    if (op !== 'mul') delete p.settings.sound;
     p.settings.tables = activeTables(p.settings);
     const bo = p.settings.boost;
     p.settings.boost = {
@@ -1164,14 +1208,16 @@ body.testing .round-dots { display: none; }
     ensureTrack(p, 'mul');
     ensureGame(p);
     p.div = ensureTrack(p.div && typeof p.div === 'object' ? p.div : {}, 'div');
-    p.mode = p.mode === 'div' || p.mode === 'mix' ? p.mode : 'mul';
+    p.res = ensureTrack(p.res && typeof p.res === 'object' ? p.res : {}, 'res');
+    p.mode = ['div', 'mix', 'res'].includes(p.mode) ? p.mode : 'mul';
     return p;
   }
   /* Reinicia el progreso de un modo; el perfil, los ajustes y el otro modo se quedan. */
   function resetProgress(p, op) {
     // El premio se conserva: si ya lo ganó, sigue pendiente de reclamar.
     if (op === 'div') { p.div = ensureTrack({ settings: p.div.settings, prize: p.div.prize }, 'div'); return p; }
-    const keep = { v: 1, id: p.id, name: p.name, avatar: p.avatar, createdAt: p.createdAt, settings: p.settings, div: p.div, mode: p.mode, prize: p.prize, game: p.game };
+    if (op === 'res') { p.res = ensureTrack({ settings: p.res.settings, prize: p.res.prize }, 'res'); return p; }
+    const keep = { v: 1, id: p.id, name: p.name, avatar: p.avatar, createdAt: p.createdAt, settings: p.settings, div: p.div, res: p.res, mode: p.mode, prize: p.prize, game: p.game };
     for (const k of Object.keys(p)) delete p[k];
     return ensure(Object.assign(p, keep));
   }
@@ -1260,7 +1306,7 @@ body.testing .round-dots { display: none; }
     let c = stalest(3);
     if (c.length) return anyOf(c, rng);
     if (!blocked) {
-      c = avail.filter(k => { if (p.facts[k].level !== 0) return false; const t = parse(k); return group(t.a, t.b) <= 1; });
+      c = avail.filter(k => { if (p.facts[k].level !== 0) return false; const t = parse(k); return groupFor(p.settings, t.a, t.b) <= 1; });
       if (c.length) return anyOf(c, rng);
     }
     c = stalest(2);
@@ -1274,8 +1320,10 @@ body.testing .round-dots { display: none; }
     if (!c.length) return null;
     const rank = k => {
       const t = parse(k);
-      const unknown = known && !known.has(key(t.a, t.b)) && !known.has(key(t.b, t.a));
-      return group(t.a, t.b) + (unknown ? CONFIG.UNKNOWN_MUL_PENALTY : 0);
+      // Con residuo, caber 0 o 1 vez no depende de saberse la tabla.
+      const trivial = isRes(p.settings) && t.b <= 1;
+      const unknown = known && !trivial && !known.has(key(t.a, t.b)) && !known.has(key(t.b, t.a));
+      return groupFor(p.settings, t.a, t.b) + (unknown ? CONFIG.UNKNOWN_MUL_PENALTY : 0);
     };
     let g = Infinity;
     for (const k of c) g = Math.min(g, rank(k));
@@ -1315,13 +1363,15 @@ body.testing .round-dots { display: none; }
     const mm = mixFor(p), mode = mm[0], mix = mm[1];
     const make = (k, kind, stage, drawn) => {
       const t = parse(k);
-      return {
+      const m = {
         key: k, a: t.a, b: t.b,
         kind: maint && kind !== 'retry' ? 'mantenimiento' : kind,
         stage: stage || 0, mode: mode, drawn: drawn || null,
         level: p.facts[k].level,
         preHint: !!(s.frustrated[k] && s.needHint[k])
       };
+      if (isRes(p.settings)) { m.r = resRemainder(t.a, t.b, rng); m.n = t.a * t.b + m.r; }
+      return m;
     };
     for (let relax = 0; relax <= 2; relax++) {
       const ok = k => allowed(k, s.hist, relax);
@@ -1360,9 +1410,11 @@ body.testing .round-dots { display: none; }
     opts = opts || {};
     now = now || Date.now();
     const f = p.facts[k] || (p.facts[k] = newFact());
-    const t = parse(k), a = t.a, b = t.b, st = p.settings, div = isDiv(st);
-    const P = a * b, E = expected(st, a, b), q = p.q;
-    const correct = answer === E;
+    const t = parse(k), a = t.a, b = t.b, st = p.settings, div = isDiv(st) || isRes(st), res = isRes(st);
+    const rr = res ? (opts.r || 0) : 0;
+    const P = a * b + rr, E = expected(st, a, b, rr), q = p.q;
+    // Con residuo, la respuesta es { q, r }: las dos tienen que estar bien.
+    const correct = res ? !!answer && answer.q === b && answer.r === rr : answer === E;
     const fast = correct && ms <= p.settings.fastMs;
     const prev = f.level, first = f.attempts === 0;
     const gap = f.lastSeen < 0 ? Infinity : q - f.lastSeen - 1;
@@ -1408,7 +1460,7 @@ body.testing .round-dots { display: none; }
     if (correct) f.correct++;
     f.times.push([Math.round(ms), correct ? 1 : 0]);
     if (f.times.length > 5) f.times.shift();
-    if (!correct) { f.wrong.push(answer); if (f.wrong.length > 12) f.wrong.shift(); }
+    if (!correct) { f.wrong.push(res ? `${answer && answer.q} y sobran ${answer && answer.r}` : answer); if (f.wrong.length > 12) f.wrong.shift(); }
     f.lastSeen = q;
     f.lastAt = now;
     const day = ymd(now);
@@ -1464,7 +1516,7 @@ body.testing .round-dots { display: none; }
       prev: prev, level: level, up: up, mastered: mastered, stars: stars, streak: s.streak,
       assisted: assisted, retryStage: stage, sessionErrors: s.errors[k] || 0,
       newMedals: newMedals, allMastered: allMastered,
-      confusion: correct ? null : confusionFor(st, a, b, answer),
+      r: rr, confusion: correct ? null : confusionFor(st, a, b, answer, rr),
       roundDone: R.answered >= p.settings.roundSize,
       breakDue: s.activeMs >= s.breakAt
     };
@@ -1525,7 +1577,17 @@ body.testing .round-dots { display: none; }
     h.swap = fam;
     return h;
   }
-  function hintFor(st, a, b) { return isDiv(st) ? divHint(a, b) : hint(a, b); }
+  /* Pistas con residuo: buscar en la tabla el más grande que no pase, restar y comprobar. */
+  function resHint(d, q, r) {
+    const M = d * q, N = M + r, veces = q === 1 ? 'vez' : 'veces';
+    const full = q === 0
+      ? `${d} es más grande que ${N}: no cabe ninguna vez. Cabe 0 veces y sobran ${N}.`
+      : `En la tabla del ${d}, el más grande que no pasa de ${N} es ${d} × ${q} = ${M}. Cabe ${q} ${veces}` +
+        (r === 0 ? ' y no sobra nada: residuo 0.' : ` y sobran ${N} − ${M} = ${r}.`);
+    const cue = q === 0 ? `¿Cabe el ${d} en el ${N}?` : `Busca en la tabla del ${d} el número más grande que no pase de ${N}…`;
+    return { full: full, cue: cue, swap: `Comprueba: ${d} × ${q} + ${r} = ${N}.` };
+  }
+  function hintFor(st, a, b, r) { return isRes(st) ? resHint(a, b, r || 0) : isDiv(st) ? divHint(a, b) : hint(a, b); }
 
   /* ===== Confusiones típicas ===== */
   function divConfusion(d, q, ans) {
@@ -1541,7 +1603,20 @@ body.testing .round-dots { display: none; }
     }
     return null;
   }
-  function confusionFor(st, a, b, ans) { return isDiv(st) ? divConfusion(a, b, ans) : confusion(a, b, ans); }
+  // Errores típicos con residuo: los que más estorban después en la división larga.
+  function resConfusion(d, q, r, ans) {
+    if (!ans || typeof ans.q !== 'number' || typeof ans.r !== 'number' || !isFinite(ans.q) || !isFinite(ans.r)) return null;
+    const N = d * q + r, aq = ans.q, ar = ans.r, vez = n => (n === 1 ? 'vez' : 'veces');
+    if (aq === q && ar === r) return null;
+    if (aq === r && ar === q && q !== r) return { type: 'invertido', text: `Los cambiaste de lugar: primero cuántas veces cabe (${q}), después cuánto sobra (${r}).` };
+    if (aq < q && aq * d + ar === N) return { type: 'corto', text: `Sobran ${ar} y divides entre ${d}: ¡cabe más! Lo que sobra siempre es menor que ${d}.` };
+    if (ar >= d) return { type: 'residuo', text: `Lo que sobra tiene que ser menor que ${d}. Si sobran ${ar}, todavía cabe otra vez.` };
+    if (aq * d > N) return { type: 'pasado', text: `${d} × ${aq} = ${aq * d}, se pasa de ${N}: no cabe ${aq} ${vez(aq)}.` };
+    if (aq === q) return { type: 'resta', text: `¡Cuántas veces cabe está bien! Revisa lo que sobra: ${N} − ${d * q} = ${r}.` };
+    if (aq < q) return { type: 'corto', text: `${d} × ${aq} = ${aq * d}, pero todavía cabe más: ${d} × ${q} = ${d * q} tampoco pasa de ${N}.` };
+    return null;
+  }
+  function confusionFor(st, a, b, ans, r) { return isRes(st) ? resConfusion(a, b, r || 0, ans) : isDiv(st) ? divConfusion(a, b, ans) : confusion(a, b, ans); }
   function confusion(a, b, ans) {
     const P = a * b;
     if (typeof ans !== 'number' || !isFinite(ans) || ans === P) return null;
@@ -1819,7 +1894,7 @@ body.testing .round-dots { display: none; }
     }
     return p;
   }
-  function syncContrib(p, src) { syncTrack(p, src); if (p.div) syncTrack(p.div, src); return p; }
+  function syncContrib(p, src) { syncTrack(p, src); if (p.div) syncTrack(p.div, src); if (p.res) syncTrack(p.res, src); return p; }
   function lastActive(p) { let t = 0; for (const k in p.facts) t = Math.max(t, p.facts[k].lastAt || 0); return t; }
   // Une la pista b con la a (multiplicar o dividir). En cada pregunta queda el estado más reciente.
   function mergeTrack(a, b) {
@@ -1878,13 +1953,14 @@ body.testing .round-dots { display: none; }
   // Une el perfil b dentro de a: las dos pistas.
   function mergeProfiles(a, b) {
     ensure(a); ensure(b);
-    for (const [t, id] of [[a, a.id], [b, b.id], [a.div, a.id], [b.div, b.id]]) {
+    for (const [t, id] of [[a, a.id], [b, b.id], [a.div, a.id], [b.div, b.id], [a.res, a.id], [b.res, b.id]]) {
       if (!t.contrib || !Object.keys(t.contrib).length) syncTrack(t, 'x/' + id);
     }
-    const mul = mergeTrack(a, b), div = mergeTrack(a.div, b.div);
+    const mul = mergeTrack(a, b), div = mergeTrack(a.div, b.div), res = mergeTrack(a.res, b.res);
     mul.createdAt = Math.min(a.createdAt || Date.now(), b.createdAt || Date.now());
     Object.assign(a, mul);
     Object.assign(a.div, div);
+    Object.assign(a.res, res);
     a.game = mergeGame(a.game, b.game);
     return ensure(a);
   }
@@ -1892,7 +1968,7 @@ body.testing .round-dots { display: none; }
   const MT = {
     normName, syncContrib, mergeProfiles,
     CONFIG, TABLES, LEVELS, key, parse, universe, group, defaultSettings, boostKeys, newFact, newProfile, ensure, resetProgress,
-    expected, inTable, track, hintFor, confusionFor, divHint, divConfusion,
+    expected, inTable, track, hintFor, confusionFor, divHint, divConfusion, resHint, resConfusion, resRemainder, resGroup,
     testNeeded, testOpen, testOrder, testValid, recordTest, claimPrize, newPrize,
     pickMixed, sameFamily, streakTier, streakAfterError, testCheckpoint, testSaved,
     gameBalance, gameEarn, gameSpend, gameProgress, gameCount, snakeNew, snakeTurn, snakeStep,
@@ -2135,10 +2211,13 @@ body.testing .round-dots { display: none; }
     const list = $('#profileList');
     list.innerHTML = '';
     for (const p of data.profiles) {
-      const sm = MT.summary(p), sd = MT.summary(p.div);
+      const sm = MT.summary(p), sd = MT.summary(p.div), sr = MT.summary(p.res);
+      const parts = [`× ${sm.mastered} de ${sm.total}`];
+      if (p.div.answered) parts.push(`÷ ${sd.mastered} de ${sd.total}`);
+      if (p.res.answered) parts.push(`÷r ${sr.mastered} de ${sr.total}`);
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'profile';
-      b.innerHTML = `<span class="ava" aria-hidden="true">${esc(p.avatar)}</span><span class="pinfo"><span class="pname">${esc(p.name)}</span><span class="psub">${p.div.answered ? `× ${sm.mastered} de ${sm.total} · ÷ ${sd.mastered} de ${sd.total}` : `Dominas ${sm.mastered} de ${sm.total}`}</span></span><span class="chev" aria-hidden="true">›</span>`;
+      b.innerHTML = `<span class="ava" aria-hidden="true">${esc(p.avatar)}</span><span class="pinfo"><span class="pname">${esc(p.name)}</span><span class="psub">${parts.length > 1 ? parts.join(' · ') : `Dominas ${sm.mastered} de ${sm.total}`}</span></span><span class="chev" aria-hidden="true">›</span>`;
       b.addEventListener('click', () => { P = p; S = null; persist(); goHome(); });
       list.appendChild(b);
     }
@@ -2188,29 +2267,37 @@ body.testing .round-dots { display: none; }
 
   /* ===== Multiplicar o dividir =====
      El perfil guarda multiplicar en sí mismo y dividir en P.div, cada uno con su progreso. */
-  const curOp = () => (P && (P.mode === 'div' || P.mode === 'mix') ? P.mode : 'mul');
+  const curOp = () => (P && ['div', 'mix', 'res'].includes(P.mode) ? P.mode : 'mul');
   const trk = op => MT.track(P, op);
-  const opSym = op => (op === 'div' ? '÷' : '×');
-  // 'axb' al dividir es (a × b) ÷ a = b.
-  function fmtFact(op, a, b, nb) { const s = nb ? '\u00A0' : ' '; return op === 'div' ? `${a * b}${s}÷${s}${a}` : `${a}${s}×${s}${b}`; }
+  const opSym = op => (op === 'div' || op === 'res' ? '÷' : '×');
+  // 'axb' al dividir es (a × b) ÷ a = b; con residuo es la familia de a × b a a × b + a − 1, entre a.
+  function fmtFact(op, a, b, nb) {
+    const s = nb ? '\u00A0' : ' ';
+    if (op === 'res') return `${Math.max(1, a * b)}–${a * b + a - 1}${s}÷${s}${a}`;
+    return op === 'div' ? `${a * b}${s}÷${s}${a}` : `${a}${s}×${s}${b}`;
+  }
   function noun(op, n) {
     if (op === 'mix') return n === 1 ? 'operación' : 'operaciones';
+    if (op === 'res') return n === 1 ? 'división con residuo' : 'divisiones con residuo';
     return op === 'div' ? (n === 1 ? 'división' : 'divisiones') : (n === 1 ? 'multiplicación' : 'multiplicaciones');
   }
-  function tableName(op, n) { return op === 'div' ? `Dividir entre ${n}` : `Tabla del ${n}`; }
-  const totalStars = () => P.stars + P.div.stars;
-  const allDays = () => Array.from(new Set(P.days.concat(P.div.days)));
+  function tableName(op, n) { return op === 'res' ? `Residuo entre ${n}` : op === 'div' ? `Dividir entre ${n}` : `Tabla del ${n}`; }
+  const totalStars = () => P.stars + P.div.stars + P.res.stars;
+  const allDays = () => Array.from(new Set(P.days.concat(P.div.days, P.res.days)));
+  // Columnas de las cuadrículas: con residuo, cuántas veces cabe (0 a 9).
+  const RES_COLS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+  const colsFor = (op, T) => (op === 'res' ? RES_COLS : factors(T));
   const knownMul = () => new Set(Object.keys(P.facts).filter(k => P.facts[k].level >= 3));
   // Encabezados de las cuadrículas. Al dividir: filas = entre cuánto se divide, columnas = resultado.
   function gridHead(op, F, cls) {
     return `<div class="${cls}" aria-hidden="true">${opSym(op)}</div>` + F.map(b => `<div class="${cls}" aria-hidden="true">${op === 'div' ? '=' + b : b}</div>`).join('');
   }
-  const rowHead = (op, a, cls) => `<div class="${cls}" aria-hidden="true">${op === 'div' ? '÷' + a : a}</div>`;
+  const rowHead = (op, a, cls) => `<div class="${cls}" aria-hidden="true">${op === 'div' || op === 'res' ? '÷' + a : a}</div>`;
 
   /* ===== Inicio ===== */
   function medalHtml(t, op, extra) {
     const name = tableName(op, t.n);
-    return `<span class="medal ${t.medal ? 'on' : ''} ${extra || ''}" title="${name}" aria-label="${name}: ${t.medal ? 'medalla ganada' : 'sin medalla todavía'}">${op === 'div' ? '÷' : ''}${t.n}</span>`;
+    return `<span class="medal ${t.medal ? 'on' : ''} ${extra || ''}" title="${name}" aria-label="${name}: ${t.medal ? 'medalla ganada' : 'sin medalla todavía'}">${op === 'div' || op === 'res' ? '÷' : ''}${t.n}</span>`;
   }
   function factors(T) { return T.settings.includeOne ? [1, 2, 3, 4, 5, 6, 7, 8, 9] : [2, 3, 4, 5, 6, 7, 8, 9]; }
   $$('#s-home .mode').forEach(b => b.addEventListener('click', () => { P.mode = b.dataset.op; persist(); renderHome(); }));
@@ -2237,13 +2324,13 @@ body.testing .round-dots { display: none; }
     const won = tb.filter(t => t.medal).length;
     $('#homeMedals').textContent = won === 1 ? '1 medalla' : `${won} medallas`;
     $('#homeNote').textContent = mix ? 'Mezcla multiplicaciones y divisiones. Cada respuesta suma a su propio mapa.'
-      : !answered ? (op === 'div' ? 'Vamos a descubrir qué divisiones ya sabes.' : 'Vamos a descubrir qué tablas ya sabes.')
+      : !answered ? (op === 'res' ? 'Vamos a ver cuántas veces cabe y cuánto sobra.' : op === 'div' ? 'Vamos a descubrir qué divisiones ya sabes.' : 'Vamos a descubrir qué tablas ya sabes.')
       : sm.maintenance ? '¡Dominas todas! Ahora a mantenerlas en forma.'
         : `Te ${sm.total - sm.mastered === 1 ? 'falta 1' : 'faltan ' + (sm.total - sm.mastered)} para dominarlas todas.`;
     $('#homeMedalRow').innerHTML = tb.map(t => medalHtml(t, t.op)).join('');
-    const F = factors(T), U = new Set(MT.universe(T.settings));
-    const mm = $('#miniMap'); mm.style.setProperty('--cols', F.length);
-    mm.innerHTML = F.map(a => F.map(b => { const k = MT.key(a, b); return U.has(k) ? `<i style="background:var(--lv${T.facts[k].level})"></i>` : '<i style="background:transparent"></i>'; }).join('')).join('');
+    const F = factors(T), C = colsFor(mix ? 'mul' : op, T), U = new Set(MT.universe(T.settings));
+    const mm = $('#miniMap'); mm.style.setProperty('--cols', C.length);
+    mm.innerHTML = F.map(a => C.map(b => { const k = MT.key(a, b); return U.has(k) ? `<i style="background:var(--lv${T.facts[k].level})"></i>` : '<i style="background:transparent"></i>'; }).join('')).join('');
     $('#btnDiploma').hidden = mix || !T.masteredAll;
     const bal = MT.gameBalance(P);
     $('#btnGame').hidden = !gameOn();
@@ -2253,9 +2340,10 @@ body.testing .round-dots { display: none; }
     $('#gameSub').textContent = bal > 0 ? `¡Tienes ${fmtClock(bal)} para jugar! ${next}` : (gp.capped ? next : `Llevas ${gp.prog} de ${gp.per} buenas para ganar 5 minutos de juego.`);
     $('#gameBar').hidden = gp.capped;
     $('#gameBar i').style.width = (100 * gp.prog / gp.per) + '%';
-    // El test definitivo es de cada modo; en Mixto solo se avisa si hay un premio pendiente.
-    $('#btnTest').hidden = mix;
-    if (mix) {
+    // El test definitivo es de multiplicar o de dividir; en Mixto y Residuo solo se avisa si hay un premio pendiente.
+    const noTest = mix || op === 'res';
+    $('#btnTest').hidden = noTest;
+    if (noTest) {
       const pend = ['mul', 'div'].find(o => { const z = trk(o).prize; return z.wonAt && !z.claimedAt; });
       $('#btnTicket').hidden = !pend;
       ticketOp = pend || 'mul';
@@ -2284,7 +2372,7 @@ body.testing .round-dots { display: none; }
   $('#btnMap').addEventListener('click', () => { mapOp = curOp() === 'mix' ? 'mul' : curOp(); renderMap(); show('map'); });
   $('#mapOps').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { mapOp = b.dataset.op; renderMap(); } });
   $('#btnDiploma').addEventListener('click', () => openDiploma(false, null, curOp()));
-  $('#btnAdult').addEventListener('click', () => openGate(() => { adOp = curOp() === 'div' ? 'div' : 'mul'; renderAdult(); show('adult'); }));
+  $('#btnAdult').addEventListener('click', () => openGate(() => { adOp = curOp() === 'mix' ? 'mul' : curOp(); renderAdult(); show('adult'); }));
 
   /* ===== Práctica ===== */
   $('#btnPlay').addEventListener('click', startPlay);
@@ -2295,7 +2383,7 @@ body.testing .round-dots { display: none; }
     (op === 'mix' ? ['mul', 'div'] : [op]).forEach(o => { subs[o] = MT.newSession(trk(o), now); });
     return { pid: P.id, op: op, subs: subs, mix: {}, streak: 0, dots: [], round: freshRound(), last: now, activeMs: 0, breakAt: MT.CONFIG.BREAK_MS };
   }
-  const roundSize = () => trk(S.op === 'div' ? 'div' : 'mul').settings.roundSize;
+  const roundSize = () => trk(S.op === 'mix' ? 'mul' : S.op).settings.roundSize;
   function startPlay() {
     Sound.unlock();
     const now = Date.now();
@@ -2341,7 +2429,7 @@ body.testing .round-dots { display: none; }
       op = m.op; pick = m.pick;
     } else {
       const sub = S.subs[op];
-      sub.known = op === 'div' ? knownMul() : null; // al dividir, primero las que ya sabe multiplicar
+      sub.known = op === 'div' || op === 'res' ? knownMul() : null; // al dividir, primero las que ya sabe multiplicar
       pick = MT.pickNext(trk(op), sub, Math.random, Date.now());
     }
     pick.op = op;
@@ -2349,12 +2437,17 @@ body.testing .round-dots { display: none; }
     renderDots(); renderHud();
   }
   function showQuestion(op, T, pick) {
-    Q = { pick: pick, typed: '', phase: 'ask', start: performance.now(), hiddenAt: null, res: null };
+    const isRes = op === 'res';
+    Q = { pick: pick, typed: '', phase: 'ask', start: performance.now(), hiddenAt: null, res: null, isRes: isRes, ans: { q: '', r: '' }, field: 'q' };
     const card = $('#qCard');
     card.className = 'q-card';
     void card.offsetWidth;
     if (!reduceMotion) card.classList.add('enter');
-    if (op === 'div') {
+    $('#qEq').hidden = isRes; $('#slot').hidden = isRes; $('#resRow').hidden = !isRes;
+    if (isRes) {
+      $('#qa').textContent = pick.n; $('#qop').textContent = '÷'; $('#qb').textContent = pick.a;
+      $('#qText').setAttribute('aria-label', `¿Cuántas veces cabe ${pick.a} en ${pick.n} y cuánto sobra?`);
+    } else if (op === 'div') {
       $('#qa').textContent = pick.a * pick.b; $('#qop').textContent = '÷'; $('#qb').textContent = pick.a;
       $('#qText').setAttribute('aria-label', `¿Cuánto es ${pick.a * pick.b} entre ${pick.a}?`);
     } else {
@@ -2365,10 +2458,11 @@ body.testing .round-dots { display: none; }
     $('#fixBox').hidden = true; $('#fixBox').innerHTML = '';
     $('#stamp').hidden = true;
     const ph = $('#preHint');
-    if (pick.preHint) { ph.hidden = false; ph.innerHTML = '<b>Pista:</b> ' + esc(MT.hintFor(T.settings, pick.a, pick.b).cue); } else ph.hidden = true;
+    if (pick.preHint) { ph.hidden = false; ph.innerHTML = '<b>Pista:</b> ' + esc(MT.hintFor(T.settings, pick.a, pick.b, pick.r).cue); } else ph.hidden = true;
     renderSlot();
   }
   function renderSlot() {
+    if (Q.isRes) return renderRes();
     const slot = $('#slot');
     if (Q.phase === 'fix' || (Q.phase === 'right' && Q.res && !Q.res.correct)) {
       const P2 = String(Q.res.expected);
@@ -2379,10 +2473,49 @@ body.testing .round-dots { display: none; }
       slot.textContent = Q.typed || '?';
     }
   }
-  function nudge() { const s = $('#slot'); s.classList.remove('shake'); void s.offsetWidth; s.classList.add('shake'); }
+  function nudge() {
+    const s = Q && Q.isRes ? $(Q.field === 'q' ? '#slotQ' : '#slotR') : $('#slot');
+    s.classList.remove('shake'); void s.offsetWidth; s.classList.add('shake');
+  }
+  /* Residuo: dos cajitas de una cifra. Al escribir cuántas veces cabe, salta sola a "sobran". */
+  function renderRes() {
+    const fix = Q.phase === 'fix' || (Q.phase === 'right' && Q.res && !Q.res.correct);
+    ['q', 'r'].forEach(f => {
+      const el = $(f === 'q' ? '#slotQ' : '#slotR'), v = Q.ans[f];
+      el.classList.toggle('active', (Q.phase === 'ask' || Q.phase === 'fix') && Q.field === f);
+      el.classList.toggle('empty', v === '' && !fix);
+      el.innerHTML = v !== '' ? esc(v) : fix ? `<span class="ghost">${Q.res.expected[f]}</span>` : '?';
+    });
+    const qv = Q.ans.q !== '' ? Q.ans.q : fix ? String(Q.res.expected.q) : '';
+    $('#resVeces').textContent = qv === '1' ? 'vez' : 'veces';
+  }
+  function pressRes(k) {
+    if (k === 'del') {
+      if (Q.ans[Q.field] !== '') Q.ans[Q.field] = '';
+      else if (Q.field === 'r') { Q.field = 'q'; Q.ans.q = ''; }
+      return renderRes();
+    }
+    if (k === 'prev' || k === 'next') { Q.field = k === 'prev' ? 'q' : 'r'; return renderRes(); }
+    if (k === 'ok') {
+      if (Q.ans.q === '') { Q.field = 'q'; renderRes(); return nudge(); }
+      if (Q.ans.r === '') { Q.field = 'r'; renderRes(); return nudge(); }
+      return Q.phase === 'ask' ? submit() : checkFix(true);
+    }
+    if (!/^\d$/.test(k)) return;
+    Q.ans[Q.field] = k;
+    if (Q.field === 'q') Q.field = 'r';
+    renderRes();
+    if (Q.phase === 'fix' && Q.ans.q !== '' && Q.ans.r !== '') checkFix(false);
+  }
+  $('#resRow').addEventListener('mousedown', e => e.preventDefault());
+  $('#resRow').addEventListener('click', e => {
+    const b = e.target.closest('.rslot');
+    if (b && Q && Q.isRes && (Q.phase === 'ask' || Q.phase === 'fix')) { Q.field = b.dataset.f; renderRes(); }
+  });
   function press(k) {
     if (!Q || current !== 'play' || overlayOpen()) return;
     if (Q.phase !== 'ask' && Q.phase !== 'fix') return;
+    if (Q.isRes) return pressRes(k);
     if (k === 'del') { Q.typed = Q.typed.slice(0, -1); renderSlot(); return; }
     if (k === 'ok') { if (Q.phase === 'ask') submit(); else checkFix(true); return; }
     if (!/^\d$/.test(k)) return;
@@ -2391,13 +2524,14 @@ body.testing .round-dots { display: none; }
     if (Q.phase === 'fix' && Q.typed.length >= String(Q.res.expected).length) checkFix(false);
   }
   function submit() {
-    if (!Q.typed) { nudge(); return; }
+    if (Q.isRes ? Q.ans.q === '' || Q.ans.r === '' : !Q.typed) { nudge(); return; }
     if (TEST) return submitTest();
     const ms = Math.max(0, performance.now() - Q.start), op = Q.pick.op, sub = S.subs[op];
     const prevStreak = S.streak;
     sub.streak = S.streak; // las estrellas extra cuentan la racha de toda la práctica
-    const res = MT.grade(trk(op), sub, Q.pick.key, parseInt(Q.typed, 10), ms, Date.now(),
-      { kind: Q.pick.kind, stage: Q.pick.stage, assisted: Q.pick.preHint });
+    const answer = Q.isRes ? { q: +Q.ans.q, r: +Q.ans.r } : parseInt(Q.typed, 10);
+    const res = MT.grade(trk(op), sub, Q.pick.key, answer, ms, Date.now(),
+      { kind: Q.pick.kind, stage: Q.pick.stage, assisted: Q.pick.preHint, r: Q.pick.r });
     // Un error no borra la racha: vuelve al último punto guardado (cada 10).
     S.streak = res.correct ? sub.streak : MT.streakAfterError(prevStreak);
     res.prevStreak = prevStreak;
@@ -2423,7 +2557,9 @@ body.testing .round-dots { display: none; }
     $('#qCard').classList.add('good');
     $('#preHint').hidden = true;
     const msg = res.first && res.fast ? '¡Ya te la sabías!' : res.sessionErrors > 0 ? pickOne(COMEBACK_MSGS) : pickOne(OK_MSGS);
-    setFeedback(`<span>✓ ${esc(msg)}${res.fast ? ' <span aria-label="rápida">⚡</span>' : ''}</span><span class="plus">+${res.stars} ⭐</span>`, 'good');
+    // Con residuo, siempre la comprobación: así se vuelve costumbre (la usará en la división larga).
+    const check = res.op === 'res' ? `<span class="check">${res.a} × ${res.b} + ${res.r} = ${res.product} ✓</span>` : '';
+    setFeedback(`<span>✓ ${esc(msg)}${res.fast ? ' <span aria-label="rápida">⚡</span>' : ''}</span><span class="plus">+${res.stars} ⭐</span>${check}`, 'good');
     let wait = 1000;
     const tier = MT.streakTier(S.streak);
     if (tier) {
@@ -2441,17 +2577,32 @@ body.testing .round-dots { display: none; }
   }
   function showStamp(text) { const s = $('#stamp'); s.textContent = text; s.hidden = false; }
   function onWrong(res) {
-    Q.phase = 'fix'; Q.typed = '';
+    Q.phase = 'fix'; Q.typed = ''; Q.ans = { q: '', r: '' }; Q.field = 'q';
     const card = $('#qCard');
     card.classList.add('fixing');
     $('#preHint').hidden = true;
     // A una multiplicación fácil no se le dice "difícil".
-    const easy = MT.group(res.a, res.b) <= 1;
+    const easy = (res.op === 'res' ? MT.resGroup(res.a, res.b) : MT.group(res.a, res.b)) <= 1;
     const keep = res.prevStreak >= MT.CONFIG.STREAK_SAVE
       ? `<span class="saved">🔥 Tu racha ${S.streak === res.prevStreak ? 'sigue' : 'quedó guardada'} en ${S.streak}</span>` : '';
     setFeedback(esc(pickOne(easy ? ERR_MSGS.filter(m => !/difícil/.test(m)) : ERR_MSGS)) + keep, 'soft');
-    const h = MT.hintFor({ op: res.op }, res.a, res.b);
+    const h = MT.hintFor({ op: res.op }, res.a, res.b, res.r);
     const cap = res.op === 'div' ? `${res.product} en ${res.a} filas: ${res.b} en cada una` : `${res.a} filas de ${res.b}`;
+    if (res.op === 'res') {
+      const d = res.a, q = res.b, r = res.r;
+      const rcap = q === 0 ? `${r} sueltos: no alcanzan para un grupo de ${d}` : `${q} ${q === 1 ? 'grupo' : 'grupos'} de ${d}` + (r ? ` y ${r} ${r === 1 ? 'suelto' : 'sueltos'}` : ', sin sueltos');
+      $('#fixBox').innerHTML =
+        `<p class="copy-tip">Escribe <b>${q}</b> y <b>${r}</b> para seguir.</p>` +
+        (res.confusion ? `<p class="confusion">${esc(res.confusion.text)}</p>` : '') +
+        ladderHtml(d, q, r) + `<p class="ladder-cap">Tabla del ${d}</p>` +
+        `<div class="fix-grid"><div class="hint"><p><span aria-hidden="true">💡</span> ${esc(h.full)}</p><p class="swap">${esc(h.swap)}</p></div>` +
+        `<figure class="dots">${resDotsSvg(d, q, r)}<figcaption>${rcap}</figcaption></figure></div>`;
+      $('#fixBox').hidden = false;
+      card.scrollTop = 0;
+      renderRes();
+      Sound.soft();
+      return;
+    }
     $('#fixBox').innerHTML =
       `<p class="copy-tip">Escribe <b>${res.expected}</b> para seguir.</p>` +
       (res.confusion ? `<p class="confusion">${esc(res.confusion.text)}</p>` : '') +
@@ -2463,16 +2614,22 @@ body.testing .round-dots { display: none; }
     Sound.soft();
   }
   function checkFix(explicit) {
-    if (Q.typed === String(Q.res.expected)) {
-      Q.phase = 'right';
-      $('#qCard').classList.remove('fixing'); $('#qCard').classList.add('good');
-      renderSlot();
-      setFeedback('✓ ' + esc(pickOne(COPY_MSGS)), 'good');
-      Sound.ok(false);
-      later(() => afterAnswer(Q.res), 900);
-    } else if (explicit || Q.typed.length >= String(Q.res.expected).length) {
-      nudge(); Q.typed = ''; later(renderSlot, 250);
+    if (Q.isRes) {
+      const e = Q.res.expected, full = Q.ans.q !== '' && Q.ans.r !== '';
+      if (full && +Q.ans.q === e.q && +Q.ans.r === e.r) return fixDone();
+      if (explicit || full) { nudge(); Q.ans = { q: '', r: '' }; Q.field = 'q'; later(renderRes, 250); }
+      return;
     }
+    if (Q.typed === String(Q.res.expected)) return fixDone();
+    if (explicit || Q.typed.length >= String(Q.res.expected).length) { nudge(); Q.typed = ''; later(renderSlot, 250); }
+  }
+  function fixDone() {
+    Q.phase = 'right';
+    $('#qCard').classList.remove('fixing'); $('#qCard').classList.add('good');
+    renderSlot();
+    setFeedback('✓ ' + esc(pickOne(COPY_MSGS)), 'good');
+    Sound.ok(false);
+    later(() => afterAnswer(Q.res), 900);
   }
   function afterAnswer(res) {
     const queue = [];
@@ -2485,6 +2642,32 @@ body.testing .round-dots { display: none; }
       if (!queue.length) return nextQuestion();
       queue.shift()(run);
     })();
+  }
+  // Escalera de la tabla: los múltiplos hasta el que se pasa, con el número a dividir en su lugar.
+  function ladderHtml(d, q, r) {
+    const N = d * q + r, top = Math.min(q + 1, 10);
+    let h = `<div class="ladder" role="img" aria-label="Tabla del ${d}: el más grande que no pasa de ${N} es ${d * q}">`;
+    for (let i = 1; i <= top; i++) {
+      const m = d * i;
+      if (i === q + 1) h += (r ? `<span class="n">${N}</span>` : '') + `<span class="over">${m}</span>`;
+      else h += `<span class="${i === q ? 'hit' : ''}">${m}</span>`;
+    }
+    return h + '</div>';
+  }
+  // Puntos: q grupos (filas) de d, y los que sobran en otro color.
+  function resDotsSvg(d, q, r) {
+    const c = 12, g = 6, rad = 4.3, rows = q + (r ? 1 : 0);
+    const w = d * c + (d > 5 ? g : 0), h = Math.max(1, rows) * c + (rows > 5 ? g : 0);
+    const scale = Math.max(d, rows) <= 5 ? 2.3 : 1.6;
+    let s = `<svg viewBox="0 0 ${w} ${h}" style="--w:${Math.round(w * scale)}px" role="img" aria-label="${q} grupos de ${d} y ${r} sueltos">`;
+    for (let i = 0; i < rows; i++) {
+      const n = i < q ? d : r;
+      for (let j = 0; j < n; j++) {
+        const x = j * c + c / 2 + (j >= 5 ? g : 0), y = i * c + c / 2 + (i >= 5 ? g : 0);
+        s += `<circle cx="${x}" cy="${y}" r="${rad}" class="${i < q ? 'd1' : 'd2'}"/>`;
+      }
+    }
+    return s + '</svg>';
   }
   function dotsSvg(a, b) {
     const c = 12, g = 6, r = 4.3;
@@ -2514,6 +2697,7 @@ body.testing .round-dots { display: none; }
     if (/^[0-9]$/.test(e.key)) k = e.key;
     else if (e.key === 'Backspace' || e.key === 'Delete') k = 'del';
     else if (e.key === 'Enter' || e.key === 'NumpadEnter') k = 'ok';
+    else if (Q && Q.isRes && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) k = e.key === 'ArrowLeft' ? 'prev' : 'next';
     if (!k) return;
     e.preventDefault();
     const btn = document.querySelector(`.key[data-k="${k}"]`);
@@ -3111,7 +3295,7 @@ body.testing .round-dots { display: none; }
     openOverlay('o-medal');
   }
   let dipOp = 'mul';
-  const dipVerb = op => (op === 'div' ? 'dividir' : 'multiplicar');
+  const dipVerb = op => (op === 'res' ? 'dividir con residuo' : op === 'div' ? 'dividir' : 'multiplicar');
   function openDiploma(fresh, done, op) {
     dipOp = op || curOp();
     const T = trk(dipOp);
@@ -3169,21 +3353,23 @@ body.testing .round-dots { display: none; }
     const op = mapOp, T = trk(op);
     $('#mapOps').hidden = curOp() !== 'mix';
     $$('#mapOps button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.op === op)));
-    const F = factors(T), U = new Set(MT.universe(T.settings));
+    const F = factors(T), C = colsFor(op, T), U = new Set(MT.universe(T.settings));
     const grid = $('#mapGrid');
-    grid.style.setProperty('--cols', F.length + 1);
-    $('#mapLead').textContent = op === 'div'
+    grid.style.setProperty('--cols', C.length + 1);
+    $('#mapLead').textContent = op === 'res'
+      ? 'Cada fila es dividir entre un número y cada columna, cuántas veces cabe. La casilla muestra el número de la tabla: en la fila ÷5 y la columna 8 está 40 (de 40 a 44 entre 5 cabe 8 veces).'
+      : op === 'div'
       ? 'Cada fila es dividir entre un número y cada columna, el resultado. La casilla muestra el número que se divide. Tócala para ver cómo vas.'
       : 'Cada casilla es una multiplicación. Tócala para ver cómo vas.';
-    let h = gridHead(op, F, 'cell h');
+    let h = gridHead(op, C, 'cell h');
     for (const a of F) {
       h += rowHead(op, a, 'cell h');
-      for (const b of F) {
+      for (const b of C) {
         const k = MT.key(a, b);
         if (!U.has(k)) { h += '<div class="cell off" aria-hidden="true"></div>'; continue; }
         const f = T.facts[k], L = f.level;
         const mark = L === 4 ? '<span class="star" aria-hidden="true">★</span>' : L > 0 ? `<span class="mk" aria-hidden="true">${'•'.repeat(L)}</span>` : '';
-        h += `<button type="button" class="cell lv${L}" data-k="${k}" aria-label="${op === 'div' ? `${a * b} entre ${a}` : `${a} por ${b}`}: ${MT.LEVELS[L]}">${f.attempts ? a * b : '?'}${mark}</button>`;
+        h += `<button type="button" class="cell lv${L}" data-k="${k}" aria-label="${op === 'div' || op === 'res' ? fmtFact(op, a, b) : `${a} por ${b}`}: ${MT.LEVELS[L]}">${f.attempts ? a * b : '?'}${mark}</button>`;
       }
     }
     grid.innerHTML = h;
@@ -3197,8 +3383,9 @@ body.testing .round-dots { display: none; }
     c.classList.add('sel');
     const op = mapOp, T = trk(op);
     const t = MT.parse(c.dataset.k), f = T.facts[c.dataset.k], name = fmtFact(op, t.a, t.b);
+    const result = op === 'res' ? `: cabe ${t.b} ${t.b === 1 ? 'vez' : 'veces'}` : ` = ${MT.expected(T.settings, t.a, t.b)}`;
     $('#mapInfo').textContent = f.attempts
-      ? `${name} = ${MT.expected(T.settings, t.a, t.b)} · ${MT.LEVELS[f.level]}. ${LEVEL_TEXT[f.level]}`
+      ? `${name}${result} · ${MT.LEVELS[f.level]}. ${LEVEL_TEXT[f.level]}`
       : `${name} · ${LEVEL_TEXT[0]}`;
   });
 
@@ -3255,21 +3442,25 @@ body.testing .round-dots { display: none; }
     }).join('') : `<li><span class="meta">${T.answered ? 'Sin falencias por ahora.' : 'Aparecerán aquí cuando juegue un poco.'}</span></li>`;
     $('#adTables').innerHTML = MT.tables(T).map(t =>
       `<div class="trow">${medalHtml(t, op)}<div><div class="tname">${tableName(op, t.n)}</div><div class="bar"><i style="width:${100 * t.done / t.total}%"></i></div></div><span class="num">${t.done} de ${t.total}</span></div>`).join('');
-    $$('#setFast button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === st.fastMs)));
+    // Con residuo hay más que pensar: el umbral va de 6 a 12 s.
+    const fv = op === 'res' ? [6000, 8000, 10000, 12000] : [3000, 4000, 5000, 6000];
+    $('#setFast').innerHTML = fv.map(v => `<button type="button" data-v="${v}" aria-pressed="${v === st.fastMs}">${v / 1000} s</button>`).join('');
+    $('#setOne').hidden = op === 'res';
+    $('#testPanel').hidden = op === 'res';
     $$('#setRound button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === st.roundSize)));
-    $('#setTables').innerHTML = MT.TABLES.map(n => `<button type="button" class="tchip" data-n="${n}" aria-pressed="${st.tables.includes(n)}" aria-label="${tableName(op, n)}">${op === 'div' ? '÷' : ''}${n}</button>`).join('');
-    $('#setTablesNote').textContent = op === 'div' ? 'Una división entra si divide entre una tabla activa.' : 'Una multiplicación entra si tiene al menos una tabla activa.';
+    $('#setTables').innerHTML = MT.TABLES.map(n => `<button type="button" class="tchip" data-n="${n}" aria-pressed="${st.tables.includes(n)}" aria-label="${tableName(op, n)}">${op === 'div' || op === 'res' ? '÷' : ''}${n}</button>`).join('');
+    $('#setTablesNote').textContent = op === 'div' || op === 'res' ? 'Una división entra si divide entre una tabla activa.' : 'Una multiplicación entra si tiene al menos una tabla activa.';
     $('#setOneLabel').textContent = op === 'div' ? 'Incluir el 1 (÷1 y divisiones que dan 1)' : 'Incluir ×1';
-    const bo = st.boost, F = factors(T), U = new Set(MT.universe(st));
+    const bo = st.boost, F = factors(T), C = colsFor(op, T), U = new Set(MT.universe(st));
     const sel = bo.keys.filter(k => U.has(k)), selSet = new Set(sel);
     $('#setBoost').setAttribute('aria-checked', String(bo.on));
     const bg = $('#boostGrid');
     bg.classList.toggle('off', !bo.on);
-    bg.style.setProperty('--cols', F.length + 1);
-    let gh = gridHead(op, F, 'hc h');
+    bg.style.setProperty('--cols', C.length + 1);
+    let gh = gridHead(op, C, 'hc h');
     for (const a of F) {
       gh += rowHead(op, a, 'hc h');
-      for (const b of F) {
+      for (const b of C) {
         const k = MT.key(a, b);
         gh += U.has(k) ? `<button type="button" class="hc pc" data-k="${k}" aria-pressed="${selSet.has(k)}" aria-label="${fmtFact(op, a, b)}">${a * b}</button>` : '<div class="hc off"></div>';
       }
@@ -3304,12 +3495,12 @@ body.testing .round-dots { display: none; }
   function renderHeat() {
     $('#heatAcc').setAttribute('aria-pressed', String(heatMode === 'acc'));
     $('#heatTime').setAttribute('aria-pressed', String(heatMode === 'time'));
-    const op = adOp, T = AT(), F = factors(T), U = new Set(MT.universe(T.settings)), fast = T.settings.fastMs;
-    const heat = $('#heat'); heat.style.setProperty('--cols', F.length + 1);
-    let h = gridHead(op, F, 'hc h');
+    const op = adOp, T = AT(), F = factors(T), C = colsFor(op, T), U = new Set(MT.universe(T.settings)), fast = T.settings.fastMs;
+    const heat = $('#heat'); heat.style.setProperty('--cols', C.length + 1);
+    let h = gridHead(op, C, 'hc h');
     for (const a of F) {
       h += rowHead(op, a, 'hc h');
-      for (const b of F) {
+      for (const b of C) {
         const k = MT.key(a, b);
         if (!U.has(k)) { h += '<div class="hc off"></div>'; continue; }
         const f = T.facts[k], nm = fmtFact(op, a, b);

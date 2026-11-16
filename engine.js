@@ -8,6 +8,8 @@
   const CONFIG = {
     FAST_MS: 4000,                 // umbral de rapidez por defecto (ms)
     FAST_MS_DIV: 5000,             // en división el recuerdo es más lento al comienzo
+    FAST_MS_RES: 8000,             // con residuo hay dos respuestas y más que pensar
+    RES_EXACT: 0.25,               // residuo: 1 de cada 4 preguntas es exacta (residuo 0)
     UNKNOWN_MUL_PENALTY: 2.5,      // división nueva cuya multiplicación aún no sabe: entra más tarde
     TEST_PASS: 1,                  // test definitivo: hay que responderlas todas bien seguidas (64 de 64)
     TEST_COMEBACK: [3, 8],         // tras un error en el test, la fallada vuelve entre la 3.ª y la 8.ª pregunta
@@ -58,17 +60,26 @@
   /* Cada perfil tiene dos pistas con su propio progreso: multiplicar (el perfil mismo) y dividir (p.div).
      Una división se guarda como el par (divisor, resultado): 'axb' es (a × b) ÷ a = b. */
   function defaultSettings(op) {
-    const div = op === 'div';
-    const s = { op: div ? 'div' : 'mul', fastMs: div ? CONFIG.FAST_MS_DIV : CONFIG.FAST_MS, tables: TABLES.slice(), includeOne: false, roundSize: CONFIG.ROUND_SIZE, boost: { on: false, keys: [] }, testAlways: false, prizeText: CONFIG.PRIZE_DEFAULT };
+    const div = op === 'div' || op === 'res';
+    const s = { op: op === 'div' || op === 'res' ? op : 'mul', fastMs: op === 'res' ? CONFIG.FAST_MS_RES : div ? CONFIG.FAST_MS_DIV : CONFIG.FAST_MS, tables: TABLES.slice(), includeOne: false, roundSize: CONFIG.ROUND_SIZE, boost: { on: false, keys: [] }, testAlways: false, prizeText: CONFIG.PRIZE_DEFAULT };
     if (!div) { s.sound = true; s.gameOn = true; s.gamePer = CONFIG.GAME_PER; s.gameDayMax = CONFIG.GAME_DAY_MAX; }
     return s;
   }
   const isDiv = st => !!st && st.op === 'div';
+  /* Residuo: 'axb' es una familia: divisor a, cabe b veces (0 a 9). Cada pregunta elige un residuo r < a,
+     así que el número a dividir es a × b + r (siempre menor que 10 × a, como en cada paso de la división larga). */
+  const isRes = st => !!st && st.op === 'res';
   /* Respuesta esperada: el producto al multiplicar, el resultado al dividir. */
-  function expected(st, a, b) { return isDiv(st) ? b : a * b; }
-  /* "Tabla del n": al multiplicar, donde aparece n; al dividir, las que dividen entre n. */
-  function inTable(st, k, n) { const t = parse(k); return isDiv(st) ? t.a === n : t.a === n || t.b === n; }
-  function track(p, op) { return op === 'div' ? p.div : p; }
+  function expected(st, a, b, r) { return isRes(st) ? { q: b, r: r || 0 } : isDiv(st) ? b : a * b; }
+  /* "Tabla del n": al multiplicar, donde aparece n; al dividir (con o sin residuo), las que dividen entre n. */
+  function inTable(st, k, n) { const t = parse(k); return isDiv(st) || isRes(st) ? t.a === n : t.a === n || t.b === n; }
+  function track(p, op) { return op === 'div' ? p.div : op === 'res' ? p.res : p; }
+  // Residuo para una pregunta de la familia (d, q): 1 de cada 4 exacta; si no cabe (q = 0), nunca 0 ÷ d.
+  function resRemainder(d, q, rng) {
+    rng = rng || Math.random;
+    if (q > 0 && rng() < CONFIG.RES_EXACT) return 0;
+    return 1 + Math.floor(rng() * (d - 1));
+  }
   /* Multiplicaciones de refuerzo activas (vacío si el refuerzo está apagado). */
   function boostKeys(st) {
     return st.boost && st.boost.on ? (st.boost.keys || []).slice() : [];
@@ -83,12 +94,19 @@
     const F = st.includeOne ? [1, 2, 3, 4, 5, 6, 7, 8, 9] : TABLES;
     const act = activeTables(st), div = isDiv(st);
     const out = [];
+    if (isRes(st)) { for (const a of act) for (let b = 0; b <= 9; b++) out.push(key(a, b)); return out; }
     for (const a of F) for (const b of F) {
       if (div ? act.includes(a) || a === 1 : act.includes(a) || act.includes(b)) out.push(key(a, b));
     }
     return out;
   }
   /* Dificultad natural: ×1 → ×2 y ×5 → ×3, ×4, ×9 y cuadrados → 6, 7 y 8 combinados. */
+  // Residuo: por divisor (÷2 y ÷5 primero; ÷6, ÷7 y ÷8 al final); "no cabe" (0 veces) después de practicar un poco.
+  function resGroup(d, q) {
+    const g = d === 2 || d === 5 ? 1 : d === 3 || d === 4 || d === 9 ? 2 : 3;
+    return q === 0 ? Math.max(g, 2) : g;
+  }
+  function groupFor(st, a, b) { return isRes(st) ? resGroup(a, b) : group(a, b); }
   function group(a, b) {
     if (a === 1 || b === 1) return 0;
     if (a === 2 || a === 5 || b === 2 || b === 5) return 1;
@@ -110,8 +128,8 @@
   }
   function ensureTrack(p, op) {
     p.settings = Object.assign(defaultSettings(op), p.settings || {});
-    p.settings.op = op === 'div' ? 'div' : 'mul';
-    if (op === 'div') delete p.settings.sound;
+    p.settings.op = op === 'div' || op === 'res' ? op : 'mul';
+    if (op !== 'mul') delete p.settings.sound;
     p.settings.tables = activeTables(p.settings);
     const bo = p.settings.boost;
     p.settings.boost = {
@@ -141,14 +159,16 @@
     ensureTrack(p, 'mul');
     ensureGame(p);
     p.div = ensureTrack(p.div && typeof p.div === 'object' ? p.div : {}, 'div');
-    p.mode = p.mode === 'div' || p.mode === 'mix' ? p.mode : 'mul';
+    p.res = ensureTrack(p.res && typeof p.res === 'object' ? p.res : {}, 'res');
+    p.mode = ['div', 'mix', 'res'].includes(p.mode) ? p.mode : 'mul';
     return p;
   }
   /* Reinicia el progreso de un modo; el perfil, los ajustes y el otro modo se quedan. */
   function resetProgress(p, op) {
     // El premio se conserva: si ya lo ganó, sigue pendiente de reclamar.
     if (op === 'div') { p.div = ensureTrack({ settings: p.div.settings, prize: p.div.prize }, 'div'); return p; }
-    const keep = { v: 1, id: p.id, name: p.name, avatar: p.avatar, createdAt: p.createdAt, settings: p.settings, div: p.div, mode: p.mode, prize: p.prize, game: p.game };
+    if (op === 'res') { p.res = ensureTrack({ settings: p.res.settings, prize: p.res.prize }, 'res'); return p; }
+    const keep = { v: 1, id: p.id, name: p.name, avatar: p.avatar, createdAt: p.createdAt, settings: p.settings, div: p.div, res: p.res, mode: p.mode, prize: p.prize, game: p.game };
     for (const k of Object.keys(p)) delete p[k];
     return ensure(Object.assign(p, keep));
   }
@@ -237,7 +257,7 @@
     let c = stalest(3);
     if (c.length) return anyOf(c, rng);
     if (!blocked) {
-      c = avail.filter(k => { if (p.facts[k].level !== 0) return false; const t = parse(k); return group(t.a, t.b) <= 1; });
+      c = avail.filter(k => { if (p.facts[k].level !== 0) return false; const t = parse(k); return groupFor(p.settings, t.a, t.b) <= 1; });
       if (c.length) return anyOf(c, rng);
     }
     c = stalest(2);
@@ -251,8 +271,10 @@
     if (!c.length) return null;
     const rank = k => {
       const t = parse(k);
-      const unknown = known && !known.has(key(t.a, t.b)) && !known.has(key(t.b, t.a));
-      return group(t.a, t.b) + (unknown ? CONFIG.UNKNOWN_MUL_PENALTY : 0);
+      // Con residuo, caber 0 o 1 vez no depende de saberse la tabla.
+      const trivial = isRes(p.settings) && t.b <= 1;
+      const unknown = known && !trivial && !known.has(key(t.a, t.b)) && !known.has(key(t.b, t.a));
+      return groupFor(p.settings, t.a, t.b) + (unknown ? CONFIG.UNKNOWN_MUL_PENALTY : 0);
     };
     let g = Infinity;
     for (const k of c) g = Math.min(g, rank(k));
@@ -292,13 +314,15 @@
     const mm = mixFor(p), mode = mm[0], mix = mm[1];
     const make = (k, kind, stage, drawn) => {
       const t = parse(k);
-      return {
+      const m = {
         key: k, a: t.a, b: t.b,
         kind: maint && kind !== 'retry' ? 'mantenimiento' : kind,
         stage: stage || 0, mode: mode, drawn: drawn || null,
         level: p.facts[k].level,
         preHint: !!(s.frustrated[k] && s.needHint[k])
       };
+      if (isRes(p.settings)) { m.r = resRemainder(t.a, t.b, rng); m.n = t.a * t.b + m.r; }
+      return m;
     };
     for (let relax = 0; relax <= 2; relax++) {
       const ok = k => allowed(k, s.hist, relax);
@@ -337,9 +361,11 @@
     opts = opts || {};
     now = now || Date.now();
     const f = p.facts[k] || (p.facts[k] = newFact());
-    const t = parse(k), a = t.a, b = t.b, st = p.settings, div = isDiv(st);
-    const P = a * b, E = expected(st, a, b), q = p.q;
-    const correct = answer === E;
+    const t = parse(k), a = t.a, b = t.b, st = p.settings, div = isDiv(st) || isRes(st), res = isRes(st);
+    const rr = res ? (opts.r || 0) : 0;
+    const P = a * b + rr, E = expected(st, a, b, rr), q = p.q;
+    // Con residuo, la respuesta es { q, r }: las dos tienen que estar bien.
+    const correct = res ? !!answer && answer.q === b && answer.r === rr : answer === E;
     const fast = correct && ms <= p.settings.fastMs;
     const prev = f.level, first = f.attempts === 0;
     const gap = f.lastSeen < 0 ? Infinity : q - f.lastSeen - 1;
@@ -385,7 +411,7 @@
     if (correct) f.correct++;
     f.times.push([Math.round(ms), correct ? 1 : 0]);
     if (f.times.length > 5) f.times.shift();
-    if (!correct) { f.wrong.push(answer); if (f.wrong.length > 12) f.wrong.shift(); }
+    if (!correct) { f.wrong.push(res ? `${answer && answer.q} y sobran ${answer && answer.r}` : answer); if (f.wrong.length > 12) f.wrong.shift(); }
     f.lastSeen = q;
     f.lastAt = now;
     const day = ymd(now);
@@ -441,7 +467,7 @@
       prev: prev, level: level, up: up, mastered: mastered, stars: stars, streak: s.streak,
       assisted: assisted, retryStage: stage, sessionErrors: s.errors[k] || 0,
       newMedals: newMedals, allMastered: allMastered,
-      confusion: correct ? null : confusionFor(st, a, b, answer),
+      r: rr, confusion: correct ? null : confusionFor(st, a, b, answer, rr),
       roundDone: R.answered >= p.settings.roundSize,
       breakDue: s.activeMs >= s.breakAt
     };
@@ -502,7 +528,17 @@
     h.swap = fam;
     return h;
   }
-  function hintFor(st, a, b) { return isDiv(st) ? divHint(a, b) : hint(a, b); }
+  /* Pistas con residuo: buscar en la tabla el más grande que no pase, restar y comprobar. */
+  function resHint(d, q, r) {
+    const M = d * q, N = M + r, veces = q === 1 ? 'vez' : 'veces';
+    const full = q === 0
+      ? `${d} es más grande que ${N}: no cabe ninguna vez. Cabe 0 veces y sobran ${N}.`
+      : `En la tabla del ${d}, el más grande que no pasa de ${N} es ${d} × ${q} = ${M}. Cabe ${q} ${veces}` +
+        (r === 0 ? ' y no sobra nada: residuo 0.' : ` y sobran ${N} − ${M} = ${r}.`);
+    const cue = q === 0 ? `¿Cabe el ${d} en el ${N}?` : `Busca en la tabla del ${d} el número más grande que no pase de ${N}…`;
+    return { full: full, cue: cue, swap: `Comprueba: ${d} × ${q} + ${r} = ${N}.` };
+  }
+  function hintFor(st, a, b, r) { return isRes(st) ? resHint(a, b, r || 0) : isDiv(st) ? divHint(a, b) : hint(a, b); }
 
   /* ===== Confusiones típicas ===== */
   function divConfusion(d, q, ans) {
@@ -518,7 +554,20 @@
     }
     return null;
   }
-  function confusionFor(st, a, b, ans) { return isDiv(st) ? divConfusion(a, b, ans) : confusion(a, b, ans); }
+  // Errores típicos con residuo: los que más estorban después en la división larga.
+  function resConfusion(d, q, r, ans) {
+    if (!ans || typeof ans.q !== 'number' || typeof ans.r !== 'number' || !isFinite(ans.q) || !isFinite(ans.r)) return null;
+    const N = d * q + r, aq = ans.q, ar = ans.r, vez = n => (n === 1 ? 'vez' : 'veces');
+    if (aq === q && ar === r) return null;
+    if (aq === r && ar === q && q !== r) return { type: 'invertido', text: `Los cambiaste de lugar: primero cuántas veces cabe (${q}), después cuánto sobra (${r}).` };
+    if (aq < q && aq * d + ar === N) return { type: 'corto', text: `Sobran ${ar} y divides entre ${d}: ¡cabe más! Lo que sobra siempre es menor que ${d}.` };
+    if (ar >= d) return { type: 'residuo', text: `Lo que sobra tiene que ser menor que ${d}. Si sobran ${ar}, todavía cabe otra vez.` };
+    if (aq * d > N) return { type: 'pasado', text: `${d} × ${aq} = ${aq * d}, se pasa de ${N}: no cabe ${aq} ${vez(aq)}.` };
+    if (aq === q) return { type: 'resta', text: `¡Cuántas veces cabe está bien! Revisa lo que sobra: ${N} − ${d * q} = ${r}.` };
+    if (aq < q) return { type: 'corto', text: `${d} × ${aq} = ${aq * d}, pero todavía cabe más: ${d} × ${q} = ${d * q} tampoco pasa de ${N}.` };
+    return null;
+  }
+  function confusionFor(st, a, b, ans, r) { return isRes(st) ? resConfusion(a, b, r || 0, ans) : isDiv(st) ? divConfusion(a, b, ans) : confusion(a, b, ans); }
   function confusion(a, b, ans) {
     const P = a * b;
     if (typeof ans !== 'number' || !isFinite(ans) || ans === P) return null;
@@ -796,7 +845,7 @@
     }
     return p;
   }
-  function syncContrib(p, src) { syncTrack(p, src); if (p.div) syncTrack(p.div, src); return p; }
+  function syncContrib(p, src) { syncTrack(p, src); if (p.div) syncTrack(p.div, src); if (p.res) syncTrack(p.res, src); return p; }
   function lastActive(p) { let t = 0; for (const k in p.facts) t = Math.max(t, p.facts[k].lastAt || 0); return t; }
   // Une la pista b con la a (multiplicar o dividir). En cada pregunta queda el estado más reciente.
   function mergeTrack(a, b) {
@@ -855,13 +904,14 @@
   // Une el perfil b dentro de a: las dos pistas.
   function mergeProfiles(a, b) {
     ensure(a); ensure(b);
-    for (const [t, id] of [[a, a.id], [b, b.id], [a.div, a.id], [b.div, b.id]]) {
+    for (const [t, id] of [[a, a.id], [b, b.id], [a.div, a.id], [b.div, b.id], [a.res, a.id], [b.res, b.id]]) {
       if (!t.contrib || !Object.keys(t.contrib).length) syncTrack(t, 'x/' + id);
     }
-    const mul = mergeTrack(a, b), div = mergeTrack(a.div, b.div);
+    const mul = mergeTrack(a, b), div = mergeTrack(a.div, b.div), res = mergeTrack(a.res, b.res);
     mul.createdAt = Math.min(a.createdAt || Date.now(), b.createdAt || Date.now());
     Object.assign(a, mul);
     Object.assign(a.div, div);
+    Object.assign(a.res, res);
     a.game = mergeGame(a.game, b.game);
     return ensure(a);
   }
@@ -869,7 +919,7 @@
   const MT = {
     normName, syncContrib, mergeProfiles,
     CONFIG, TABLES, LEVELS, key, parse, universe, group, defaultSettings, boostKeys, newFact, newProfile, ensure, resetProgress,
-    expected, inTable, track, hintFor, confusionFor, divHint, divConfusion,
+    expected, inTable, track, hintFor, confusionFor, divHint, divConfusion, resHint, resConfusion, resRemainder, resGroup,
     testNeeded, testOpen, testOrder, testValid, recordTest, claimPrize, newPrize,
     pickMixed, sameFamily, streakTier, streakAfterError, testCheckpoint, testSaved,
     gameBalance, gameEarn, gameSpend, gameProgress, gameCount, snakeNew, snakeTurn, snakeStep,

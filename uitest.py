@@ -462,6 +462,81 @@ with sync_playwright() as pw:
     page.tap('#gameExit'); page.wait_for_function(READY)
     ok(page.is_visible('#s-play'), 'Si sale del juego que ganó practicando, vuelve a las operaciones')
     ctx.close()
+
+    # ---------- Misión Residuo ----------
+    READY_RES = """() => { const vis = id => !document.getElementById(id).hidden;
+      if (vis('o-round') || vis('o-medal') || vis('o-gamewin')) return true;
+      const c = document.getElementById('qCard');
+      return !document.getElementById('s-play').hidden && !document.getElementById('resRow').hidden
+        && document.getElementById('slotQ').textContent === '?' && document.getElementById('slotR').textContent === '?'
+        && !c.classList.contains('good') && !c.classList.contains('fixing'); }"""
+
+    def rinfo(pg):
+        n, d = int(pg.inner_text('#qa')), int(pg.inner_text('#qb'))
+        return n, d, n // d, n % d
+
+    ctx = br.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, is_mobile=True)
+    page = ctx.new_page(); watch(page); page.goto(URL); page.wait_for_timeout(500)
+    new_profile(page, 'Vale')
+    page.tap('#s-home .mode[data-op="res"]'); page.wait_for_timeout(200)
+    ok('divisiones con residuo' in page.inner_text('#homeCountLabel') and page.inner_text('#homeTotal') == '80' and not page.is_visible('#btnTest'),
+       'Residuo en el inicio: 80 familias, sin test definitivo por ahora')
+    page.screenshot(path=f'{SHOTS}/r1-home.png')
+    page.tap('#btnPlay'); page.wait_for_function(READY_RES)
+    layout_ok = page.is_visible('#resRow') and not page.is_visible('#slot') and not page.is_visible('#qEq')
+    page.screenshot(path=f'{SHOTS}/r2-play.png')
+    seen, done, notes = [], 0, {}
+    WAITR = f"() => ({READY_RES})()"
+    while done < 12:
+        if page.is_visible('#o-round'): page.tap('#roundGo'); page.wait_for_function(WAITR); continue
+        if page.is_visible('#o-medal'): page.tap('#medalOk'); page.wait_for_function(WAITR); continue
+        n, d, q, r = rinfo(page); seen.append((n, d, q, r))
+        if done == 0:
+            page.tap(f'.key[data-k="{q}"]'); page.wait_for_timeout(60)
+            notes['jump'] = 'active' in page.get_attribute('#slotR', 'class')
+            page.tap(f'.key[data-k="{r}"]'); page.tap('.key[data-k="ok"]'); page.wait_for_timeout(200)
+            notes['check'] = page.inner_text('#feedback')
+            notes['n0'] = (n, d, q, r)
+        elif done == 3:
+            wq = q + 1 if q < 9 else q - 1
+            page.keyboard.type(str(wq)); page.keyboard.type(str(r)); page.keyboard.press('Enter'); page.wait_for_timeout(450)
+            notes['fix'] = dict(tip=page.inner_text('.copy-tip'), conf=page.inner_text('.confusion') if page.query_selector('.confusion') else '',
+                                ladder=page.inner_text('.ladder'), dots=len(page.query_selector_all('#fixBox svg circle')), n=n, q=q, r=r, d=d)
+            fb, qt = page.locator('#feedback').bounding_box(), page.locator('#qText').bounding_box()
+            notes['nooverlap'] = fb['y'] + fb['height'] <= qt['y'] + 1
+            page.screenshot(path=f'{SHOTS}/r3-fix.png')
+            page.keyboard.type(str(q)); page.keyboard.type(str(r)); page.wait_for_timeout(250)
+            notes['copied'] = 'good' in page.get_attribute('#qCard', 'class')
+        elif done == 5:
+            page.keyboard.type('9' if q != 9 else '8'); page.keyboard.press('Backspace'); page.keyboard.press('Backspace')
+            page.keyboard.type(str(q)); page.keyboard.type(str(r)); page.keyboard.press('Enter')
+            page.wait_for_timeout(150); notes['back'] = 'good' in page.get_attribute('#qCard', 'class')
+        else:
+            page.keyboard.type(str(q)); page.keyboard.type(str(r)); page.keyboard.press('Enter')
+        done += 1
+        page.wait_for_function(WAITR, timeout=9000)
+    n0 = notes['n0']
+    ok(layout_ok and notes['jump'] and f'{n0[1]} × {n0[2]} + {n0[3]} = {n0[0]}' in notes['check'],
+       f'"{n0[0]} ÷ {n0[1]}": cabe [{n0[2]}] salta solo a sobran [{n0[3]}]; al acertar muestra la comprobación {n0[1]} × {n0[2]} + {n0[3]} = {n0[0]}')
+    fx = notes['fix']
+    ok(f"Escribe {fx['q']} y {fx['r']}" in fx['tip'] and fx['dots'] == fx['n'] and str(fx['d'] * fx['q']) in fx['ladder'] and fx['conf'] and notes['nooverlap'] and notes['copied'],
+       f"Error en {fx['n']} ÷ {fx['d']}: escalera de la tabla, {fx['dots']} puntos, \"{fx['conf'][:48]}…\"; al copiar {fx['q']} y {fx['r']} sigue")
+    ok(notes['back'], 'Borrar desde "sobran" vacío regresa a "cabe" (para corregir con el teclado)')
+    prof = page.evaluate("JSON.parse(localStorage.getItem('mision-tablas-v1')).profiles[0]")
+    ok(prof['res']['answered'] == 12 and prof['answered'] == 0 and prof['div']['answered'] == 0, 'Las respuestas suman solo a Residuo')
+    page.tap('#btnExit'); page.wait_for_timeout(250)
+    page.tap('#btnMap'); page.wait_for_timeout(250)
+    page.tap('#mapGrid .cell[data-k="5x8"]'); page.wait_for_timeout(100)
+    info = page.inner_text('#mapInfo')
+    ok(page.inner_text('#mapGrid .cell.h') == '÷' and len(page.query_selector_all('#mapGrid .cell[data-k]')) == 80 and '40–44 ÷ 5' in info and 'Residuo entre 5' in page.inner_text('#tableList'),
+       f'Mapa de Residuo: 8 filas × 10 columnas; "{info[:40]}…"')
+    page.screenshot(path=f'{SHOTS}/r4-map.png', full_page=True)
+    page.tap('#s-map .back'); page.wait_for_timeout(200)
+    open_adult(page)
+    ok(page.get_attribute('#adOps button[data-op="res"]', 'aria-pressed') == 'true' and page.get_attribute('#setFast button[data-v="8000"]', 'aria-pressed') == 'true'
+       and not page.is_visible('#testPanel') and not page.is_visible('#setOne'),
+       'Panel para adultos en Residuo: rapidez de 8 s (6 a 12), sin test ni "incluir el 1"')
+    ctx.close()
     br.close()
 
 srv.terminate()
