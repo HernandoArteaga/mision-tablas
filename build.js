@@ -1,5 +1,5 @@
 'use strict';
-// Une el motor (engine.js y larga.js) y la interfaz. Genera:
+// Une el motor y la interfaz. Genera:
 //  - index.html: la app completa en un solo archivo (GitHub Pages o abrir directo en el navegador).
 //  - mision-tablas.html: el contenido que se publica como Artifact en Claude.
 const fs = require('fs');
@@ -7,9 +7,8 @@ const path = require('path');
 const dir = __dirname;
 const engine = fs.readFileSync(path.join(dir, 'engine.js'), 'utf8');
 const tpl = fs.readFileSync(path.join(dir, 'template.html'), 'utf8');
-const larga = fs.readFileSync(path.join(dir, 'larga.js'), 'utf8');
 if (!tpl.includes('/*__ENGINE__*/')) throw new Error('Falta el marcador del motor');
-const page = tpl.replace('/*__ENGINE__*/', () => engine.trim() + '\n' + larga.trim());
+const page = tpl.replace('/*__ENGINE__*/', () => engine.trim());
 fs.writeFileSync(path.join(dir, 'mision-tablas.html'), page);
 
 const cut = page.indexOf('</style>') + '</style>'.length;

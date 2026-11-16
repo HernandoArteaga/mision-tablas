@@ -24,7 +24,6 @@
     GAME_SEC: 300,                 // premio de juego: 5 minutos de la culebrita…
     GAME_PER: 100,                 // …cada 100 respuestas buenas (≈ 11 a 15 min de práctica: 3 de práctica por 1 de juego)
     GAME_RES_WORTH: 2,             // una buena con residuo vale 2: toma el doble (dos respuestas, comprobación, más errores)
-    GAME_LD_WORTH: 3,              // división larga: cada paso bien a la primera vale 3 (≈ 9 por reparto de 75 a 90 s)
     GAME_DAY_MAX: 15,              // máximo de minutos por día ganados con respuestas (≈ 40 min de práctica)
     GAME_TEST_SEC: 600,            // superar el test definitivo: 10 minutos (las medallas dan 5, sin tope)
     ROUND_SIZE: 10,                // preguntas por ronda
@@ -157,15 +156,12 @@
       prog: +g.prog || 0, progAt: +g.progAt || 0, day: typeof g.day === 'string' ? g.day : '', dayEarned: +g.dayEarned || 0
     };
   }
-  // Módulos que guardan su propio progreso en el perfil (la división larga, en larga.js).
-  const HOOKS = { ensure: [], merge: [] };
   function ensure(p) {
     ensureTrack(p, 'mul');
     ensureGame(p);
     p.div = ensureTrack(p.div && typeof p.div === 'object' ? p.div : {}, 'div');
     p.res = ensureTrack(p.res && typeof p.res === 'object' ? p.res : {}, 'res');
     p.mode = ['div', 'mix', 'res'].includes(p.mode) ? p.mode : 'mul';
-    HOOKS.ensure.forEach(f => f(p));
     return p;
   }
   /* Reinicia el progreso de un modo; el perfil, los ajustes y el otro modo se quedan. */
@@ -173,7 +169,7 @@
     // El premio se conserva: si ya lo ganó, sigue pendiente de reclamar.
     if (op === 'div') { p.div = ensureTrack({ settings: p.div.settings, prize: p.div.prize }, 'div'); return p; }
     if (op === 'res') { p.res = ensureTrack({ settings: p.res.settings, prize: p.res.prize }, 'res'); return p; }
-    const keep = { v: 1, id: p.id, name: p.name, avatar: p.avatar, createdAt: p.createdAt, settings: p.settings, div: p.div, res: p.res, mode: p.mode, prize: p.prize, game: p.game, ld: p.ld };
+    const keep = { v: 1, id: p.id, name: p.name, avatar: p.avatar, createdAt: p.createdAt, settings: p.settings, div: p.div, res: p.res, mode: p.mode, prize: p.prize, game: p.game };
     for (const k of Object.keys(p)) delete p[k];
     return ensure(Object.assign(p, keep));
   }
@@ -707,7 +703,7 @@
     return { prog: Math.min(g.prog, st.gamePer), per: st.gamePer, earnedToday: earnedToday, max: max, capped: earnedToday >= max };
   }
   // Valor de una respuesta buena para el tiempo de juego, según la operación.
-  function gameWorth(op) { return op === 'res' ? CONFIG.GAME_RES_WORTH : op === 'ld' ? CONFIG.GAME_LD_WORTH : 1; }
+  function gameWorth(op) { return op === 'res' ? CONFIG.GAME_RES_WORTH : 1; }
   function gameCount(p, dev, now, n) {
     now = now || Date.now();
     const g = p.game, st = p.settings, day = ymd(now);
@@ -921,12 +917,11 @@
     Object.assign(a.div, div);
     Object.assign(a.res, res);
     a.game = mergeGame(a.game, b.game);
-    HOOKS.merge.forEach(f => f(a, b));
     return ensure(a);
   }
 
   const MT = {
-    normName, syncContrib, mergeProfiles, HOOKS,
+    normName, syncContrib, mergeProfiles,
     CONFIG, TABLES, LEVELS, key, parse, universe, group, defaultSettings, boostKeys, newFact, newProfile, ensure, resetProgress,
     expected, inTable, track, hintFor, confusionFor, divHint, divConfusion, resHint, resConfusion, resRemainder, resGroup,
     testNeeded, testOpen, testOrder, testValid, recordTest, claimPrize, newPrize,

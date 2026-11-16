@@ -1,5 +1,5 @@
 """Prueba de la interfaz en Chromium: celular solo con el dedo, tablet y computador solo con teclado."""
-import os, re, subprocess, sys, time
+import os, subprocess, sys, time
 from playwright.sync_api import sync_playwright
 from PIL import Image
 
@@ -80,70 +80,6 @@ def play_touch(page, n, wrong_at, shots=None):
         page.wait_for_function(READY, timeout=8000)
     return round_seen
 
-
-
-# ---------- División larga (BETA) ----------
-def ld_prob(pg):
-    n, d = [int(x) for x in re.findall(r'\d+', pg.inner_text('.ld-prob h2'))]
-    return n, d
-
-
-def ld_steps(n, d):
-    rem, out = 0, []
-    for dig in str(n):
-        cur = rem * 10 + int(dig); q = cur // d; r = cur - q * d; out.append((cur, q, q * d, r)); rem = r
-    return out
-
-
-def ld_keys(pg, s):
-    for ch in str(s): pg.tap(f'#ldKeys .key[data-k="{ch}"]')
-
-
-def ld_ok(pg):
-    pg.tap('#ldKeys .key[data-k="ok"]'); pg.wait_for_timeout(120)
-
-
-def ld_close(pg):
-    for _ in range(3):
-        if pg.is_visible('#o-gamewin'): pg.tap('#gwLater'); pg.wait_for_timeout(150)
-
-
-def ld_play(pg, paper=False, notes=None, wrong_at=None):
-    """Hace un reparto completo. Si wrong_at = i, en ese paso se queda corta dos veces (pista y luego copiar)."""
-    n, d = ld_prob(pg)
-    if pg.query_selector('[data-act="est"]'):
-        pg.tap(f'[data-act="est"][data-k="{(n // d) // 100}"]'); pg.wait_for_timeout(120)
-    st = ld_steps(n, d)
-    for i in range(1 if paper and st[0][1] == 0 else 0, 3):
-        cur, q, p, r = st[i]
-        if paper:
-            ld_keys(pg, q); ld_ok(pg); ld_keys(pg, p); ld_ok(pg); ld_keys(pg, r); ld_ok(pg)
-        else:
-            wrong = wrong_at == i and q > 0
-            if wrong:
-                for k in range(2):
-                    ld_keys(pg, q - 1); ld_keys(pg, min(9, cur - (q - 1) * d)); ld_ok(pg)
-                    if notes is not None and k == 0:
-                        notes['hint'] = pg.inner_text('.ld-msg')
-                        notes['ladder'] = pg.inner_text('.ld-msg .ladder') if pg.query_selector('.ld-msg .ladder') else ''
-                        pg.screenshot(path=f'{SHOTS}/l3-hint.png')
-                if notes is not None: notes['copy'] = pg.inner_text('.ld-msg')
-            ld_keys(pg, q); ld_keys(pg, r)
-            if not wrong: ld_ok(pg)
-            pg.wait_for_timeout(120)
-        ld_close(pg)
-        if notes is not None and i == 0 and not paper:
-            notes['box100'] = len(pg.query_selector_all('.ld-box .ldc.c100')); notes['q0'] = q; notes['d'] = d
-            pg.screenshot(path=f'{SHOTS}/l2-bank.png')
-        pg.tap('[data-act="down"]' if i < 2 else '[data-act="toread"]'); pg.wait_for_timeout(120)
-    Q, R = n // d, n % d
-    if notes is not None and str(Q) != str(Q)[::-1]:
-        ld_keys(pg, str(Q)[::-1]); ld_keys(pg, R); ld_ok(pg)
-        notes['reves'] = pg.inner_text('.ld-msg')
-    ld_keys(pg, Q); ld_keys(pg, R); ld_ok(pg)
-    ld_keys(pg, n); ld_ok(pg); pg.wait_for_timeout(200)
-    ld_close(pg)
-    return n, d
 
 with sync_playwright() as pw:
     br = pw.chromium.launch()
@@ -600,83 +536,6 @@ with sync_playwright() as pw:
     ok(page.get_attribute('#adOps button[data-op="res"]', 'aria-pressed') == 'true' and page.get_attribute('#setFast button[data-v="8000"]', 'aria-pressed') == 'true'
        and not page.is_visible('#testPanel') and not page.is_visible('#setOne'),
        'Panel para adultos en Residuo: rapidez de 8 s (6 a 12), sin test ni "incluir el 1"')
-    ctx.close()
-    # ---------- División larga (BETA) ----------
-    ctx = br.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, is_mobile=True)
-    page = ctx.new_page(); watch(page); page.goto(URL); page.wait_for_timeout(500)
-    new_profile(page, 'Juli')
-    page.tap('#btnLd'); page.wait_for_timeout(250)
-    ok('Elige tu reparto' in page.inner_text('#ldView') and len(page.query_selector_all('[data-act="start"]')) == 3 and len(page.query_selector_all('button.ld-node')) == 1,
-       'División larga: 3 repartos para elegir en "Sin canje"; las demás etapas cerradas')
-    page.screenshot(path=f'{SHOTS}/l1-map.png')
-    page.tap('[data-act="start"][data-k="1"]'); page.wait_for_timeout(150)
-    ok(len(page.query_selector_all('[data-act="est"]')) >= 2 and 'Antes de repartir' in page.inner_text('#ldView'), 'Primero estima entre cuánto y cuánto queda la respuesta')
-    ln = {}
-    ld_play(page, notes=ln, wrong_at=2)
-    ok(ln['box100'] == ln['d'] * ln['q0'], f"Las fichas se reparten solas: {ln['box100']} fichas de 100 en {ln['d']} cajas ({ln['q0']} en cada una)")
-    ok('alcanza otra vuelta' in ln['hint'] and ln['ladder'] and 'Escribe' in ln['copy'],
-       'Si se queda corta: "¡alcanza otra vuelta!" con la escalera de la tabla; al segundo intento muestra la respuesta para copiarla')
-    ok('reves' not in ln or 'izquierda a derecha' in ln['reves'], 'Si escribe la respuesta al revés: "léela de izquierda a derecha"')
-    page.screenshot(path=f'{SHOTS}/l4-done.png')
-    prof = page.evaluate("JSON.parse(localStorage.getItem('mision-tablas-v1')).profiles[0]")
-    led = prof['ld']; dev = list(led['dev'].values())[0]
-    flagged = any(f['level'] == 1 for f in prof['res']['facts'].values())
-    ok('¡Lo terminaste!' in page.inner_text('.ld-done') and dev['solved'] == 1 and dev['clean'] == 0 and led['errs'][0]['t'] == 'corta' and prof['game']['prog'] == 6 and flagged,
-       f"Reparto guardado con errores: +{prof['game']['prog']} para la culebrita (2 pasos a la primera) y el paso fallado se manda a Residuo")
-    page.tap('[data-act="next"]'); page.wait_for_timeout(150)
-    ld_play(page)
-    ok('¡Bien repartido!' in page.inner_text('.ld-done') and '1 de 8' in page.inner_text('.ld-done'), 'Un reparto limpio: "¡Bien repartido!" y 1 de 8 para dominar la etapa')
-    page.tap('[data-act="map"]'); page.wait_for_timeout(150); page.tap('#ldExit'); page.wait_for_timeout(200)
-    ok('Etapa 1' in page.inner_text('#ldSub'), f"En el inicio: \"{page.inner_text('#ldSub')}\"")
-    open_adult(page)
-    page.tap('#adOps button[data-op="ld"]'); page.wait_for_timeout(200)
-    trk_hidden = page.evaluate("Array.from(document.querySelectorAll('#s-adult .panel.trk')).every(x => x.hidden)")
-    ok(trk_hidden and page.is_visible('#ldPanel') and 'Se queda corta' in page.inner_text('#ldErrs') and 'REPARTOS' in page.inner_text('#ldKpis').upper(),
-       'Panel para adultos: División larga con etapas, errores que se repiten y recomendación')
-    page.locator('#ldPanel').screenshot(path=f'{SHOTS}/l9-adult.png')
-    page.tap('#ldOpen'); page.wait_for_timeout(100)
-    page.tap('#adOps button[data-op="mul"]'); page.wait_for_timeout(150)
-    ok(page.is_visible('#heat') and not page.is_visible('#ldPanel'), 'Al volver a Multiplicar se ven sus paneles otra vez')
-    page.tap('#s-adult .back'); page.wait_for_timeout(200)
-    page.tap('#btnLd'); page.wait_for_timeout(200)
-    ok(len(page.query_selector_all('button.ld-node')) == 6, 'Papá abrió todas las etapas y el detective')
-    page.tap('[data-act="sel"][data-s="s4"]'); page.wait_for_timeout(120)
-    page.tap('[data-act="start"][data-k="0"]'); page.wait_for_timeout(120)
-    n4, d4 = ld_prob(page)
-    page.tap('[data-act="est"][data-k="0"]'); page.wait_for_timeout(120)
-    ld_keys(page, 1); ld_keys(page, 0); ld_ok(page)
-    h4 = page.inner_text('.ld-msg')
-    ld_keys(page, 0); ld_keys(page, n4 // 100); ld_ok(page); ld_close(page)
-    b4 = page.inner_text('.ld-bank')
-    ok('no alcanza' in h4 and 'banco' in b4 and f'= {(n4 // 100) * 10 + (n4 // 10) % 10}' in b4,
-       f'{n4} ÷ {d4}: si la primera no alcanza, le tocan 0 y las {n4 // 100} de 100 van al banco')
-    page.screenshot(path=f'{SHOTS}/l5-s4bank.png')
-    page.tap('#ldExit'); page.wait_for_timeout(150)
-    page.tap('[data-act="sel"][data-s="s5"]'); page.wait_for_timeout(120)
-    page.tap('[data-act="start"][data-k="1"]'); page.wait_for_timeout(120)
-    ld_play(page, paper=True)
-    ok('¡Bien repartido!' in page.inner_text('.ld-done'), 'Solo papel: sin fichas, escribe divido, multiplico y resto, y termina el reparto')
-    page.tap('[data-act="map"]'); page.wait_for_timeout(150)
-    page.tap('[data-act="sel"][data-s="s5"]'); page.wait_for_timeout(120)
-    page.tap('[data-act="start"][data-k="2"]'); page.wait_for_timeout(120)
-    n5, d5 = ld_prob(page)
-    page.tap(f'[data-act="est"][data-k="{(n5 // d5) // 100}"]'); page.wait_for_timeout(120)
-    ok('Divido' in page.inner_text('.ld-q') and not page.query_selector('.ld-boxes'), 'Solo papel: arranca con "Divido" y sin cajas a la vista')
-    page.screenshot(path=f'{SHOTS}/l6-paper.png')
-    page.tap('[data-act="chips"]'); page.wait_for_timeout(120)
-    ok(page.query_selector('.ld-boxes') is not None, 'Con "Ver con fichas (ayuda)" aparecen las cajas')
-    page.tap('#ldExit'); page.wait_for_timeout(150)
-    page.tap('[data-act="det"]'); page.wait_for_timeout(200)
-    page.screenshot(path=f'{SHOTS}/l7-det.png')
-    page.tap('.ld-kid[data-w="0"]'); page.wait_for_timeout(150)
-    for k in range(3):
-        page.query_selector_all('[data-act="opt"]')[k].tap(); page.wait_for_timeout(150)
-        if page.query_selector('button.btn[data-act="det"]'): break
-    ld_close(page)
-    txt = page.inner_text('#ldView')
-    ok(page.query_selector('button.btn[data-act="det"]') is not None and ('Compruébalo' in txt or 'alcanzaba' in txt),
-       'Detective: elige quién tiene razón, encuentra el error y lo comprueba')
-    page.screenshot(path=f'{SHOTS}/l8-det.png')
     ctx.close()
     br.close()
 

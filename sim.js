@@ -1,7 +1,6 @@
 'use strict';
 /* Simulación de niños ficticios para verificar el motor adaptativo. */
 const MT = require('./engine.js');
-const LD = require('./larga.js');
 const fails = [];
 const out = [];
 const check = (cond, msg) => { out.push((cond ? '  OK   ' : '  FALLA ') + msg); if (!cond) fails.push(msg); return cond; };
@@ -524,94 +523,6 @@ out.push('\nExtras');
     `Niño A: 7×8 y 6×9 siguen en Difícil y las otras ${MT.summary(Ap).mastered} están dominadas`);
   const w = MT.weaknesses(Ap, 10);
   check(w[0] && ['7x8', '6x9'].includes(w[0].key) && w[0].confusion, `Panel: la mayor falencia es ${w[0].a} × ${w[0].b} (respondió ${w[0].confusion.answer}, ${w[0].confusion.count} veces)`);
-}
-
-out.push('\n15) División larga (BETA)');
-{
-  const rng = rngFrom(901);
-  // Cada etapa arma divisiones de su tipo, con las cuentas bien hechas.
-  const bad = [];
-  let s4two = true, s3zero = true, s1clean = true, brOk = true;
-  for (const st of ['s1', 's2', 's3', 's4', 's5']) for (const tier of LD.TIERS) for (let k = 0; k < 80; k++) {
-    const pr = LD.make(st, tier, rng);
-    const Q = Math.floor(pr.n / pr.d), R = pr.n % pr.d;
-    const qs = pr.steps.map(x => x.q).join('').replace(/^0/, '');
-    if (pr.n < 100 || pr.n > 999 || pr.Q !== Q || pr.R !== R || qs !== String(Q) || pr.steps[2].r !== R) bad.push(`${pr.n}÷${pr.d}`);
-    for (const x of pr.steps) if (x.prod !== x.q * pr.d || x.cur - x.prod !== x.r || x.r >= pr.d) bad.push(`paso ${pr.n}÷${pr.d}`);
-    const kind = LD.classify(pr.d, pr.n);
-    if (st !== 's5' && kind !== st) bad.push(`${pr.n}÷${pr.d} no es ${st}`);
-    if (st === 's5' && !['s2', 's3', 's4'].includes(kind)) bad.push(`${pr.n}÷${pr.d} en solo papel`);
-    if (kind === 's4' && pr.Qs.length !== 2) s4two = false;
-    if (kind === 's3' && !pr.Qs.slice(1).includes('0')) s3zero = false;
-    if (kind === 's1' && (pr.steps[0].r || pr.steps[1].r)) s1clean = false;
-    const br = LD.brackets(pr.d)[LD.bracketOf(pr.Q)];
-    if (!br || pr.Q < br[0] || pr.Q >= br[1]) brOk = false;
-  }
-  check(!bad.length && s4two && s3zero && s1clean && brOk,
-    `1.200 divisiones por etapa y nivel: cada una es de su tipo y sus pasos cuadran (cabe, usa, sobra < divisor; la respuesta de arriba es n ÷ d) ${bad.slice(0, 4).join(', ')}`);
-  const ch = LD.choices('s2', rngFrom(5));
-  check(ch.length === 3 && ch[0].d <= 5 && ch[2].d >= 7 && new Set(ch.map(c => c.key)).size === 3, `Tres para elegir: tranquilo ${ch[0].n}÷${ch[0].d}, normal ${ch[1].n}÷${ch[1].d}, reto ${ch[2].n}÷${ch[2].d}`);
-
-  // Revisar pasos: 451 ÷ 4 y los errores típicos.
-  const pr = LD.build(4, 451, 's2'), z = LD.build(5, 505, 's3'), f = LD.build(4, 136, 's4');
-  const t = (p, i, q, r) => LD.checkStep(p, i, q, r).type || 'ok';
-  check(t(pr, 0, 1, 0) === 'ok' && t(pr, 2, 2, 3) === 'ok' && t(pr, 2, 1, 7) === 'corta' && t(pr, 2, 3, 0) === 'pasa' && t(pr, 2, 2, 4) === 'resta'
-    && t(z, 1, 1, 0) === 'cero' && t(z, 1, 0, 0) === 'ok' && t(f, 0, 1, 0) === 'noalcanza' && t(f, 0, 0, 1) === 'ok',
-    '451 ÷ 4: "cabe 1, sobran 7" se queda corta; 3 se pasa; resta mal; 505 ÷ 5: olvidar el 0; 136 ÷ 4: la primera no alcanza');
-  check(LD.checkRead(pr, '112', 3).ok && LD.checkRead(pr, '211', 3).type === 'reves' && LD.checkRead(pr, '112', 0).type === 'residuo' && LD.checkCheck(pr, 451).ok,
-    'Leer la respuesta: 112 R 3 bien; 211 al revés; sin residuo; la comprobación da 451');
-  check(LD.checkPart(pr, 2, 'q', 2).ok && LD.checkPart(pr, 2, 'p', 8).ok && LD.checkPart(pr, 2, 'p', 9).type === 'mult' && LD.checkPart(pr, 2, 'r', 3).ok,
-    'Solo papel: divido (2), multiplico (8) y resto (3) se revisan por separado');
-
-  // Dominio de una etapa y etapas que se abren.
-  const now0 = new Date(2026, 10, 16, 16).getTime();
-  const p = MT.newProfile('J', '🦉', now0);
-  check(p.ld && LD.current(p) === 's1' && LD.isOpen(p, 's1') && !LD.isOpen(p, 's2') && !LD.isOpen(p, 'det'), 'Perfil nuevo: empieza en "Sin canje"; lo demás cerrado');
-  const s1 = LD.make('s1', 'normal', rng);
-  let done = null;
-  for (let k = 0; k < 7; k++) LD.record(p, 'cel/J', { prob: s1, clean: true, ok1: 3, steps: 3, errs: [], ms: 80000, stars: 4 }, now0 + k * 1000);
-  const mid = p.ld.st.s1.streak;
-  const e = LD.record(p, 'cel/J', { prob: s1, clean: false, ok1: 2, steps: 3, errs: [{ i: 2, t: 'corta' }], ms: 90000, stars: 2 }, now0 + 8000);
-  const a = LD.record(p, 'cel/J', { prob: s1, clean: true, assisted: true, ok1: 3, steps: 3, errs: [], ms: 90000, stars: 3 }, now0 + 9000);
-  for (let k = 0; k < 5; k++) done = LD.record(p, 'cel/J', { prob: s1, clean: true, ok1: 3, steps: 3, errs: [], ms: 80000, stars: 4 }, now0 + 20000 + k * 1000);
-  check(mid === 7 && e.streak === 5 && a.streak === 3 && done.newlyDone && p.ld.st.s1.done && LD.isOpen(p, 's2') && LD.current(p) === 's2',
-    `8 limpios seguidos dominan la etapa: 7 → con error ${e.streak} (resta 2) → con ayuda ${a.streak} → 5 más: dominada y se abre "Con canje"`);
-  const T = LD.totals(p);
-  check(T.solved === 14 && T.clean === 12 && T.stars === 4 * 12 + 2 + 3 && p.ld.errs.length === 1 && p.ld.errs[0].t === 'corta' && /corta/.test(LD.errStats(p)[0].text),
-    `Totales: ${T.solved} repartos, ${T.clean} limpios, ${T.stars} estrellas; el error queda anotado ("${LD.errStats(p)[0].text}")`);
-  check(/Residuo/.test(LD.recommend(p)), 'Recomendación para Papá según el error que más se repite');
-
-  // Unir dos dispositivos: se suma sin contar dos veces.
-  const q = MT.newProfile('J', '🦉', now0);
-  for (let k = 0; k < 3; k++) LD.record(q, 'pc/J', { prob: s1, clean: true, ok1: 3, steps: 3, errs: [], ms: 60000, stars: 4 }, now0 + 50000 + k * 1000);
-  const a1 = JSON.parse(JSON.stringify(p));
-  MT.mergeProfiles(a1, JSON.parse(JSON.stringify(q)));
-  const once = LD.totals(a1);
-  MT.mergeProfiles(a1, JSON.parse(JSON.stringify(q)));
-  const twice = LD.totals(a1);
-  check(once.solved === 17 && twice.solved === 17 && a1.ld.st.s1.done === p.ld.st.s1.done && a1.ld.log.length === 17,
-    `Unir dispositivos: 14 + 3 = ${once.solved} repartos; unir otra vez no suma doble (${twice.solved}); la etapa sigue dominada`);
-  const r1 = JSON.parse(JSON.stringify(p)); MT.ensure(r1); MT.resetProgress(r1, 'mul');
-  check(LD.totals(r1).solved === 14, 'Reiniciar Multiplicar no borra la División larga');
-  const old = JSON.parse(JSON.stringify(p)); delete old.ld; MT.ensure(old);
-  check(old.ld && LD.totals(old).solved === 0 && LD.current(old) === 's1', 'Un perfil de antes recibe la División larga vacía');
-  p.ld.open = true;
-  check(LD.isOpen(p, 's5') && LD.isOpen(p, 'det'), 'Papá puede abrir todas las etapas');
-
-  // Detective: cada caso trae un error que se puede comprobar.
-  const cbad = [];
-  const seenT = new Set();
-  for (let k = 0; k < 200; k++) {
-    const c = LD.makeCase(p, rng), pr2 = c.prob, w = c.wrong;
-    seenT.add(c.type);
-    if (!c.options.some(o => o.t === c.type) || c.options.length !== 3 || c.wrongName === c.rightName) cbad.push('opciones');
-    if (c.type === 'cero' && (w.q.includes('0') || w.q !== pr2.Qs.replace('0', ''))) cbad.push('cero ' + pr2.key);
-    if (c.type === 'reves' && w.q !== pr2.Qs.split('').reverse().join('')) cbad.push('reves ' + pr2.key);
-    if (c.type === 'corta' && (w.r < pr2.d || pr2.d * +w.q + w.r !== pr2.n)) cbad.push('corta ' + pr2.key);
-    if (c.type === 'sinres' && (w.r !== null || !pr2.R)) cbad.push('sinres ' + pr2.key);
-  }
-  check(!cbad.length && seenT.size === 4, `Detective: 200 casos con los 4 errores (olvidar el 0, al revés, quedarse corta, sin residuo) ${cbad.slice(0, 3).join(', ')}`);
-  check(MT.gameWorth('ld') === 3, 'Culebrita: cada paso bien a la primera vale 3 (≈ 9 por reparto)');
 }
 
 console.log(out.join('\n'));
