@@ -576,6 +576,195 @@ body.testing .round-dots { display: none; }
 @keyframes ticketIn { from { transform: perspective(600px) rotateX(85deg) translateY(-20px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes shine { 0% { transform: translateX(-120%); } 45%, 100% { transform: translateX(120%); } }
 
+/* ---------- División larga (BETA): El Repartidor ---------- */
+.beta { display: inline-block; vertical-align: middle; margin-left: 6px; padding: 2px 8px; border-radius: 999px; background: var(--stamp); color: #fff; font-family: var(--font-body); font-weight: 900; font-size: 12px; letter-spacing: .06em; line-height: 1.4; }
+.ld-home { border-color: #2B6CB0; background: linear-gradient(135deg, #E6F0FF, #A9C8F5); box-shadow: 0 5px 0 #2B6CB0; }
+.ld-home:active { box-shadow: 0 2px 0 #2B6CB0; }
+.ld-home .tc-icon { font-family: var(--font-display); font-weight: 800; font-size: 34px; color: #2B6CB0; }
+.ld-home .chev { color: #2B6CB0; }
+.ld-brand { font-family: var(--font-display); font-weight: 800; font-size: 19px; line-height: 1.1; flex: 1; text-align: center; min-width: 0; }
+.ld-brand .beta { font-size: 11px; margin-left: 4px; }
+.ld { grid-template-rows: auto minmax(0, 1fr); }
+.ld-view { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding-bottom: 8px; }
+.ld-view.v-play { overflow: hidden; }
+.ld-view .title { font-size: clamp(28px, 6vw, 38px); }
+.ld-head { display: grid; gap: 4px; }
+.ld-h2 { font-size: 22px; margin-top: 4px; }
+.ld-h3 { font-family: var(--font-display); font-size: 19px; margin: 4px 0 -4px; }
+.ld-view .note, .panel .note { color: var(--ink-2); font-weight: 700; font-size: 15px; }
+.ld-view .ld-card, .ld-view > .ld-card {
+  background: var(--card); border: 2px solid var(--line); border-radius: 18px; padding: 12px 14px; display: grid; gap: 8px; box-shadow: none;
+}
+.ld-view .ld-card h3 { font-size: 20px; }
+.ld-view .ld-card.center { justify-items: center; text-align: center; }
+.ld-view .row2 { display: flex; justify-content: space-between; gap: 10px; font-weight: 800; }
+.ld-view .bar { height: 12px; }
+.ld-beta { color: var(--ink-3); font-weight: 700; font-size: 14px; text-align: center; }
+
+/* Camino */
+.ld-path { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ld-node {
+  width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; min-height: 60px; padding: 8px 12px;
+  border-radius: 16px; border: 2px solid var(--line); background: var(--card); color: var(--ink);
+}
+button.ld-node { box-shadow: 0 3px 0 var(--key-edge); touch-action: manipulation; }
+button.ld-node:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--key-edge); }
+.ld-node .n { flex: none; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 19px; background: var(--lv0); color: var(--ink-2); }
+.ld-node .tx { flex: 1; min-width: 0; display: grid; }
+.ld-node .tx b { font-size: 17px; }
+.ld-node .tx small { font-size: 14px; font-weight: 700; color: var(--ink-2); }
+.ld-node.done .n { background: var(--ok); color: #fff; }
+.ld-node.sel { border-color: var(--warm); box-shadow: 0 3px 0 var(--warm); background: var(--warm-soft); }
+.ld-node.sel .n { background: var(--warm); color: #fff; }
+.ld-node.lock { background: transparent; border-style: dashed; color: var(--ink-2); }
+.ld-node.info .n { background: var(--gold-soft); color: var(--gold-deep); }
+.ld-node .here { flex: none; font-weight: 900; font-size: 13px; color: var(--warm); }
+.ld-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.ld-choice {
+  display: grid; justify-items: center; gap: 2px; padding: 10px 4px; border-radius: 18px; border: 2px solid var(--key-edge);
+  background: var(--card); box-shadow: 0 4px 0 var(--key-edge); touch-action: manipulation;
+}
+.ld-choice:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--key-edge); }
+.ld-choice small { font-weight: 800; font-size: 13px; color: var(--ink-2); }
+.ld-choice b { font-family: var(--font-display); font-size: clamp(20px, 5.4vw, 26px); white-space: nowrap; }
+.ld-choice span { color: var(--gold-deep); font-weight: 900; font-size: 14px; }
+
+/* Jugar: arriba lo que se ve (se desplaza si no cabe), abajo la pregunta y el teclado (siempre a la vista) */
+.ld-play { height: 100%; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 10px; }
+.ld-scroll { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 2px 2px 6px; }
+.ld-scroll > * { flex-shrink: 0; }
+.ld-bottom { display: grid; gap: 10px; }
+@media (min-width: 760px) and (orientation: landscape) {
+  .ld-play.keys { grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); grid-template-rows: minmax(0, 1fr); }
+  .ld-play.keys .ld-bottom { align-content: end; }
+}
+.ld-rail { display: flex; gap: 5px; }
+.ld-rail span { flex: 1; text-align: center; padding: 6px 2px; border-radius: 10px; background: var(--card); border: 2px solid var(--line); font-weight: 800; font-size: 13px; color: var(--ink-2); white-space: nowrap; }
+.ld-rail span.cur { background: var(--ink); border-color: var(--ink); color: #fff; }
+.ld-rail span.done { background: var(--ok-soft); border-color: var(--lv3); color: var(--ok-edge); }
+.ld-prob { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.ld-prob .txt { min-width: 0; display: grid; gap: 2px; }
+.ld-prob .stg { font-weight: 800; font-size: 13px; color: var(--ink-2); }
+.ld-prob h2 { font-size: clamp(32px, 9vw, 44px); line-height: 1; }
+.ld-prob .sub { font-weight: 700; font-size: 14px; color: var(--ink-2); }
+.ld-paper {
+  flex: none; padding: 8px 10px; border-radius: 16px; border: 2px solid var(--line);
+  background-color: var(--card);
+  background-image: linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+.ld-paper.big { padding: 12px 16px; }
+
+/* La división escrita */
+.ld-algo { position: relative; font-family: var(--font-display); font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ink); }
+.ld-algo > span { position: absolute; text-align: center; }
+.ld-algo .lab { font-family: var(--font-body); font-size: .55em; font-weight: 900; }
+.ld-algo .p0 { color: #C7313B; } .ld-algo .p1 { color: #3F4F8C; } .ld-algo .p2 { color: #17799A; }
+.ld-algo .now { color: var(--warm); }
+.ld-algo .rest { color: var(--warm); }
+.ld-algo .new { animation: pop .4s ease; }
+.ld-algo .br { border-top: 2px solid var(--ink); border-left: 2px solid var(--ink); border-top-left-radius: 10px; }
+.ld-algo .ul { height: 2px; background: var(--ink); }
+.ld-algo .ld-slotmark { border: 2px dashed var(--warm-line); border-radius: 6px; background: var(--warm-soft); }
+.ld-algo .ld-gap { border: 2px dashed #C73E26; border-radius: 6px; }
+.ld-algo .ld-hl { border-radius: 6px; background: #FFE1D9; }
+.ld-algo .ld-band { border-radius: 8px; background: var(--gold-soft); }
+
+/* Fichas y cajas */
+.ldc {
+  flex: none; display: inline-grid; place-items: center; border-radius: 50%; color: #fff; font-style: normal; font-family: var(--font-body); font-weight: 900;
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .2); line-height: 1; vertical-align: middle;
+}
+.ldc.c100 { width: 28px; height: 28px; font-size: 10px; background: #D83A44; }
+.ldc.c10 { width: 24px; height: 24px; font-size: 10px; background: #3F4F8C; }
+.ldc.c1 { width: 18px; height: 18px; font-size: 9px; background: #17799A; }
+.ldc.new { animation: pop .45s ease; box-shadow: 0 0 0 3px var(--sun), inset 0 -2px 0 rgba(0, 0, 0, .2); }
+.ldg { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px 2px 3px; border-radius: 999px; background: var(--lv0); }
+.ldg b { font-family: var(--font-display); font-weight: 800; font-size: 17px; }
+.ld-boxes { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 6px; }
+.ld-box { display: grid; justify-items: center; gap: 2px; min-width: 0; }
+.ld-box .in {
+  width: 100%; min-height: 74px; display: flex; flex-wrap: wrap; align-content: flex-end; justify-content: center; gap: 3px; padding: 5px 3px;
+  border-radius: 10px 10px 14px 14px; background: #FFF4D6; border: 3px solid #E7B24A;
+}
+.ld-box .in .ldg { padding: 1px 5px 1px 2px; background: rgba(255, 255, 255, .7); }
+.ld-box .in .ldg b { font-size: 14px; }
+.ld-box .empty { font-weight: 700; font-size: 12px; color: #8A6A1E; align-self: center; }
+.ld-box .cap { font-weight: 800; font-size: 12px; color: var(--ink-2); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.ld-tray { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 12px; border-radius: 14px; background: var(--card); border: 2px solid var(--line); }
+.ld-tray .t { font-weight: 800; font-size: 14px; color: var(--ink-2); }
+.ld-tray .g { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ld-tray .ok { font-weight: 800; font-size: 14px; color: var(--ok-edge); margin-left: auto; }
+.ld-tray.left { border-color: var(--lv3); }
+.ld-bank { display: grid; gap: 8px; padding: 12px 14px; border-radius: 16px; background: var(--warm-soft); border: 3px dashed var(--warm-line); }
+.ld-bank.zero { border-style: solid; border-color: var(--line); background: var(--card); }
+.ld-bank .ex { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ld-bank .arr, .ld-bank .pl, .ld-bank .eq { font-family: var(--font-display); font-weight: 800; font-size: 22px; }
+.ld-bank .sub { font-weight: 700; font-size: 15px; color: var(--ink-2); }
+.ld-msg { font-weight: 800; font-size: 16px; line-height: 1.35; padding: 10px 12px; border-radius: 14px; }
+.ld-msg > * + * { margin-top: 8px; }
+.ld-msg.good { background: var(--ok-soft); color: var(--ok-edge); }
+.ld-msg.soft { background: var(--warm-soft); color: var(--ink); border: 2px solid var(--warm-line); }
+.ld-msg .plus { display: inline-block; padding: 0 8px; border-radius: 999px; background: var(--card); border: 2px solid var(--ok); }
+.ld-msg .ladder span { font-size: 16px; }
+.ld-help { justify-self: start; align-self: flex-start; }
+
+/* Pregunta y casillas */
+.ld-q { display: grid; gap: 8px; padding: 10px 12px; border-radius: 18px; background: var(--card); border: 2px solid var(--line); }
+.ld-q > p { font-weight: 800; font-size: 16px; line-height: 1.3; }
+.ld-slots { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.ld-slots .lbl { font-weight: 800; font-size: 15px; color: var(--ink-2); }
+.ld-slots .rr { font-family: var(--font-display); font-weight: 800; font-size: 26px; color: var(--ink-2); }
+.ld-slots.shake { animation: shake .35s ease; }
+.ld-in {
+  min-width: 56px; height: 56px; padding: 0 8px; border-radius: 14px; border: 3px solid var(--line); background: var(--paper);
+  font-family: var(--font-display); font-weight: 800; font-size: 30px; line-height: 1; color: var(--ink); display: inline-grid; place-items: center;
+}
+.ld-in.wide { min-width: 110px; }
+.ld-in.on { border-color: var(--stamp); box-shadow: 0 0 0 4px var(--stamp-soft); background: var(--card); }
+.ld-slots.read .ld-in { height: 66px; grid-template-rows: 1fr auto; padding-top: 4px; }
+.ld-slots.read .ld-in small { font-family: var(--font-body); font-size: 10px; font-weight: 900; }
+.ld-in.p0 { border-color: #C7313B; } .ld-in.p1 { border-color: #3F4F8C; } .ld-in.p2 { border-color: #17799A; } .ld-in.rest { border-color: var(--warm-line); }
+.ld-in.on.p0, .ld-in.on.p1, .ld-in.on.p2, .ld-in.on.rest { box-shadow: 0 0 0 4px var(--stamp-soft); }
+.ld-keys { gap: 8px; }
+.ld-keys .key { height: clamp(46px, 6.6vh, 64px); font-size: 28px; }
+.ld-keys .key.ok small { font-size: 12px; }
+.ld-est { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.ld-est .btn { min-height: 56px; font-size: 19px; }
+.ld-hintbtn { justify-self: center; }
+.ld-pills { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; }
+.ld-pill { padding: 4px 10px; border-radius: 10px; background: #FFF4D6; border: 2px solid #E7B24A; font-family: var(--font-display); font-weight: 800; font-size: 20px; }
+.ld-pills .pl { font-family: var(--font-display); font-weight: 800; font-size: 22px; }
+
+/* Final */
+.ld-done { display: grid; gap: 12px; justify-items: stretch; text-align: center; }
+.ld-trophy { font-size: 64px; line-height: 1; animation: pop .5s ease; }
+.ld-done .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ld-done .ld-card { text-align: left; }
+.ld-explain { border-color: var(--gold-deep) !important; background: var(--gold-soft) !important; }
+.ld-explain .k { font-weight: 900; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--gold-deep); }
+.ld-explain .qq { font-family: var(--font-display); font-weight: 800; font-size: 22px; }
+
+/* Detective */
+.ld-kids { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.ld-kid {
+  display: grid; justify-items: center; gap: 6px; padding: 10px 6px; border-radius: 18px; border: 2px solid var(--key-edge);
+  background: var(--card); box-shadow: 0 4px 0 var(--key-edge); color: var(--ink); min-width: 0;
+}
+.ld-kid:disabled { cursor: default; opacity: 1; }
+.ld-kid.picked { border-color: var(--ok); box-shadow: 0 4px 0 var(--ok); }
+.ld-kid .who { display: inline-flex; align-items: center; gap: 6px; font-weight: 900; }
+.ld-kid .who i { width: 28px; height: 28px; border-radius: 50%; display: inline-grid; place-items: center; font-style: normal; color: #fff; background: var(--stamp); }
+.ld-kid > b { font-family: var(--font-display); font-size: 18px; }
+.ld-kid small { color: var(--ok-edge); font-weight: 900; }
+.ld-opts { display: grid; gap: 10px; }
+.ld-opts .btn { min-height: 56px; font-size: 18px; text-align: left; justify-content: flex-start; }
+#ldErrs li { grid-template-columns: 1fr; }
+.ld-et { font-weight: 800; font-size: 16px; }
+.ld-sn { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; background: var(--lv0); }
+.ld-sn.done { background: var(--ok); color: #fff; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
   .prize-title .ltr, .ticket, .trophy, .ticket::after { animation-delay: 0s !important; }
@@ -639,6 +828,11 @@ body.testing .round-dots { display: none; }
     <p id="homeNote" class="home-note"></p>
     <p id="homeBoost" class="home-note boost" hidden></p>
     <button id="btnTicket" class="ticket-banner" type="button" hidden><span aria-hidden="true">🎟️</span> Tienes un premio para reclamar con Papá</button>
+    <button id="btnLd" class="test-card ld-home" type="button">
+      <span class="tc-icon" aria-hidden="true">÷</span>
+      <span class="tc-text"><b>División larga <span class="beta">BETA</span></b><span class="tc-sub" id="ldSub"></span></span>
+      <span class="chev" aria-hidden="true">›</span>
+    </button>
     <button id="btnGame" class="test-card game-card" type="button">
       <span class="tc-icon" aria-hidden="true">🐍</span>
       <span class="tc-text"><b>La culebrita</b><span class="tc-sub" id="gameSub"></span><span class="gbar" id="gameBar" aria-hidden="true"><i></i></span></span>
@@ -727,6 +921,16 @@ body.testing .round-dots { display: none; }
     </div>
   </section>
 
+  <!-- ===== División larga (BETA) ===== -->
+  <section id="s-ld" class="play ld" tabindex="-1" hidden>
+    <div class="play-top">
+      <button id="ldExit" class="chip" type="button">← Salir</button>
+      <span class="ld-brand">División larga <span class="beta">BETA</span></span>
+      <span class="hud-item" aria-label="Pasos bien seguidos"><span aria-hidden="true">🔥</span> <span id="ldStreakN">0</span></span>
+    </div>
+    <div id="ldView" class="ld-view"></div>
+  </section>
+
   <!-- ===== Mapa ===== -->
   <section id="s-map" class="screen" hidden>
     <button class="chip back" type="button" data-go="home">← Volver</button>
@@ -756,18 +960,35 @@ body.testing .round-dots { display: none; }
     <h1 class="title" tabindex="-1" data-focus>Panel para adultos</h1>
     <p class="lead" id="adWho"></p>
     <div class="seg ad-ops" role="group" aria-label="Qué revisar" id="adOps">
-      <button type="button" data-op="mul" aria-pressed="true">× Multiplicar</button><button type="button" data-op="div" aria-pressed="false">÷ Dividir</button><button type="button" data-op="res" aria-pressed="false">÷r Residuo</button>
+      <button type="button" data-op="mul" aria-pressed="true">× Multiplicar</button><button type="button" data-op="div" aria-pressed="false">÷ Dividir</button><button type="button" data-op="res" aria-pressed="false">÷r Residuo</button><button type="button" data-op="ld" aria-pressed="false">División larga</button>
     </div>
     <p id="adStorage" class="confirm" hidden>Este navegador no deja guardar datos: el progreso se perderá al cerrar la página.</p>
 
-    <div class="panel">
+    <div class="panel" id="ldPanel" hidden>
+      <h2>División larga <span class="beta">BETA</span></h2>
+      <p class="sub">Divisiones de 3 cifras entre 1 cifra, paso a paso, con fichas de 100, 10 y 1. Una etapa se domina con 8 repartos limpios seguidos (sin errores ni ayuda); un reparto con errores resta 2, no vuelve a 0.</p>
+      <div class="kpis" id="ldKpis"></div>
+      <h3 class="ld-h3">Etapas</h3>
+      <div id="ldStages" class="table-list"></div>
+      <h3 class="ld-h3">Errores que se repiten</h3>
+      <ul id="ldErrs" class="weak"></ul>
+      <h3 class="ld-h3">Recomendación</h3>
+      <p id="ldRec" class="note"></p>
+      <h3 class="ld-h3">Últimos repartos</h3>
+      <ul id="ldLog" class="glog"></ul>
+      <button type="button" class="switch" role="switch" id="ldOpen" aria-checked="false"><span>Abrir todas las etapas</span><span class="track" aria-hidden="true"></span></button>
+      <button type="button" class="switch" role="switch" id="ldEstSw" aria-checked="true"><span>Estimar antes de dividir</span><span class="track" aria-hidden="true"></span></button>
+      <p class="note">Cada paso bien a la primera suma 3 para la culebrita (unos 9 por reparto de minuto y medio, igual que 3 de práctica por 1 de juego). Dominar una etapa da 5 minutos. Cuando falla un paso, esa cuenta (por ejemplo 11 ÷ 4) se manda a practicar en Residuo.</p>
+    </div>
+
+    <div class="panel trk">
       <h2>Resumen</h2>
       <div class="kpis" id="adKpis"></div>
       <div class="levelbar" id="adLevelBar" role="img"></div>
       <div class="scale" id="adLevelKey"></div>
     </div>
 
-    <div class="panel">
+    <div class="panel trk">
       <h2>Mapa de calor</h2>
       <div class="row">
         <div class="seg" role="group" aria-label="Qué mostrar">
@@ -779,13 +1000,13 @@ body.testing .round-dots { display: none; }
       <div class="scale" id="heatScale"></div>
     </div>
 
-    <div class="panel">
+    <div class="panel trk">
       <h2>Mayores falencias</h2>
       <p class="sub">Ordenadas por errores y lentitud. Son las que la app repite más.</p>
       <ul id="weakList" class="weak"></ul>
     </div>
 
-    <div class="panel" id="boostPanel">
+    <div class="panel trk" id="boostPanel">
       <h2>Refuerzo puntual</h2>
       <p class="sub">Toca las que quieres reforzar. Saldrán más seguido, mezcladas con las demás: más o menos 1 de cada 5 preguntas. La app sigue su lógica de siempre.</p>
       <button type="button" class="switch" role="switch" id="setBoost" aria-checked="false"><span>Refuerzo activado</span><span class="track" aria-hidden="true"></span></button>
@@ -794,12 +1015,12 @@ body.testing .round-dots { display: none; }
       <div class="row"><button type="button" class="chip" id="boostClear">Quitar todas</button></div>
     </div>
 
-    <div class="panel">
+    <div class="panel trk">
       <h2>Progreso por tabla</h2>
       <div id="adTables" class="table-list"></div>
     </div>
 
-    <div class="panel settings">
+    <div class="panel settings trk">
       <h2>Ajustes</h2>
       <div class="setting">
         <span>Respuesta rápida si tarda menos de</span>
@@ -845,7 +1066,7 @@ body.testing .round-dots { display: none; }
       <ul class="glog" id="gameLog"></ul>
     </div>
 
-    <div class="panel" id="testPanel">
+    <div class="panel trk" id="testPanel">
       <h2>Test definitivo y premio</h2>
       <p class="sub" id="testInfo"></p>
       <label for="setPrize" class="label">Premio para reclamar con Papá</label>
@@ -1231,12 +1452,12 @@ body.testing .round-dots { display: none; }
   }
 
   /* ===== Pantallas ===== */
-  const SCREENS = ['profiles', 'new', 'home', 'play', 'game', 'map', 'adult'];
+  const SCREENS = ['profiles', 'new', 'home', 'play', 'game', 'map', 'adult', 'ld'];
   let current = null;
   function show(name) {
     SCREENS.forEach(n => { $('#s-' + n).hidden = n !== name; });
     if (current === 'game' && name !== 'game') leaveGame(); // al salir del juego se descuenta el tiempo usado
-    document.body.classList.toggle('playing', name === 'play' || name === 'game');
+    document.body.classList.toggle('playing', name === 'play' || name === 'game' || name === 'ld');
     document.body.classList.toggle('testing', name === 'play' && !!TEST);
     $('#testBar').hidden = !(name === 'play' && TEST);
     current = name;
@@ -1343,8 +1564,8 @@ body.testing .round-dots { display: none; }
     return op === 'div' ? (n === 1 ? 'división' : 'divisiones') : (n === 1 ? 'multiplicación' : 'multiplicaciones');
   }
   function tableName(op, n) { return op === 'res' ? `Residuo entre ${n}` : op === 'div' ? `Dividir entre ${n}` : `Tabla del ${n}`; }
-  const totalStars = () => P.stars + P.div.stars + P.res.stars;
-  const allDays = () => Array.from(new Set(P.days.concat(P.div.days, P.res.days)));
+  const totalStars = () => P.stars + P.div.stars + P.res.stars + MT.LD.totals(P).stars;
+  const allDays = () => Array.from(new Set(P.days.concat(P.div.days, P.res.days, P.ld.days)));
   // Columnas de las cuadrículas: con residuo, cuántas veces cabe (0 a 9).
   const RES_COLS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
   const colsFor = (op, T) => (op === 'res' ? RES_COLS : factors(T));
@@ -1393,6 +1614,9 @@ body.testing .round-dots { display: none; }
     const mm = $('#miniMap'); mm.style.setProperty('--cols', C.length);
     mm.innerHTML = F.map(a => C.map(b => { const k = MT.key(a, b); return U.has(k) ? `<i style="background:var(--lv${T.facts[k].level})"></i>` : '<i style="background:transparent"></i>'; }).join('')).join('');
     $('#btnDiploma').hidden = mix || !T.masteredAll;
+    const ldId = MT.LD.current(P), ldS = MT.LD.summary(P).find(s => s.id === ldId), ldT = MT.LD.totals(P);
+    $('#ldSub').textContent = !ldT.solved ? 'Reparte con fichas de 100, 10 y 1, paso a paso.'
+      : ldS.done ? '¡Dominaste todas las etapas! Sigue con el detective.' : `Etapa ${ldS.n} · ${ldS.name} · ${ldS.streak} de ${ldS.goal}`;
     const bal = MT.gameBalance(P);
     $('#btnGame').hidden = !gameOn();
     $('#btnGame').classList.toggle('locked', bal <= 0);
@@ -2159,10 +2383,10 @@ body.testing .round-dots { display: none; }
     if (!gameOn() || !MT.gameCount(P, data.device, Date.now(), MT.gameWorth(op))) return [];
     return [{ why: `${P.settings.gamePer} respuestas buenas`, sec: MT.CONFIG.GAME_SEC }];
   }
-  function openGameWin(wins, done) {
+  function openGameWin(wins, done, from) {
     const min = wins.reduce((a, w) => a + w.sec, 0) / 60;
     $('#gwLines').innerHTML = [`Por ${wins.map(w => w.why).join(' y ')}: +${min} minutos.`, `Tienes ${fmtClock(MT.gameBalance(P))} para jugar a la culebrita.`].map(l => `<p>${esc(l)}</p>`).join('');
-    $('#gwPlay').onclick = () => { closeOverlay('o-gamewin'); startGame('practice'); };
+    $('#gwPlay').onclick = () => { closeOverlay('o-gamewin'); startGame(from || 'practice'); };
     $('#gwLater').onclick = () => { closeOverlay('o-gamewin'); done(); };
     openOverlay('o-gamewin');
   }
@@ -2288,14 +2512,14 @@ body.testing .round-dots { display: none; }
     G = null;
   }
   function endGameTime() {
-    const apples = G.apples;
+    const apples = G.apples, from = G.from;
     leaveGame();
     $('#goLines').innerHTML = [`Comiste ${apples} ${apples === 1 ? 'manzana' : 'manzanas'}. Récord: ${P.game.best}.`, 'Ahora, ¡a seguir con las operaciones!'].map(l => `<p>${esc(l)}</p>`).join('');
-    $('#goPractice').onclick = () => { closeOverlay('o-gameover'); startPlay(); };
+    $('#goPractice').onclick = () => { closeOverlay('o-gameover'); if (from === 'ld') goLd(); else startPlay(); };
     $('#goHome').onclick = () => { closeOverlay('o-gameover'); goHome(); };
     openOverlay('o-gameover');
   }
-  $('#gameExit').addEventListener('click', () => { const from = G ? G.from : 'home'; leaveGame(); if (from === 'practice') startPlay(); else goHome(); });
+  $('#gameExit').addEventListener('click', () => { const from = G ? G.from : 'home'; leaveGame(); if (from === 'practice') startPlay(); else if (from === 'ld') goLd(); else goHome(); });
   $('#gamePause').addEventListener('click', togglePause);
   $('#dpad').addEventListener('pointerdown', e => { const b = e.target.closest('[data-d]'); if (b) { e.preventDefault(); steer(b.dataset.d); } });
   $('#dpad').addEventListener('click', e => { const b = e.target.closest('[data-d]'); if (b && e.detail === 0) steer(b.dataset.d); });
@@ -2482,11 +2706,11 @@ body.testing .round-dots { display: none; }
 
   /* ===== Panel del adulto ===== */
   let heatMode = 'acc', adOp = 'mul';
-  const AT = () => trk(adOp);
+  const AT = () => trk(adOp === 'ld' ? 'mul' : adOp);
   $('#adOps').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { adOp = b.dataset.op; renderAdult(); } });
   const LV_COLORS = ['var(--lv0)', 'var(--lv1)', 'var(--lv2)', 'var(--lv3)', 'var(--lv4)'];
   function renderAdult() {
-    const op = adOp, T = AT(), sm = MT.summary(T), st = T.settings;
+    const op = adOp === 'ld' ? 'mul' : adOp, T = AT(), sm = MT.summary(T), st = T.settings;
     $$('#adOps button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.op === op)));
     $('#adWho').textContent = `${P.avatar} ${P.name} · jugando desde el ${fmtDate(P.createdAt)}`;
     $('#adStorage').hidden = Store.ok;
@@ -2552,6 +2776,11 @@ body.testing .round-dots { display: none; }
     $('#btnClaim').hidden = !(pz.wonAt && !pz.claimedAt);
     $('#btnNewPrize').hidden = !pz.claimedAt;
     $('#dangerConfirm').hidden = true; $('#restoreConfirm').hidden = true;
+    // División larga: su propio panel; los de multiplicar, dividir y residuo se esconden.
+    const isLd = adOp === 'ld';
+    $$('#s-adult .panel.trk').forEach(x => { x.hidden = isLd || (x.id === 'testPanel' && op === 'res'); });
+    $('#ldPanel').hidden = !isLd;
+    if (isLd) renderLdAdult();
   }
   function renderHeat() {
     $('#heatAcc').setAttribute('aria-pressed', String(heatMode === 'acc'));
@@ -2645,8 +2874,9 @@ body.testing .round-dots { display: none; }
     yes.focus();
   }
   $('#btnReset').addEventListener('click', () => askDanger(
-    `Se borrará el progreso de ${adOp === 'div' ? 'dividir' : 'multiplicar'} de ${P.name}: niveles, estrellas y medallas de ese modo. Lo demás se queda.`, 'Sí, reiniciar',
-    () => { MT.resetProgress(P, adOp); S = null; persist(); renderAdult(); $('#backupMsg').className = 'msg'; $('#backupMsg').textContent = 'Progreso reiniciado.'; }));
+    adOp === 'ld' ? `Se borrará el progreso de División larga de ${P.name}: etapas, repartos y estrellas de ese módulo. Lo demás se queda.`
+      : `Se borrará el progreso de ${adOp === 'div' ? 'dividir' : adOp === 'res' ? 'residuo' : 'multiplicar'} de ${P.name}: niveles, estrellas y medallas de ese modo. Lo demás se queda.`, 'Sí, reiniciar',
+    () => { if (adOp === 'ld') { MT.LD.reset(P); LDS = null; } else MT.resetProgress(P, adOp); S = null; persist(); renderAdult(); $('#backupMsg').className = 'msg'; $('#backupMsg').textContent = 'Progreso reiniciado.'; }));
   $('#btnDelete').addEventListener('click', () => askDanger(
     `Se borrará el perfil de ${P.name} con todo su progreso. No se puede deshacer.`, 'Sí, borrar perfil',
     () => { data.profiles = data.profiles.filter(p => p !== P); P = null; S = null; persist(); goProfiles(); }));
@@ -2711,6 +2941,573 @@ body.testing .round-dots { display: none; }
     catch (e) { dl = null; }
     if (current === 'adult') $('#btnBackup').hidden = !canSave();
   })();
+
+  /* ===== División larga (BETA): El Repartidor =====
+     Calcula de cabeza primero y después ve: en cada posición escribe cuántas le tocan a cada caja y cuántas sobran,
+     y las fichas de 100, 10 y 1 se reparten solas. Al lado se va escribiendo la división, como en el cuaderno.
+     Etapas: sin canje → con canje (el banco) → cero en el cociente → la primera no alcanza → solo papel; y el detective. */
+  const LD = MT.LD;
+  let LDS = null;
+  const ldDev = () => ckey(P);
+  const PV = LD.PLACE_VAL;
+  const TIER_NAMES = ['Tranquilo', 'Normal', 'Reto'];
+  const ldChip = (v, cls) => `<i class="ldc c${v}${cls ? ' ' + cls : ''}" aria-hidden="true">${v}</i>`;
+  // Fichas sueltas cuando son pocas; si son muchas, una ficha con "×n" (nunca hay que contarlas una por una).
+  function ldChips(v, n, max, cls) {
+    if (n <= 0) return '';
+    if (n <= (max || 5)) return ldChip(v, cls).repeat(n);
+    return `<span class="ldg">${ldChip(v, cls)}<b>×${n}</b></span>`;
+  }
+  const ldGroup = (v, n) => (n > 0 ? `<span class="ldg">${ldChip(v)}<b>×${n}</b></span>` : '');
+  const ldStage = id => LD.STAGES.find(s => s.id === id);
+  const ldTxt = pr => `${pr.n} ÷ ${pr.d}`;
+  const ldAns = (q, r) => `${q}${r ? ' R ' + r : ''}`;
+
+  function goLd() {
+    clearTimers();
+    if (!P) return goProfiles();
+    if (!LDS || LDS.pid !== P.id) LDS = { pid: P.id, view: 'map', sel: LD.current(P), streak: 0, choices: null };
+    if (LDS.view === 'done') LDS.view = 'map';
+    show('ld');
+    ldRender();
+  }
+  $('#btnLd').addEventListener('click', () => { Sound.unlock(); goLd(); });
+  $('#ldExit').addEventListener('click', () => {
+    if (!LDS || LDS.view === 'map') return goHome();
+    LDS.view = 'map'; LDS.choices = null; ldRender();
+  });
+
+  /* ---------- La división escrita ----------
+     lv[i]: 0 nada, 1 la cifra de arriba, 2 lo usado (multiplico), 3 lo que sobra (resto). dn[i]: ya bajó la siguiente cifra. */
+  function ldAlgo(pr, lv, dn, o) {
+    o = o || {};
+    const cw = o.big ? 34 : o.small ? 19 : 24, rh = o.big ? 36 : o.small ? 21 : 26, fs = o.big ? 28 : o.small ? 17 : 21;
+    const st = o.steps || pr.steps, L = o.labels === false ? 0 : 1, x0 = Math.round(cw * 1.5);
+    const it = [], ln = [];
+    const put = (r, end, txt, cls) => { const s = String(txt); for (let k = 0; k < s.length; k++) it.push({ r: r, c: end - (s.length - 1 - k), t: s[k], cls: cls || '' }); };
+    const quot = o.quot || st.map((s, i) => (lv[i] >= 1 && !(i === 0 && s.q === 0) ? String(s.q) : ''));
+    quot.forEach((t, i) => { if (t !== '') it.push({ r: 0, c: i, t: t, cls: 'p' + i + (o.fresh === i ? ' new' : '') }); });
+    String(pr.n).split('').forEach((t, i) => it.push({ r: 1, c: i, t: t, cls: 'p' + i }));
+    let row = 2, written = false;
+    for (let i = 0; i < 3; i++) {
+      const s = st[i], now = o.now === i ? 'now' : '';
+      if (i > 0) {
+        if (!dn[i - 1]) break;
+        if (written) { put(row, i, s.cur, now); row++; }
+      }
+      if (lv[i] < 2) break;
+      if (i === 0 && s.q === 0) continue;
+      put(row, i, s.prod, now);
+      ln.push({ r: row, c0: i - String(s.cur).length + 1, c1: i });
+      row++; written = true;
+      if (lv[i] < 3) break;
+      if (i === 2 || !dn[i]) { put(row, i, s.r, now || (i === 2 ? 'rest' : '')); row++; }
+    }
+    const top = r => (r + L) * rh;
+    let h = '';
+    if (o.band) h += `<span class="ld-band" style="left:${x0 - 6}px;top:${top(0) - 2}px;width:${3 * cw + 12}px;height:${rh + 4}px"></span>`;
+    if (o.hl) h += `<span class="ld-hl" style="left:${x0 + o.hl[0] * cw}px;top:${top(1)}px;width:${(o.hl[1] - o.hl[0] + 1) * cw}px;height:${rh}px"></span>`;
+    if (o.slot != null) h += `<span class="ld-slotmark" style="left:${x0 + o.slot * cw + 1}px;top:${top(0)}px;width:${cw - 2}px;height:${rh}px"></span>`;
+    if (o.gap != null) h += `<span class="ld-gap" style="left:${x0 + o.gap * cw + 1}px;top:${top(0)}px;width:${cw - 2}px;height:${rh}px"></span>`;
+    if (L) 'CDU'.split('').forEach((t, c) => { h += `<span class="lab p${c}" style="left:${x0 + c * cw}px;top:0;width:${cw}px;height:${rh}px;line-height:${rh}px">${t}</span>`; });
+    h += `<span class="dv" style="left:0;top:${top(1)}px;width:${x0 - 6}px;height:${rh}px;line-height:${rh}px">${pr.d}</span>`;
+    h += `<span class="br" style="left:${x0 - 6}px;top:${top(1) - 1}px;width:${3 * cw + 8}px;height:${rh + 2}px"></span>`;
+    for (const x of it) h += `<span class="${x.cls}" style="left:${x0 + x.c * cw}px;top:${top(x.r)}px;width:${cw}px;height:${rh}px;line-height:${rh}px">${x.t}</span>`;
+    for (const l of ln) h += `<span class="ul" style="left:${x0 + l.c0 * cw + 2}px;top:${top(l.r) + rh - 2}px;width:${(l.c1 - l.c0 + 1) * cw - 4}px"></span>`;
+    const H = top(row) + 4, W = x0 + 3 * cw + 8;
+    return `<div class="ld-algo" role="img" aria-label="${esc(o.label || `División escrita de ${pr.n} entre ${pr.d}`)}" style="width:${W}px;height:${H}px;font-size:${fs}px">${h}</div>`;
+  }
+
+  /* ---------- Empezar un reparto ---------- */
+  function ldChoices() {
+    if (!LDS.choices || LDS.choicesFor !== LDS.sel) {
+      LDS.choices = LD.choices(LDS.sel, Math.random, P.ld.recent);
+      LDS.choicesFor = LDS.sel;
+    }
+    return LDS.choices;
+  }
+  function ldStart(prob) {
+    Object.assign(LDS, {
+      view: 'play', prob: prob, paper: prob.stage === 's5', showChips: prob.stage !== 's5',
+      lv: [0, 0, 0], dn: [false, false, false], i: 0, miss: {}, errs: [], ok1: 0, assisted: false,
+      copy: null, msg: null, start: Date.now(), points: 0, stars: 0, est: null, estMiss: 0, estHint: false, estMsg: null, fresh: null, skip0: false
+    });
+    LDS.choices = null;
+    if (P.ld.est) LDS.phase = 'est'; else ldBeginSteps();
+    ldSetFields(); ldRender();
+  }
+  function ldBeginSteps() {
+    // En Solo papel, si la primera cifra no alcanza, se toman las dos primeras, como en el cuaderno.
+    if (LDS.paper && LDS.prob.steps[0].q === 0) { LDS.lv[0] = 3; LDS.dn[0] = true; LDS.i = 1; LDS.skip0 = true; }
+    LDS.phase = LDS.paper ? 'pq' : 'ask';
+  }
+  function ldSetFields() {
+    const ph = LDS.phase, pr = LDS.prob;
+    let f = [];
+    if (ph === 'ask') f = [{ k: 'q', len: 1, label: 'Cada caja' }, { k: 'r', len: 1, label: 'Sobran' }];
+    else if (ph === 'pq' || ph === 'pr') f = [{ k: 'v', len: 1 }];
+    else if (ph === 'pp') f = [{ k: 'v', len: 2 }];
+    else if (ph === 'read') {
+      const names = ['centenas', 'decenas', 'unidades'].slice(3 - pr.Qs.length);
+      f = pr.Qs.split('').map((_, j) => ({ k: 'd' + j, len: 1, label: names[j], place: 3 - pr.Qs.length + j })).concat([{ k: 'R', len: 1, label: 'sobran', rest: true }]);
+    } else if (ph === 'check') f = [{ k: 'v', len: 3 }];
+    LDS.fields = f; LDS.vals = f.map(() => ''); LDS.fi = 0;
+  }
+  const ldMulti = () => LDS.fields.length > 1;
+
+  /* ---------- Teclado ---------- */
+  function ldPress(k) {
+    if (!LDS || LDS.view !== 'play' || !LDS.fields || !LDS.fields.length || overlayOpen()) return;
+    const F = LDS.fields, V = LDS.vals;
+    if (/^[0-9]$/.test(k)) {
+      if (V[LDS.fi].length >= F[LDS.fi].len) { if (LDS.fi < F.length - 1) LDS.fi++; else return; }
+      V[LDS.fi] += k;
+      if (V[LDS.fi].length >= F[LDS.fi].len && LDS.fi < F.length - 1) LDS.fi++;
+      ldRenderSlots();
+      if (LDS.copy && V.every((v, j) => v.length >= (ldMulti() ? F[j].len : String(LDS.copy[j]).length))) ldSubmit();
+      return;
+    }
+    if (k === 'del') {
+      if (V[LDS.fi] === '' && LDS.fi > 0) LDS.fi--;
+      V[LDS.fi] = V[LDS.fi].slice(0, -1);
+      return ldRenderSlots();
+    }
+    if (k === 'ok') {
+      const empty = V.findIndex(v => v === '');
+      if (empty >= 0) { LDS.fi = empty; ldRenderSlots(); return ldNudge(); }
+      ldSubmit();
+    }
+  }
+  function ldNudge() { const s = $('#ldSlots'); if (!s) return; s.classList.remove('shake'); void s.offsetWidth; s.classList.add('shake'); }
+  function ldExpected() {
+    const pr = LDS.prob, s = pr.steps[LDS.i] || {};
+    switch (LDS.phase) {
+      case 'ask': return [s.q, s.r];
+      case 'pq': return [s.q];
+      case 'pp': return [s.prod];
+      case 'pr': return [s.r];
+      case 'read': return pr.Qs.split('').map(Number).concat([pr.R]);
+      case 'check': return [pr.n];
+    }
+    return [];
+  }
+  function ldSubmit() {
+    const ph = LDS.phase, pr = LDS.prob, i = LDS.i, V = LDS.vals.map(v => +v);
+    if (LDS.copy) {
+      if (V.join(',') !== LDS.copy.join(',')) { LDS.vals = LDS.fields.map(() => ''); LDS.fi = 0; ldRenderSlots(); return ldNudge(); }
+      LDS.copy = null;
+    }
+    if (ph === 'ask') return ldAfter(LD.checkStep(pr, i, V[0], V[1]), i, first => ldStepDone(i, first));
+    if (ph === 'pq') return ldAfter(LD.checkPart(pr, i, 'q', V[0]), i, () => { LDS.lv[i] = 1; LDS.fresh = i; ldGo('pp'); });
+    if (ph === 'pp') return ldAfter(LD.checkPart(pr, i, 'p', V[0]), i, () => { LDS.lv[i] = 2; ldGo('pr'); });
+    if (ph === 'pr') return ldAfter(LD.checkPart(pr, i, 'r', V[0]), i, () => ldStepDone(i));
+    if (ph === 'read') return ldAfter(LD.checkRead(pr, V.slice(0, -1).join(''), V[V.length - 1]), -1, () => { Sound.ok(false); ldGo('check'); });
+    if (ph === 'check') return ldAfter(LD.checkCheck(pr, V[0]), -1, () => { Sound.ok(false); ldFinish(); });
+  }
+  function ldGo(phase) { LDS.phase = phase; LDS.msg = null; ldSetFields(); ldRender(); }
+  const STEP_ERRS = ['corta', 'pasa', 'cero', 'noalcanza', 'resta'];
+  function ldAfter(res, i, next) {
+    const key = LDS.phase + i;
+    if (res.ok) { LDS.msg = null; next(!LDS.miss[key]); return; }
+    LDS.miss[key] = (LDS.miss[key] || 0) + 1;
+    LDS.errs.push({ i: i, t: res.type });
+    Sound.soft();
+    LDS.streak = MT.streakAfterError(LDS.streak);
+    // El paso que falló se manda a practicar en Residuo (la misma cuenta, cabe y sobra).
+    if (i >= 0 && STEP_ERRS.includes(res.type)) {
+      const f = P.res.facts[MT.key(LDS.prob.d, LDS.prob.steps[i].q)];
+      if (f && f.level !== 1) f.level = 1;
+    }
+    LDS.msg = LDS.miss[key] >= 2 ? { kind: 'copy', type: res.type } : { kind: 'hint', type: res.type };
+    if (LDS.miss[key] >= 2) LDS.copy = ldExpected();
+    LDS.vals = LDS.fields.map(() => ''); LDS.fi = 0;
+    persist();
+    ldRender();
+  }
+  // Un paso terminado: puntos, racha y a bajar la siguiente (o a escribir la respuesta).
+  function ldStepDone(i) {
+    const first = !['ask', 'pq', 'pp', 'pr'].some(ph => LDS.miss[ph + i]);
+    LDS.lv[i] = 3; LDS.fresh = i;
+    let wins = [], pts = 0;
+    if (first) {
+      LDS.ok1++; LDS.stars++;
+      LDS.streak++;
+      const capped = MT.gameProgress(P, Date.now()).capped;
+      wins = countGame('ld');
+      if (!capped && gameOn()) { pts = MT.gameWorth('ld'); LDS.points += pts; }
+      const tier = MT.streakTier(LDS.streak);
+      if (tier) Jingle.play(tier); else Sound.ok(true);
+    } else Sound.ok(false);
+    persist();
+    LDS.phase = i < 2 ? 'bank' : 'last';
+    LDS.msg = { kind: 'good', first: first, pts: pts, word: first ? pickOne(OK_MSGS) : '¡Así es!' };
+    ldSetFields(); ldRender();
+    if (wins.length) openGameWin(wins, () => {}, 'ld');
+  }
+  function ldDown() {
+    const i = LDS.i;
+    LDS.dn[i] = true; LDS.i = i + 1; LDS.fresh = null;
+    ldGo(LDS.paper ? 'pq' : 'ask');
+  }
+  function ldFinish() {
+    const pr = LDS.prob, clean = !LDS.errs.length;
+    const stars = LDS.stars + (clean ? 1 : 0) + (pr.tier === 'reto' ? 1 : 0);
+    LDS.stars = stars;
+    const rec = LD.record(P, ldDev(), { prob: pr, clean: clean, assisted: LDS.assisted, ok1: LDS.ok1, steps: 3, errs: LDS.errs, ms: Date.now() - LDS.start, stars: stars }, Date.now());
+    LDS.rec = rec; LDS.view = 'done'; LDS.explained = false;
+    let wins = [];
+    if (rec.newlyDone) {
+      wins = awardGame([{ why: `dominar "${ldStage(pr.stage).name}"`, sec: MT.CONFIG.GAME_SEC }]);
+      Sound.master(); confetti();
+    }
+    persist();
+    ldRender();
+    if (wins.length) openGameWin(wins, () => {}, 'ld');
+  }
+
+  /* ---------- Mensajes ---------- */
+  function ldHintText(type) {
+    const pr = LDS.prob, s = pr.steps[LDS.i] || {}, d = pr.d, ph = LDS.phase;
+    const v = PV[LDS.i];
+    switch (type) {
+      case 'corta': return `Con ${d} cajas, lo que sobra tiene que ser menos de ${d}. ¡Todavía alcanza otra vuelta! Busca en la tabla del ${d} el más grande que no pase de ${s.cur}.`;
+      case 'pasa': return `No alcanza para tantas: busca en la tabla del ${d} el más grande que no pase de ${s.cur}.`;
+      case 'cero': return `Solo hay ${s.cur} y son ${d} cajas: no alcanza para darle 1 a cada una. Les tocan 0, y ese 0 también se escribe arriba.`;
+      case 'noalcanza': return `Solo hay ${s.cur} de ${v} y son ${d} cajas: no alcanza. A cada caja le tocan 0 de ${v}, y las ${s.cur} se cambian en el banco.`;
+      case 'resta': return ph === 'pr' || ph === 'ask' ? `Revisa la resta: ${s.cur} − ${s.prod} = ?` : 'Revisa lo que sobra.';
+      case 'mult': return `Revisa la tabla del ${d}: ${d} × ${s.q} = ?`;
+      case 'reves': return 'Léela de izquierda a derecha: la primera cifra es la que está más a la izquierda, arriba.';
+      case 'residuo': return 'La respuesta de arriba está bien. ¿Cuánto sobró al final? Es el último número de abajo.';
+      case 'lectura': return 'La respuesta vive arriba: copia la fila de arriba, de izquierda a derecha. Lo de abajo es tu trabajo.';
+      case 'check': return `Suma otra vez: ${pr.d * pr.Q} + ${pr.R} = ?`;
+    }
+    return 'Mírala otra vez con calma.';
+  }
+  function ldMsgHtml() {
+    const m = LDS.msg; if (!m) return '';
+    const pr = LDS.prob, s = pr.steps[LDS.i] || {}, d = pr.d;
+    if (m.kind === 'good') {
+      const ph = LDS.phase, i = LDS.i, v = PV[i];
+      const what = s.q === 0 ? `No alcanza: a cada caja le tocan 0 de ${v}.` : `${s.q} de ${v} a cada caja. ${d} × ${s.q} = ${s.prod} y ${s.cur} − ${s.prod} = ${s.r}.`;
+      const plus = m.pts ? ` <span class="plus">+${m.pts} 🐍</span>` : '';
+      return `<p class="ld-msg good" role="status">${esc(m.word)} ${esc(what)}${plus}</p>`;
+    }
+    const isStep = ['ask', 'pq', 'pp', 'pr'].includes(LDS.phase);
+    const ladder = isStep && ['corta', 'pasa', 'cero', 'noalcanza'].includes(m.type) ? ladderHtml(d, s.q, s.r) + `<p class="ladder-cap">Tabla del ${d}</p>` : '';
+    if (m.kind === 'copy') {
+      const exp = ldExpected();
+      const t = LDS.phase === 'ask' ? `Cabe ${s.q} ${s.q === 1 ? 'vez' : 'veces'} y sobran ${s.r}. Escribe <b>${s.q}</b> y <b>${s.r}</b> para seguir.`
+        : LDS.phase === 'read' ? `Es <b>${ldAns(pr.Qs, pr.R) || pr.Qs}</b>. Escríbelo para seguir.`
+          : `Es <b>${exp.join(' ')}</b>. Escríbelo para seguir.`;
+      return `<div class="ld-msg soft" role="status"><p>${t}</p>${ladder}</div>`;
+    }
+    return `<div class="ld-msg soft" role="status"><p>${esc(ldHintText(m.type))}</p>${ladder}</div>`;
+  }
+
+  /* ---------- Pantallas ---------- */
+  function ldRail() {
+    const ph = LDS.phase, names = ['Divido', 'Multiplico', 'Resto', 'Bajo'];
+    let st;
+    if (ph === 'ask') st = ['cur', '', 'cur', ''];
+    else if (ph === 'pq') st = ['cur', '', '', ''];
+    else if (ph === 'pp') st = ['done', 'cur', '', ''];
+    else if (ph === 'pr') st = ['done', 'done', 'cur', ''];
+    else if (ph === 'bank') st = ['done', 'done', 'done', 'cur'];
+    else st = ['done', 'done', 'done', 'done'];
+    return `<div class="ld-rail" role="list" aria-label="Pasos">${names.map((n, k) => `<span role="listitem" class="${st[k]}">${st[k] === 'done' ? '✓' : k + 1} ${n}</span>`).join('')}</div>`;
+  }
+  function ldBoxes() {
+    const pr = LDS.prob, d = pr.d;
+    let h = `<div class="ld-boxes" style="--n:${Math.min(d, 5)}">`;
+    for (let b = 0; b < d; b++) {
+      let c = '';
+      for (let i = 0; i < 3; i++) if (LDS.lv[i] >= 3 || (LDS.paper && LDS.lv[i] >= 1)) c += ldChips(PV[i], pr.steps[i].q, 4, LDS.fresh === i && (LDS.phase === 'bank' || LDS.phase === 'last') ? 'new' : '');
+      h += `<div class="ld-box"><div class="in">${c || '<span class="empty">vacía</span>'}</div><span class="cap">Caja ${b + 1}</span></div>`;
+    }
+    return h + `</div><p class="sr">${d} cajas</p>`;
+  }
+  function ldTray() {
+    const pr = LDS.prob, i = LDS.i;
+    if (LDS.phase === 'bank' || LDS.phase === 'last') {
+      const s = pr.steps[i];
+      if (!s.r) return '';
+      return `<div class="ld-tray left"><span class="t">${LDS.phase === 'last' ? 'Sobran (residuo)' : 'Sobran'}</span><div class="g">${ldChips(PV[i], s.r, 9)}</div><span class="ok">${s.r} es menos que ${pr.d} ✓</span></div>`;
+    }
+    let g = ldGroup(PV[i], pr.steps[i].cur);
+    for (let j = i + 1; j < 3; j++) g += ldGroup(PV[j], pr.D[j]);
+    return `<div class="ld-tray"><span class="t">Por repartir</span><div class="g">${g || '<span class="none">nada</span>'}</div></div>`;
+  }
+  function ldBank() {
+    const pr = LDS.prob, i = LDS.i, s = pr.steps[i], nx = pr.steps[i + 1], v = PV[i], w = PV[i + 1], dg = pr.D[i + 1];
+    if (!s.r) return `<div class="ld-bank zero"><p>No sobró nada. Ahora <b>bajas el ${dg}</b> y repartes las de ${w}.</p></div>`;
+    if (!LDS.showChips) return `<div class="ld-bank zero"><p>Sobra${s.r === 1 ? '' : 'n'} ${s.r}, menos que ${pr.d}. Ahora <b>bajas el ${dg}</b> y queda ${nx.cur}.</p></div>`;
+    const few = i === 0 && s.q === 0 ? `Solo hay ${s.r} de ${v} y son ${pr.d} cajas.` : `Sobra${s.r === 1 ? '' : 'n'} ${s.r} de ${v} y no alcanza${s.r === 1 ? '' : 'n'} para las ${pr.d} cajas.`;
+    return `<div class="ld-bank"><p><b>${few} ¡Al banco!</b></p>
+      <div class="ex">${ldGroup(v, s.r)}<span class="arr" aria-hidden="true">→</span>${ldGroup(w, s.r * 10)}${dg ? `<span class="pl">+</span>${ldGroup(w, dg)}` : ''}<span class="eq">= ${nx.cur}</span></div>
+      <p class="sub">${s.r} de ${v} = ${s.r * 10} de ${w}${dg ? `, más ${dg} que ya había` : ''}. En el papel: <b>bajas el ${dg}</b> y queda ${nx.cur}.</p></div>`;
+  }
+  function ldSlots() {
+    const F = LDS.fields, V = LDS.vals;
+    if (LDS.phase === 'read') {
+      return `<div class="ld-slots read" id="ldSlots">${F.map((f, j) => `${f.rest ? '<span class="rr">R</span>' : ''}<button type="button" class="ld-in${j === LDS.fi ? ' on' : ''}${f.rest ? ' rest' : ' p' + f.place}" data-f="${j}" tabindex="-1" aria-label="${f.label}">${V[j] === '' ? '?' : V[j]}<small>${f.label}</small></button>`).join('')}</div>`;
+    }
+    if (LDS.phase === 'ask') {
+      return `<div class="ld-slots" id="ldSlots">${F.map((f, j) => `<span class="lbl">${f.label}</span><button type="button" class="ld-in${j === LDS.fi ? ' on' : ''}" data-f="${j}" tabindex="-1" aria-label="${f.label}">${V[j] === '' ? '?' : V[j]}</button>`).join('')}</div>`;
+    }
+    return `<div class="ld-slots one" id="ldSlots"><button type="button" class="ld-in wide on" data-f="0" tabindex="-1" aria-label="Respuesta">${V[0] === '' ? '?' : V[0]}</button></div>`;
+  }
+  function ldRenderSlots() { const s = $('#ldSlots'); if (s) s.outerHTML = ldSlots(); }
+  const LD_KEYS = '<div class="keypad ld-keys" id="ldKeys" aria-label="Teclado numérico">' +
+    ['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(k => `<button class="key" type="button" data-k="${k}" tabindex="-1">${k}</button>`).join('') +
+    '<button class="key del" type="button" data-k="del" tabindex="-1" aria-label="Borrar">⌫</button><button class="key" type="button" data-k="0" tabindex="-1">0</button>' +
+    '<button class="key ok" type="button" data-k="ok" tabindex="-1" aria-label="Comprobar">✓<small>Listo</small></button></div>';
+
+  function ldQuestion() {
+    const pr = LDS.prob, i = LDS.i, s = pr.steps[i], v = PV[i];
+    switch (LDS.phase) {
+      case 'ask': return `Reparte las de ${ldChip(v)}: ¿cuántas a cada caja y cuántas sobran?`;
+      case 'pq': return `<b>Divido:</b> ${s.cur} ÷ ${pr.d}. ¿Cuántas veces cabe? La cifra va arriba.`;
+      case 'pp': return `<b>Multiplico:</b> ${pr.d} × ${s.q} =`;
+      case 'pr': return `<b>Resto:</b> ${s.cur} − ${s.prod} =`;
+      case 'read': return 'Escribe la respuesta: la de arriba y lo que sobró.';
+      case 'check': return `Junta las cajas otra vez: ${pr.d} × ${pr.Q} = ${pr.d * pr.Q}. Ahora suma lo que sobró: ${pr.d * pr.Q} + ${pr.R} =`;
+    }
+    return '';
+  }
+  function ldPlayHtml() {
+    const pr = LDS.prob, ph = LDS.phase, i = LDS.i;
+    const algoOpts = { now: ['bank', 'last'].includes(ph) ? i : (ph === 'est' ? null : i), fresh: LDS.fresh };
+    if (['ask', 'pq'].includes(ph)) algoOpts.slot = i;
+    if (['ask', 'pq', 'est'].includes(ph) && (i === 0 || (i === 1 && LDS.skip0))) algoOpts.hl = LDS.skip0 ? [0, 1] : [0, 0];
+    if (ph === 'read') algoOpts.band = true;
+    const stg = ldStage(pr.stage);
+    const head = `<div class="ld-prob"><div class="txt"><p class="stg">Etapa ${stg.n} · ${esc(stg.name)}${pr.tier === 'reto' ? ' · Reto' : ''}</p><h2>${ldTxt(pr)}</h2><p class="sub">Reparte en ${pr.d} cajas${LDS.est ? ` · estimaste ${esc(LDS.est)}` : ''}</p></div>` +
+      `<div class="ld-paper">${ldAlgo(pr, LDS.lv, LDS.dn, Object.assign(algoOpts, ph === 'read' ? { big: true } : {}))}</div></div>`;
+    let scroll = '', bottom = '';
+    if (ph === 'est') {
+      const br = LD.brackets(pr.d);
+      scroll = head + (LDS.showChips ? ldTray() : '') +
+        `<div class="ld-card"><h3>Antes de repartir</h3><p>¿Cuánto le tocará a cada caja, más o menos?</p>` +
+        (LDS.estHint ? `<p class="note">${br.slice(1).map(b => `${pr.d} × ${b[0]} = ${pr.d * b[0]}`).join(' · ')}. ¿Entre cuáles queda ${pr.n}?</p>` : '') + '</div>' + ldEstMsg();
+      bottom = `<div class="ld-est">${br.map((b, k) => `<button type="button" class="btn" data-act="est" data-k="${k}">${k === 0 ? 'menos de 100' : `entre ${b[0]} y ${b[1]}`}</button>`).join('')}</div>` +
+        (LDS.estHint ? '' : '<button type="button" class="chip ld-hintbtn" data-act="esthint">Pista</button>');
+    } else if (['ask', 'pq', 'pp', 'pr'].includes(ph)) {
+      scroll = ldRail() + head + (LDS.showChips ? ldBoxes() + ldTray() : '') + ldMsgHtml() +
+        (LDS.paper ? `<button type="button" class="chip ld-help" data-act="chips">${LDS.showChips ? 'Esconder las fichas' : 'Ver con fichas (ayuda)'}</button>` : '') +
+        (LDS.skip0 && i === 1 && ph === 'pq' ? `<p class="note">${pr.D[0]} no alcanza para ${pr.d}: tomas las dos primeras, ${pr.steps[1].cur}.</p>` : '');
+      bottom = `<div class="ld-q"><p>${ldQuestion()}</p>${ldSlots()}</div>` + LD_KEYS;
+    } else if (ph === 'bank' || ph === 'last') {
+      scroll = ldRail() + head + ldMsgHtml() + (LDS.showChips ? ldBoxes() + ldTray() : '') + (ph === 'bank' ? ldBank() :
+        `<p class="ld-msg good">${pr.R ? `Ya no hay nada que bajar: el ${pr.R} es el residuo.` : 'Ya no hay nada que bajar y no sobró nada: residuo 0.'}</p>`);
+      bottom = ph === 'bank' ? `<button type="button" class="btn go big" data-act="down">Bajar el ${pr.D[i + 1]}</button>` : '<button type="button" class="btn go big" data-act="toread">Escribir la respuesta</button>';
+    } else if (ph === 'read') {
+      scroll = `<div class="ld-card center"><h3>La respuesta vive arriba</h3><p class="note">Léela de izquierda a derecha. Lo de abajo es tu trabajo, no la respuesta.</p><div class="ld-paper big">${ldAlgo(pr, LDS.lv, LDS.dn, { big: true, band: true })}</div></div>` + ldMsgHtml();
+      bottom = `<div class="ld-q"><p>${ldQuestion()}</p>${ldSlots()}</div>` + LD_KEYS;
+    } else if (ph === 'check') {
+      const pills = Array.from({ length: pr.d }, () => `<span class="ld-pill">${pr.Q}</span>`).join('');
+      scroll = `<div class="ld-card center"><h3>Comprueba: junta las cajas</h3><div class="ld-pills">${pills}${pr.R ? `<span class="pl">+</span>${ldChips(1, pr.R, 9)}` : ''}</div>` +
+        `<p class="note">${pr.d} cajas de ${pr.Q}${pr.R ? ` y ${pr.R} que sobraron` : ''}: ¿vuelve a dar ${pr.n}?</p></div>` + ldMsgHtml();
+      bottom = `<div class="ld-q"><p>${ldQuestion()}</p>${ldSlots()}</div>` + LD_KEYS;
+    }
+    return `<div class="ld-play${bottom.includes('ld-keys') ? ' keys' : ''}"><div class="ld-scroll" id="ldScroll">${scroll}</div><div class="ld-bottom">${bottom}</div></div>`;
+  }
+  function ldEstMsg() {
+    if (!LDS.estMsg) return '';
+    return `<p class="ld-msg soft" role="status">${esc(LDS.estMsg)}</p>`;
+  }
+  function ldEst(k) {
+    const pr = LDS.prob, br = LD.brackets(pr.d), b = br[k], want = LD.bracketOf(pr.Q);
+    if (k === want) {
+      LDS.est = k === 0 ? 'menos de 100' : `entre ${b[0]} y ${b[1]}`;
+      LDS.estMsg = null; Sound.ok(false);
+      ldBeginSteps(); ldSetFields(); ldRender();
+      return;
+    }
+    LDS.estMiss++; Sound.soft();
+    LDS.estMsg = k > want ? `${pr.d} × ${b[0]} = ${pr.d * b[0]}, y eso ya es más que ${pr.n}. Prueba con menos.`
+      : `${pr.d} × ${b[1]} = ${pr.d * b[1]}, y todavía no llega a ${pr.n}. Prueba con más.`;
+    ldRender();
+  }
+
+  function ldDoneHtml() {
+    const pr = LDS.prob, rec = LDS.rec, stg = ldStage(pr.stage), clean = rec.good;
+    const st = P.ld.st[pr.stage];
+    const q = pr.steps.some((s, i) => i > 0 && s.q === 0) ? '¿Por qué hay un 0 en la respuesta?'
+      : pr.steps[0].q === 0 ? `¿Por qué la respuesta tiene solo ${pr.Qs.length} cifras?`
+        : pr.R ? `¿Por qué sobraron ${pr.R} y no más?` : '¿Qué pasó en el banco?';
+    const explain = rec.explain ? `<div class="ld-card ld-explain"><p class="k">Explícale a Papá</p><p class="qq">${esc(q)}</p>` +
+      (LDS.explained ? '<p class="note">¡Gracias por explicar! +1 ⭐</p>' : '<button type="button" class="btn" data-act="explain">Ya le expliqué (+1 ⭐)</button>') + '</div>' : '';
+    const prog = st.done ? `¡Dominaste "${esc(stg.name)}"!` : `${rec.streak} de ${rec.goal} repartos limpios seguidos para dominar "${esc(stg.name)}".`;
+    return `<div class="ld-done">
+      <div class="ld-trophy" aria-hidden="true">${clean ? '🏆' : '💪'}</div>
+      <h1 class="title" tabindex="-1" data-focus>${clean ? '¡Bien repartido!' : '¡Lo terminaste!'}</h1>
+      <p class="lead">${ldTxt(pr)} = ${pr.Q}${pr.R ? ' R ' + pr.R : ''} · ${pr.d} × ${pr.Q}${pr.R ? ' + ' + pr.R : ''} = ${pr.n} ✓</p>
+      <div class="kpis"><div class="kpi"><b>+${LDS.points}</b><span>culebrita</span></div><div class="kpi"><b>+${LDS.stars}</b><span>estrellas</span></div><div class="kpi"><b>${LDS.streak}</b><span>seguidas</span></div></div>
+      ${explain}
+      <div class="ld-card"><p>${prog}</p><div class="bar"><i style="width:${Math.min(100, 100 * (st.done ? 1 : rec.streak / rec.goal))}%"></i></div>
+      ${clean ? '' : '<p class="note">Con errores la cuenta baja 2, no vuelve a 0. ¡Los errores también enseñan!</p>'}</div>
+      <button type="button" class="btn primary big" data-act="next">Siguiente reparto</button>
+      <button type="button" class="btn block" data-act="map">Volver al camino</button>
+    </div>`;
+  }
+
+  function ldMapHtml() {
+    const sum = LD.summary(P), rs = MT.summary(P.res), gp = MT.gameProgress(P, Date.now());
+    if (!sum.some(s => s.id === LDS.sel && s.open)) LDS.sel = LD.current(P);
+    const node = (num, name, sub, state, act) => {
+      const tag = act ? `button type="button" ${act}` : 'div';
+      return `<li><${tag} class="ld-node ${state}"><span class="n" aria-hidden="true">${num}</span><span class="tx"><b>${esc(name)}</b><small>${esc(sub)}</small></span>${state === 'sel' ? '<span class="here">Aquí vas</span>' : ''}</${act ? 'button' : 'div'}></li>`;
+    };
+    const st = sum.find(x => x.id === LDS.sel), ch = ldChoices();
+    let h = `<div class="ld-head"><h1 class="title" tabindex="-1" data-focus>Elige tu reparto</h1><p class="lead">Etapa ${st.n} · ${esc(st.name)}: ${esc(st.tip)}</p></div>`;
+    h += '<div class="ld-choices">' + ch.map((c, k) => `<button type="button" class="ld-choice" data-act="start" data-k="${k}"><small>${TIER_NAMES[k]}</small><b>${ldTxt(c)}</b><span>${'★'.repeat(k + 1)}</span></button>`).join('') + '</div>';
+    h += '<h2 class="ld-h2">Tu camino</h2><ol class="ld-path">';
+    h += node('R', 'Base: Residuo', `${rs.mastered} de ${rs.total} dominadas · ayuda en cada paso`, rs.mastered >= Math.round(rs.total * 0.75) ? 'done' : 'info', '');
+    for (const s of sum) {
+      const state = s.id === LDS.sel ? 'sel' : s.done ? 'done' : s.open ? 'open' : 'lock';
+      const sub = !s.open ? 'Se abre al dominar la anterior' : s.done ? `Dominada ★ · ${s.ex}` : `${s.streak} de ${s.goal} limpios seguidos · ${s.ex}`;
+      h += node(s.done && s.id !== LDS.sel ? '✓' : s.n, s.name, sub, state, s.open ? `data-act="sel" data-s="${s.id}"` : '');
+    }
+    const detOpen = LD.isOpen(P, 'det');
+    h += node('?', LD.DET.name, detOpen ? LD.DET.ex : 'Se abre al dominar "Cero en el cociente"', detOpen ? 'open' : 'lock', detOpen ? 'data-act="det"' : '');
+    h += '</ol>';
+    if (gameOn()) h += `<div class="ld-card"><div class="row2"><b>🐍 Culebrita</b><span>${gp.capped ? 'Hoy ya ganaste el máximo' : `${gp.prog} de ${gp.per} para 5 min`}</span></div><div class="bar"><i style="width:${100 * gp.prog / gp.per}%"></i></div><p class="note">Cada paso bien a la primera suma ${MT.gameWorth('ld')}.</p></div>`;
+    h += '<p class="ld-beta">Versión BETA: este módulo es nuevo. Si algo se ve raro o no funciona, cuéntale a Papá.</p>';
+    return h;
+  }
+
+  /* ---------- Detective de errores ---------- */
+  function ldStartDet() {
+    LDS.view = 'det';
+    LDS.det = { c: LD.makeCase(P, Math.random), step: 1, miss1: 0, miss2: 0, msg: null, done: false };
+    ldRender();
+  }
+  function ldKidHtml(name, wrong, D) {
+    const c = D.c, pr = c.prob, all = [3, 3, 3], dn = [true, true, true];
+    let algo, ans;
+    if (wrong) {
+      const w = c.wrong;
+      const quot = c.type === 'cero' ? w.steps.map((s, i) => (i === w.gap ? '' : String(s.q))) : w.steps.map((s, i) => (i === 0 && s.q === 0 ? '' : String(s.q)));
+      algo = ldAlgo(pr, all, dn, { small: true, labels: false, steps: w.steps, quot: quot, gap: D.done && c.type === 'cero' ? w.gap : null, label: `Trabajo de ${name}` });
+      ans = `${pr.n} ÷ ${pr.d} = ${w.q}${w.r ? ' R ' + w.r : ''}`;
+    } else {
+      algo = ldAlgo(pr, all, dn, { small: true, labels: false, label: `Trabajo de ${name}` });
+      ans = `${pr.n} ÷ ${pr.d} = ${ldAns(pr.Qs, pr.R)}`;
+    }
+    const picked = D.step > 1 && !wrong ? ' picked' : '';
+    return `<button type="button" class="ld-kid${picked}" data-act="who" data-w="${wrong ? 1 : 0}" ${D.step > 1 ? 'disabled' : ''}>
+      <span class="who"><i aria-hidden="true">${name[0]}</i>${name}</span>${algo}<b>${esc(ans)}</b>${picked ? '<small>✓ Tiene razón</small>' : ''}</button>`;
+  }
+  function ldDetHtml() {
+    const D = LDS.det, c = D.c, pr = c.prob;
+    const kids = ['Tomás', 'Lía'].map(n => ldKidHtml(n, n === c.wrongName, D)).join('');
+    let h = `<div class="ld-head"><h1 class="title" tabindex="-1" data-focus>Detective de errores</h1><p class="lead">Tomás y Lía dividieron ${ldTxt(pr)}. ${D.step === 1 ? '¿Quién tiene razón?' : ''}</p></div>`;
+    h += `<div class="ld-kids">${kids}</div>`;
+    if (D.msg) h += `<p class="ld-msg ${D.msg.good ? 'good' : 'soft'}" role="status">${esc(D.msg.t)}</p>`;
+    if (D.step === 2) {
+      h += `<h2 class="ld-h2">¿Qué se equivocó ${c.wrongName}?</h2><div class="ld-opts">` +
+        c.options.map(o => `<button type="button" class="btn block" data-act="opt" data-t="${o.t}">${esc(o.text)}</button>`).join('') + '</div>';
+    }
+    if (D.done) {
+      h += `<div class="ld-card"><p><b>${esc(c.check)}</b></p></div>`;
+      h += '<button type="button" class="btn primary big" data-act="det">Siguiente caso</button><button type="button" class="btn block" data-act="map">Volver al camino</button>';
+    }
+    return h;
+  }
+  function ldDetWho(isWrong) {
+    const D = LDS.det;
+    if (!isWrong) { D.step = 2; D.msg = { good: true, t: `¡Bien visto! ${D.c.rightName} tiene razón.` }; Sound.ok(false); }
+    else { D.miss1++; D.msg = { good: false, t: 'Mira otra vez. Pista: multiplica para comprobar cuál da el número del principio.' }; Sound.soft(); }
+    ldRender();
+  }
+  function ldDetOpt(t) {
+    const D = LDS.det;
+    if (t !== D.c.type) { D.miss2++; D.msg = { good: false, t: 'No es eso. Compara los dos trabajos paso por paso.' }; Sound.soft(); return ldRender(); }
+    D.done = true; D.step = 3;
+    const first = !D.miss1 && !D.miss2;
+    let wins = [];
+    if (first) { wins = countGame('ld'); LDS.streak++; }
+    LD.recordDet(P, ldDev(), first, first ? 2 : 1);
+    D.msg = { good: true, t: first ? `¡Detective experta! ${D.c.wrongName}: ${LD.DET_TEXT[t].toLowerCase()}. +2 ⭐` : `¡Eso es! ${LD.DET_TEXT[t]}. +1 ⭐` };
+    Sound.ok(true);
+    persist(); ldRender();
+    if (wins.length) openGameWin(wins, () => {}, 'ld');
+  }
+
+  /* ---------- Dibujar y eventos ---------- */
+  function ldRender() {
+    if (!LDS) return;
+    $('#ldStreakN').textContent = LDS.streak;
+    $('#ldExit').textContent = LDS.view === 'map' ? '← Salir' : '← Camino';
+    const v = $('#ldView');
+    v.className = 'ld-view v-' + LDS.view;
+    v.innerHTML = LDS.view === 'map' ? ldMapHtml() : LDS.view === 'done' ? ldDoneHtml() : LDS.view === 'det' ? ldDetHtml() : ldPlayHtml();
+    if (LDS.view === 'play') {
+      const sc = $('#ldScroll');
+      // Lo nuevo queda a la vista: el mensaje o el final de la división escrita.
+      if (sc && LDS.msg) { const m = sc.querySelector('.ld-msg'); if (m) m.scrollIntoView({ block: 'nearest' }); }
+    } else v.scrollTop = 0;
+  }
+  $('#ldView').addEventListener('mousedown', e => { if (e.target.closest('#ldKeys, .ld-in')) e.preventDefault(); });
+  $('#ldView').addEventListener('click', e => {
+    const key = e.target.closest('#ldKeys .key');
+    if (key) { ldPress(key.dataset.k); return; }
+    const slot = e.target.closest('.ld-in');
+    if (slot && LDS && LDS.fields) { LDS.fi = +slot.dataset.f; ldRenderSlots(); return; }
+    const b = e.target.closest('[data-act]'); if (!b || !LDS) return;
+    const act = b.dataset.act;
+    if (act === 'sel') { LDS.sel = b.dataset.s; LDS.choices = null; ldRender(); }
+    else if (act === 'start') { const c = ldChoices()[+b.dataset.k]; if (c) ldStart(c); }
+    else if (act === 'est') ldEst(+b.dataset.k);
+    else if (act === 'esthint') { LDS.estHint = true; ldRender(); }
+    else if (act === 'down') ldDown();
+    else if (act === 'toread') ldGo('read');
+    else if (act === 'chips') { LDS.showChips = !LDS.showChips; if (LDS.showChips) LDS.assisted = true; ldRender(); }
+    else if (act === 'explain') { if (!LDS.explained) { LDS.explained = true; LDS.stars++; LD.addStars(P, ldDev(), 1); persist(); Sound.ok(false); ldRender(); } }
+    else if (act === 'next') { const pr = LDS.prob; ldStart(LD.make(pr.stage, pr.tier, Math.random, P.ld.recent)); }
+    else if (act === 'map') { LDS.view = 'map'; LDS.choices = null; ldRender(); }
+    else if (act === 'det') ldStartDet();
+    else if (act === 'who') ldDetWho(b.dataset.w === '1');
+    else if (act === 'opt') ldDetOpt(b.dataset.t);
+  });
+  document.addEventListener('keydown', e => {
+    if (current !== 'ld' || overlayOpen() || e.altKey || e.ctrlKey || e.metaKey || !LDS || LDS.view !== 'play' || !LDS.fields || !LDS.fields.length) return;
+    const t = e.target;
+    if ((e.key === 'Enter' || e.key === ' ') && t && t.tagName === 'BUTTON' && !t.classList.contains('key') && !t.classList.contains('ld-in')) return;
+    let k = null;
+    if (/^[0-9]$/.test(e.key)) k = e.key;
+    else if (e.key === 'Backspace' || e.key === 'Delete') k = 'del';
+    else if (e.key === 'Enter' || e.key === 'NumpadEnter') k = 'ok';
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      LDS.fi = Math.max(0, Math.min(LDS.fields.length - 1, LDS.fi + (e.key === 'ArrowLeft' ? -1 : 1)));
+      return ldRenderSlots();
+    }
+    if (!k) return;
+    e.preventDefault();
+    const btn = document.querySelector(`#ldKeys .key[data-k="${k}"]`);
+    if (btn) { btn.classList.add('down'); setTimeout(() => btn.classList.remove('down'), 110); }
+    ldPress(k);
+  });
+
+  /* ---------- Para el adulto ---------- */
+  function renderLdAdult() {
+    const t = LD.totals(P), sum = LD.summary(P), L = P.ld;
+    const kp = [['Repartos', t.solved], ['Limpios', t.solved ? Math.round(100 * t.clean / t.solved) + ' %' : '–'], ['Práctica', fmtDur(t.ms)], ['Días', L.days.length], ['Casos de detective', t.cases ? `${t.casesOk} de ${t.cases}` : '–']];
+    $('#ldKpis').innerHTML = kp.map(k => `<div class="kpi"><b>${esc(k[1])}</b><span>${k[0]}</span></div>`).join('');
+    $('#ldStages').innerHTML = sum.map(s => `<div class="trow"><span class="ld-sn${s.done ? ' done' : ''}">${s.n}</span><div><div class="tname">${esc(s.name)}</div><div class="bar"><i style="width:${s.done ? 100 : 100 * Math.min(1, s.streak / s.goal)}%"></i></div></div>` +
+      `<span class="num">${!s.open ? 'Cerrada' : s.done ? 'Dominada' : `${s.streak} de ${s.goal}`}${s.tries ? ` · ${s.tries} ${s.tries === 1 ? 'reparto' : 'repartos'}` : ''}</span></div>`).join('');
+    const es = LD.errStats(P, 30);
+    $('#ldErrs').innerHTML = es.length ? es.slice(0, 5).map(x => `<li><span class="ld-et">${esc(x.text)}</span><span class="meta">${x.n} ${x.n === 1 ? 'vez' : 'veces'} · último: ${x.ex.n} ÷ ${x.ex.d}${x.ex.i >= 0 ? ` (${LD.PLACES[x.ex.i]})` : ''}</span></li>`).join('')
+      : `<li><span class="meta">${t.solved ? 'Sin errores repetidos por ahora.' : 'Aparecerán aquí cuando haga algunos repartos.'}</span></li>`;
+    $('#ldRec').textContent = LD.recommend(P);
+    $('#ldLog').innerHTML = L.log.slice(-8).reverse().map(e => `<li>${esc(fmtDate(e.at))} · ${e.n} ÷ ${e.d} · ${e.ok ? 'limpio' : 'con errores'}${e.a ? ' · con ayuda' : ''} · ${Math.round(e.ms / 1000)} s</li>`).join('') || '<li>Todavía no hay repartos.</li>';
+    $('#ldOpen').setAttribute('aria-checked', String(L.open));
+    $('#ldEstSw').setAttribute('aria-checked', String(L.est));
+  }
+  $('#ldOpen').addEventListener('click', () => { P.ld.open = !P.ld.open; persist(); renderLdAdult(); });
+  $('#ldEstSw').addEventListener('click', () => { P.ld.est = !P.ld.est; persist(); renderLdAdult(); });
+
 
   /* ===== Arranque ===== */
   if (P) goHome(); else goProfiles();

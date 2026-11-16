@@ -10,6 +10,11 @@ Práctica de las tablas de multiplicar y de dividir del 2 al 9 para niños de 9 
 
 - En el inicio se elige **Multiplicar** o **Dividir**. Cada modo tiene su propio progreso, mapa, medallas, refuerzo y diploma.
 - **Residuo** (base para la división larga): "42 ÷ 5 → cabe [8] veces y sobran [2]". Practica justo el paso que se repite en una división de 3 cifras entre 1 cifra: números menores que 10 × el divisor (cabe de 0 a 9 veces). Mezcla exactas (1 de cada 4) e inexactas, e incluye "no cabe" (3 ÷ 7 → 0 y sobran 3) para no olvidar el 0 en el cociente. Sigue 80 familias (divisor × veces) cambiando el residuo cada vez, enseña que el residuo es menor que el divisor y siempre muestra la comprobación (5 × 8 + 2 = 42). Si se equivoca: escalera de la tabla (5, 10 … 40 | 42 | ~~45~~) y puntos en grupos con los sueltos de otro color.
+- **División larga (BETA), "El Repartidor":** divisiones de 3 cifras entre 1 cifra, como en el capítulo de división del cuaderno. Primero estima entre cuánto y cuánto queda la respuesta. Después, en cada posición (centenas, decenas, unidades) escribe de cabeza cuántas fichas le tocan a cada caja y cuántas sobran; solo entonces las fichas de 100, 10 y 1 se reparten solas (nunca hay que contarlas). Lo que sobra se cambia en "el banco" (1 de 10 = 10 de 1), que es lo mismo que "bajar la siguiente cifra". Al lado se va escribiendo la división larga, con colores por posición y la ruta Divido · Multiplico · Resto · Bajo. Al final lee la respuesta (la de arriba, de izquierda a derecha, y el residuo) y comprueba juntando las cajas (divisor × respuesta + residuo).
+  - **Camino por etapas:** sin canje (846 ÷ 2) → con canje (451 ÷ 4) → cero en el cociente (505 ÷ 5) → la primera no alcanza (136 ÷ 4) → solo papel (escribe divido, multiplico y resto, sin fichas; las fichas quedan como ayuda que no cuenta para dominar). Una etapa se domina con 8 repartos limpios seguidos; un reparto con errores resta 2. En cada etapa elige entre tranquilo, normal o reto.
+  - **Errores con ayuda a la medida:** si se queda corta ("¡alcanza otra vuelta!"), se pasa, olvida el 0 del cociente, resta mal o escribe la respuesta al revés, la app le dice qué pasó y le muestra la escalera de la tabla; al segundo error le muestra la respuesta para copiarla. El paso que falló se manda a practicar en Residuo.
+  - **Detective de errores:** dos niños resuelven la misma división y uno se equivoca (olvidó el 0, la escribió al revés, le sobró de más o se le olvidó el residuo). Ella elige quién tiene razón y qué error cometió el otro.
+  - Cada paso bien a la primera suma 3 para la culebrita (unos 9 por reparto) y dominar una etapa da 5 minutos. Cada 3 repartos le pide "Explícale a Papá" una pregunta corta.
 - **Mixto** mezcla multiplicaciones y divisiones (mitad y mitad, nunca más de 3 seguidas del mismo tipo). Cada respuesta suma al progreso de su modo, y nunca pregunta 56 ÷ 8 justo después de 7 × 8, porque sería regalar la respuesta.
 - **Canciones de racha:** a las 10, 20, 30 y 40 respuestas seguidas sin error suena el tema de racha, cada vez más largo y completo; a las 50, y luego cada 25, la versión épica (13 s). La práctica sigue mientras suena. Funciona en todos los modos y en el test definitivo.
 - **Tiempo de juego (la culebrita):** cada respuesta buena suma 1 y los errores no restan; en Residuo cada buena suma 2, porque toma el doble de tiempo (dos respuestas, la comprobación y más errores). Cada 100 (unos 11 a 15 minutos de práctica) gana 5 minutos de un juego sencillo tipo Snake: 3 de práctica por 1 de juego. Tope de 15 minutos al día con respuestas; además, 5 minutos por cada medalla y 10 por superar el test definitivo. Papá puede ajustar las cantidades, regalar minutos o apagarlo. El reloj solo corre mientras juega, lo que sobra queda guardado y al acabarse vuelve a las operaciones.
@@ -63,7 +68,8 @@ El botón **Para adultos** está protegido con la clave de Papá y abre un panel
 - refuerzo puntual: marca multiplicaciones concretas (por ejemplo 7 × 8, 9 × 7 o 6 × 9) para que salgan más seguido, más o menos 1 de cada 5 preguntas, sin dejar de practicar las demás; se activa y se quita cuando quieras;
 - progreso por tabla;
 - ajustes: umbral de rapidez, preguntas por ronda, tablas activas, incluir ×1 y sonido;
-- copia de seguridad para pasar el progreso a otro dispositivo.
+- copia de seguridad para pasar el progreso a otro dispositivo;
+- **División larga:** etapas, repartos limpios, errores que se repiten con la división real, recomendación, últimos repartos, y los interruptores "Abrir todas las etapas" y "Estimar antes de dividir".
 
 ## Privacidad
 
@@ -74,8 +80,9 @@ No hay cuentas, servidor ni anuncios, y la app no recolecta datos. El progreso s
 | Archivo | Qué contiene |
 |---|---|
 | `engine.js` | Motor adaptativo: niveles, reintentos, mezcla de preguntas, pistas y confusiones. Lógica pura, sin interfaz. |
+| `larga.js` | División larga (BETA): arma divisiones por etapa, revisa cada paso, clasifica errores, lleva el dominio y une dispositivos. Lógica pura. |
 | `template.html` | Interfaz: HTML, CSS y JavaScript. |
-| `build.js` | Une el motor y la interfaz en `index.html`. |
+| `build.js` | Une el motor (`engine.js` y `larga.js`) y la interfaz en `index.html`. |
 | `index.html` | La app completa en un solo archivo. Es lo que publica GitHub Pages. |
 | `sim.js` | Simula niños ficticios y verifica el motor. |
 | `uitest.py` | Prueba la interfaz en Chromium: celular, tablet y solo teclado. |
