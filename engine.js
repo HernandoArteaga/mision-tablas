@@ -161,7 +161,7 @@
     ensureGame(p);
     p.div = ensureTrack(p.div && typeof p.div === 'object' ? p.div : {}, 'div');
     p.res = ensureTrack(p.res && typeof p.res === 'object' ? p.res : {}, 'res');
-    p.mode = ['div', 'mix', 'res'].includes(p.mode) ? p.mode : 'mul';
+    p.mode = ['div', 'mix', 'res', 'all'].includes(p.mode) ? p.mode : 'mul';
     return p;
   }
   /* Reinicia el progreso de un modo; el perfil, los ajustes y el otro modo se quedan. */
@@ -640,16 +640,23 @@
      No pregunta una división justo después de su multiplicación (ni al revés): sería regalar la respuesta. */
   function sameFamily(x, y) { return !!x && !!y && ((x.a === y.a && x.b === y.b) || (x.a === y.b && x.b === y.a)); }
   function knownSet(prof) { return new Set(Object.keys(prof.facts).filter(k => prof.facts[k].level >= 3)); }
-  // subs: sesiones del motor {mul, div}; state: {last, run} lo lleva el mismo pickMixed.
-  function pickMixed(prof, subs, state, rng, now) {
+  /* subs: sesiones del motor, una por operación; state: {last, run} lo lleva el mismo pickMixed.
+     ops: ['mul', 'div'] en Mixto; ['mul', 'div', 'res'] en Todo (multiplicar, dividir y dividir con residuo, un tercio cada una).
+     Nunca más de 3 seguidas del mismo tipo, y nunca una que regale la anterior (56 ÷ 8 después de 7 × 8, o 58 ÷ 8 después de 8 × 7). */
+  function pickMixed(prof, subs, state, rng, now, ops) {
     rng = rng || Math.random;
+    ops = ops && ops.length ? ops : ['mul', 'div'];
     state.run = state.run || [];
-    let op = rng() < CONFIG.MIX_DIV_SHARE ? 'div' : 'mul';
+    let op = ops.length === 2 && ops.includes('div') && ops.includes('mul') ? (rng() < CONFIG.MIX_DIV_SHARE ? 'div' : 'mul') : ops[Math.floor(rng() * ops.length)];
     const tail = state.run.slice(-CONFIG.MIX_MAX_RUN);
-    if (tail.length === CONFIG.MIX_MAX_RUN && tail.every(o => o === op)) op = op === 'mul' ? 'div' : 'mul';
-    subs.div.known = knownSet(prof);
+    const blocked = tail.length === CONFIG.MIX_MAX_RUN && tail.every(o => o === tail[0]) ? tail[0] : null; // ya van 3 seguidas de este tipo
+    if (op === blocked) { const rest = ops.filter(o => o !== op); op = rest.length === 1 ? rest[0] : rest[Math.floor(rng() * rest.length)]; }
+    const known = knownSet(prof);
+    for (const o of ops) if (o !== 'mul' && subs[o]) subs[o].known = known;
+    const others = ops.filter(o => o !== op && o !== blocked);
+    for (let i = others.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = others[i]; others[i] = others[j]; others[j] = t; }
     let chosen = null;
-    for (const o of [op, op === 'mul' ? 'div' : 'mul']) {
+    for (const o of [op].concat(others)) {
       for (let i = 0; i < 6 && !chosen; i++) {
         const pick = pickNext(track(prof, o), subs[o], rng, now);
         if (!state.last || state.last.op === o || !sameFamily(state.last, pick)) chosen = { op: o, pick: pick };

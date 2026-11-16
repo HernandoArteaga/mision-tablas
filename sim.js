@@ -366,6 +366,38 @@ out.push('\n11) Mixto y canciones de racha');
   check(gift === 0 && rep === 0, 'Nunca regala la respuesta: tras 7 × 8 no sale 56 ÷ 8 ni 56 ÷ 7 (y viceversa); tampoco repite seguidas');
   check(R.prof.answered + R.prof.div.answered === 600 && MT.summary(R.prof).mastered > 30 && MT.summary(R.prof.div).mastered > 20,
     `Cada respuesta suma a su modo: ${R.prof.answered} multiplicaciones y ${R.prof.div.answered} divisiones; dominadas ${MT.summary(R.prof).mastered} × y ${MT.summary(R.prof.div).mastered} ÷`);
+
+  // Todo: multiplicar, dividir y dividir con residuo, al azar.
+  const allKid = (seed, n, pOk) => {
+    const rng = rngFrom(seed), prof = MT.newProfile('Juli', '🦊');
+    let now = new Date(2026, 10, 16, 16, 0, 0).getTime();
+    const ops = ['mul', 'div', 'res'];
+    const subs = { mul: MT.newSession(prof, now), div: MT.newSession(prof.div, now), res: MT.newSession(prof.res, now) }, state = {}, log = [];
+    for (let i = 0; i < n; i++) {
+      const m = MT.pickMixed(prof, subs, state, rng, now, ops), T = MT.track(prof, m.op), pk = m.pick;
+      const ok = rng() < pOk;
+      const right = m.op === 'res' ? { q: pk.b, r: pk.r } : m.op === 'div' ? pk.b : pk.a * pk.b;
+      const wrong = m.op === 'res' ? { q: pk.b, r: pk.r + 1 } : (m.op === 'div' ? pk.b : pk.a * pk.b) + 1;
+      now += 5000;
+      MT.grade(T, subs[m.op], pk.key, ok ? right : wrong, 3000, now, { kind: pk.kind, stage: pk.stage, assisted: pk.preHint, r: pk.r });
+      log.push({ op: m.op, a: pk.a, b: pk.b, key: pk.key, r: pk.r, n: pk.n });
+    }
+    return { prof, log };
+  };
+  const A = allKid(77, 900, 0.9), AL = A.log;
+  const share = o => AL.filter(e => e.op === o).length / AL.length;
+  let agift = 0, arun = 1, amax = 1, aRes = 0;
+  for (let i = 1; i < AL.length; i++) {
+    if (AL[i].op !== AL[i - 1].op && MT.sameFamily(AL[i], AL[i - 1])) agift++;
+    arun = AL[i].op === AL[i - 1].op ? arun + 1 : 1; amax = Math.max(amax, arun);
+  }
+  AL.filter(e => e.op === 'res').forEach(e => { if (!(e.r >= 0 && e.r < e.a && e.n === e.a * e.b + e.r)) aRes++; });
+  check(['mul', 'div', 'res'].every(o => share(o) > 0.27 && share(o) < 0.4) && amax <= 3 && agift === 0 && aRes === 0,
+    `900 preguntas en Todo: ${Math.round(100 * share('mul'))} % ×, ${Math.round(100 * share('div'))} % ÷ y ${Math.round(100 * share('res'))} % con residuo; nunca más de ${amax} seguidas del mismo tipo ni una que regale la anterior`);
+  check(A.prof.answered + A.prof.div.answered + A.prof.res.answered === 900 && A.prof.res.answered > 250,
+    `Cada respuesta suma a su modo: ${A.prof.answered} ×, ${A.prof.div.answered} ÷ y ${A.prof.res.answered} con residuo`);
+  const pm = MT.newProfile('J', '🦉'); pm.mode = 'all'; MT.ensure(pm);
+  check(pm.mode === 'all', 'El modo Todo se guarda en el perfil');
 }
 
 out.push('\n12) Puntos de guardado');

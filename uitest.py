@@ -537,6 +537,51 @@ with sync_playwright() as pw:
        and not page.is_visible('#testPanel') and not page.is_visible('#setOne'),
        'Panel para adultos en Residuo: rapidez de 8 s (6 a 12), sin test ni "incluir el 1"')
     ctx.close()
+    # ---------- Todo: multiplicar, dividir y dividir con residuo, al azar ----------
+    READY_ALL = """() => { const vis = id => !document.getElementById(id).hidden;
+      if (vis('o-round') || vis('o-medal') || vis('o-gamewin')) return true;
+      const c = document.getElementById('qCard');
+      if (document.getElementById('s-play').hidden || c.classList.contains('good') || c.classList.contains('fixing')) return false;
+      return vis('resRow') ? document.getElementById('slotQ').textContent === '?' && document.getElementById('slotR').textContent === '?'
+        : document.getElementById('slot').textContent === '?'; }"""
+    ctx = br.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, is_mobile=True)
+    page = ctx.new_page(); watch(page); page.goto(URL); page.wait_for_timeout(500)
+    new_profile(page, 'Tina')
+    page.tap('#s-home .mode[data-op="all"]'); page.wait_for_timeout(200)
+    ok('con y sin residuo' in page.inner_text('#homeCountLabel') and page.inner_text('#homeTotal') == '208' and not page.is_visible('#btnTest'),
+       'Todo en el inicio: suma multiplicar, dividir y residuo (de 208) y esconde el test')
+    page.screenshot(path=f'{SHOTS}/a1-home.png')
+    page.tap('#btnPlay'); page.wait_for_function(READY_ALL)
+    kinds, res_shot = [], False
+    while len(kinds) < 18:
+        if page.is_visible('#o-round'): page.tap('#roundGo'); page.wait_for_function(READY_ALL); continue
+        if page.is_visible('#o-medal'): page.tap('#medalOk'); page.wait_for_function(READY_ALL); continue
+        if page.is_visible('#o-gamewin'): page.tap('#gwLater'); page.wait_for_function(READY_ALL); continue
+        x, y = int(page.inner_text('#qa')), int(page.inner_text('#qb'))
+        if page.is_visible('#resRow'):
+            kinds.append('res')
+            if not res_shot: page.screenshot(path=f'{SHOTS}/a2-res.png'); res_shot = True
+            page.keyboard.type(str(x // y)); page.keyboard.type(str(x % y))
+        elif page.inner_text('#qop') == '÷':
+            kinds.append('div'); page.keyboard.type(str(x // y))
+        else:
+            kinds.append('mul'); page.keyboard.type(str(x * y))
+        page.keyboard.press('Enter')
+        page.wait_for_function(READY_ALL, timeout=8000)
+    run, mx = 1, 1
+    for i in range(1, len(kinds)):
+        run = run + 1 if kinds[i] == kinds[i - 1] else 1; mx = max(mx, run)
+    prof = page.evaluate("JSON.parse(localStorage.getItem('mision-tablas-v1')).profiles[0]")
+    cnt = {k: kinds.count(k) for k in ('mul', 'div', 'res')}
+    ok(all(cnt[k] > 0 for k in cnt) and mx <= 3 and prof['answered'] == cnt['mul'] and prof['div']['answered'] == cnt['div'] and prof['res']['answered'] == cnt['res'],
+       f"Todo: {cnt['mul']} ×, {cnt['div']} ÷ y {cnt['res']} con residuo en 18 preguntas, nunca más de {mx} seguidas; cada una suma a su modo")
+    ok(prof['game']['prog'] == cnt['mul'] + cnt['div'] + 3 * cnt['res'], f"Culebrita: {prof['game']['prog']} puntos (1 por × y ÷, 3 por cada una con residuo)")
+    page.tap('#btnExit'); page.wait_for_timeout(250)
+    page.tap('#btnMap'); page.wait_for_timeout(250)
+    vis3 = page.is_visible('#mapOps button[data-op="res"]')
+    page.tap('#mapOps button[data-op="res"]'); page.wait_for_timeout(150)
+    ok(vis3 and len(page.query_selector_all('#mapGrid .cell[data-k]')) == 80, 'En Todo el mapa deja ver multiplicar, dividir y residuo')
+    ctx.close()
     br.close()
 
 srv.terminate()

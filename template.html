@@ -150,7 +150,9 @@ body.playing #app { height: 100%; }
 .home-top h1 { font-size: clamp(28px, 6vw, 40px); font-weight: 800; overflow-wrap: anywhere; }
 .home-top .tools { display: flex; gap: 8px; flex-wrap: wrap; }
 .modes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-@media (min-width: 700px) { .modes { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 700px) { .modes { grid-template-columns: repeat(5, 1fr); } }
+.mode.all { grid-column: 1 / -1; }
+@media (min-width: 700px) { .mode.all { grid-column: auto; } }
 .mode {
   display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px; min-height: 62px; padding: 8px 8px;
   border-radius: 20px; border: 2px solid var(--key-edge); background: var(--card); box-shadow: 0 4px 0 var(--key-edge);
@@ -631,6 +633,7 @@ body.testing .round-dots { display: none; }
       <button type="button" class="mode" data-op="div" aria-pressed="false"><span class="sym" aria-hidden="true">÷</span>Dividir</button>
       <button type="button" class="mode" data-op="mix" aria-pressed="false"><span class="sym two" aria-hidden="true">×÷</span>Mixto</button>
       <button type="button" class="mode" data-op="res" aria-pressed="false"><span class="sym two" aria-hidden="true">÷r</span>Residuo</button>
+      <button type="button" class="mode all" data-op="all" aria-pressed="false"><span class="sym two" aria-hidden="true">×÷r</span>Todo</button>
     </div>
     <div class="mission">
       <div class="count"><b id="homeCount">0</b><span>de <span id="homeTotal">64</span></span><small id="homeCountLabel">multiplicaciones dominadas</small></div>
@@ -742,7 +745,7 @@ body.testing .round-dots { display: none; }
     <h1 class="title" tabindex="-1" data-focus>Mapa de las Tablas</h1>
     <p class="lead" id="mapLead">Cada casilla es una multiplicación. Tócala para ver cómo vas.</p>
     <div class="seg ad-ops map-ops" role="group" aria-label="Qué mapa ver" id="mapOps" hidden>
-      <button type="button" data-op="mul" aria-pressed="true">× Multiplicar</button><button type="button" data-op="div" aria-pressed="false">÷ Dividir</button>
+      <button type="button" data-op="mul" aria-pressed="true">× Multiplicar</button><button type="button" data-op="div" aria-pressed="false">÷ Dividir</button><button type="button" data-op="res" aria-pressed="false" hidden>÷r Residuo</button>
     </div>
     <div class="map-wrap">
       <div id="mapGrid" class="map-grid"></div>
@@ -1337,7 +1340,10 @@ body.testing .round-dots { display: none; }
 
   /* ===== Multiplicar o dividir =====
      El perfil guarda multiplicar en sí mismo y dividir en P.div, cada uno con su progreso. */
-  const curOp = () => (P && ['div', 'mix', 'res'].includes(P.mode) ? P.mode : 'mul');
+  const curOp = () => (P && ['div', 'mix', 'res', 'all'].includes(P.mode) ? P.mode : 'mul');
+  // Modos que mezclan: Mixto (× y ÷) y Todo (×, ÷ y ÷ con residuo). Cada respuesta suma a su propio modo.
+  const MIXES = { mix: ['mul', 'div'], all: ['mul', 'div', 'res'] };
+  const mixOps = op => MIXES[op] || null;
   const trk = op => MT.track(P, op);
   const opSym = op => (op === 'div' || op === 'res' ? '÷' : '×');
   // 'axb' al dividir es (a × b) ÷ a = b; con residuo es la familia de a × b a a × b + a − 1, entre a.
@@ -1347,7 +1353,7 @@ body.testing .round-dots { display: none; }
     return op === 'div' ? `${a * b}${s}÷${s}${a}` : `${a}${s}×${s}${b}`;
   }
   function noun(op, n) {
-    if (op === 'mix') return n === 1 ? 'operación' : 'operaciones';
+    if (mixOps(op)) return n === 1 ? 'operación' : 'operaciones';
     if (op === 'res') return n === 1 ? 'división con residuo' : 'divisiones con residuo';
     return op === 'div' ? (n === 1 ? 'división' : 'divisiones') : (n === 1 ? 'multiplicación' : 'multiplicaciones');
   }
@@ -1373,15 +1379,15 @@ body.testing .round-dots { display: none; }
   $$('#s-home .mode').forEach(b => b.addEventListener('click', () => { P.mode = b.dataset.op; persist(); renderHome(); }));
   let ticketOp = 'mul';
   function renderHome() {
-    const op = curOp(), mix = op === 'mix', T = trk(mix ? 'mul' : op);
-    const views = mix ? ['mul', 'div'] : [op];
+    const op = curOp(), mix = !!mixOps(op), T = trk(mix ? 'mul' : op);
+    const views = mixOps(op) || [op];
     // En Mixto el inicio suma los dos modos.
     const sm = views.map(o => MT.summary(trk(o))).reduce((x, y) => ({ mastered: x.mastered + y.mastered, total: x.total + y.total, maintenance: x.maintenance && y.maintenance }));
     const ds = MT.dayStreak({ days: allDays() }, Date.now());
     const tb = [].concat.apply([], views.map(o => MT.tables(trk(o)).map(t => Object.assign({ op: o }, t))));
     const answered = views.reduce((n, o) => n + trk(o).answered, 0);
     $$('#s-home .mode').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.op === op)));
-    $('#homeCountLabel').textContent = mix ? 'multiplicaciones y divisiones dominadas' : noun(op, 2) + ' dominadas';
+    $('#homeCountLabel').textContent = op === 'all' ? 'multiplicaciones y divisiones (con y sin residuo) dominadas' : mix ? 'multiplicaciones y divisiones dominadas' : noun(op, 2) + ' dominadas';
     $('#homeAva').textContent = P.avatar;
     $('#homeHello').textContent = `¡Hola, ${P.name}!`;
     $('#homeCount').textContent = sm.mastered;
@@ -1393,7 +1399,8 @@ body.testing .round-dots { display: none; }
     $('#homeDays').textContent = ds.n ? (ds.n === 1 ? '1 día de racha' : `${ds.n} días seguidos`) : 'Hoy empieza tu racha';
     const won = tb.filter(t => t.medal).length;
     $('#homeMedals').textContent = won === 1 ? '1 medalla' : `${won} medallas`;
-    $('#homeNote').textContent = mix ? 'Mezcla multiplicaciones y divisiones. Cada respuesta suma a su propio mapa.'
+    $('#homeNote').textContent = op === 'all' ? 'Todo junto y al azar: multiplicaciones, divisiones exactas y divisiones con residuo. Cada respuesta suma a su propio mapa.'
+      : mix ? 'Mezcla multiplicaciones y divisiones. Cada respuesta suma a su propio mapa.'
       : !answered ? (op === 'res' ? 'Vamos a ver cuántas veces cabe y cuánto sobra.' : op === 'div' ? 'Vamos a descubrir qué divisiones ya sabes.' : 'Vamos a descubrir qué tablas ya sabes.')
       : sm.maintenance ? '¡Dominas todas! Ahora a mantenerlas en forma.'
         : `Te ${sm.total - sm.mastered === 1 ? 'falta 1' : 'faltan ' + (sm.total - sm.mastered)} para dominarlas todas.`;
@@ -1439,10 +1446,10 @@ body.testing .round-dots { display: none; }
     renderHome(); show('home');
   }
   let mapOp = 'mul';
-  $('#btnMap').addEventListener('click', () => { mapOp = curOp() === 'mix' ? 'mul' : curOp(); renderMap(); show('map'); });
+  $('#btnMap').addEventListener('click', () => { mapOp = mixOps(curOp()) ? 'mul' : curOp(); renderMap(); show('map'); });
   $('#mapOps').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { mapOp = b.dataset.op; renderMap(); } });
   $('#btnDiploma').addEventListener('click', () => openDiploma(false, null, curOp()));
-  $('#btnAdult').addEventListener('click', () => openGate(() => { adOp = curOp() === 'mix' ? 'mul' : curOp(); renderAdult(); show('adult'); }));
+  $('#btnAdult').addEventListener('click', () => openGate(() => { adOp = mixOps(curOp()) ? 'mul' : curOp(); renderAdult(); show('adult'); }));
 
   /* ===== Práctica ===== */
   $('#btnPlay').addEventListener('click', startPlay);
@@ -1450,10 +1457,10 @@ body.testing .round-dots { display: none; }
   const freshRound = () => ({ answered: 0, correct: 0, stars: 0, ups: 0, mastered: [] });
   function newPlay(op, now) {
     const subs = {};
-    (op === 'mix' ? ['mul', 'div'] : [op]).forEach(o => { subs[o] = MT.newSession(trk(o), now); });
+    (mixOps(op) || [op]).forEach(o => { subs[o] = MT.newSession(trk(o), now); });
     return { pid: P.id, op: op, subs: subs, mix: {}, streak: 0, dots: [], round: freshRound(), last: now, activeMs: 0, breakAt: MT.CONFIG.BREAK_MS };
   }
-  const roundSize = () => trk(S.op === 'mix' ? 'mul' : S.op).settings.roundSize;
+  const roundSize = () => trk(mixOps(S.op) ? 'mul' : S.op).settings.roundSize;
   function startPlay() {
     Sound.unlock();
     const now = Date.now();
@@ -1494,8 +1501,8 @@ body.testing .round-dots { display: none; }
     clearTimers();
     if (current !== 'play') return;
     let op = S.op, pick;
-    if (op === 'mix') {
-      const m = MT.pickMixed(P, S.subs, S.mix, Math.random, Date.now());
+    if (mixOps(op)) {
+      const m = MT.pickMixed(P, S.subs, S.mix, Math.random, Date.now(), mixOps(op));
       op = m.op; pick = m.pick;
     } else {
       const sub = S.subs[op];
@@ -2451,7 +2458,8 @@ body.testing .round-dots { display: none; }
   /* ===== Mapa ===== */
   function renderMap() {
     const op = mapOp, T = trk(op);
-    $('#mapOps').hidden = curOp() !== 'mix';
+    $('#mapOps').hidden = !mixOps(curOp());
+    $('#mapOps button[data-op="res"]').hidden = curOp() !== 'all';
     $$('#mapOps button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.op === op)));
     const F = factors(T), C = colsFor(op, T), U = new Set(MT.universe(T.settings));
     const grid = $('#mapGrid');
