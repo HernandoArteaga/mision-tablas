@@ -559,7 +559,7 @@ with sync_playwright() as pw:
         if page.is_visible('#o-gamewin'): page.tap('#gwLater'); page.wait_for_function(READY_ALL); continue
         x, y = int(page.inner_text('#qa')), int(page.inner_text('#qb'))
         if page.is_visible('#resRow'):
-            kinds.append('res')
+            kinds.append('res0' if x % y == 0 else 'res')
             if not res_shot: page.screenshot(path=f'{SHOTS}/a2-res.png'); res_shot = True
             page.keyboard.type(str(x // y)); page.keyboard.type(str(x % y))
         elif page.inner_text('#qop') == '÷':
@@ -572,10 +572,28 @@ with sync_playwright() as pw:
     for i in range(1, len(kinds)):
         run = run + 1 if kinds[i] == kinds[i - 1] else 1; mx = max(mx, run)
     prof = page.evaluate("JSON.parse(localStorage.getItem('mision-tablas-v1')).profiles[0]")
-    cnt = {k: kinds.count(k) for k in ('mul', 'div', 'res')}
-    ok(all(cnt[k] > 0 for k in cnt) and mx <= 3 and prof['answered'] == cnt['mul'] and prof['div']['answered'] == cnt['div'] and prof['res']['answered'] == cnt['res'],
-       f"Todo: {cnt['mul']} ×, {cnt['div']} ÷ y {cnt['res']} con residuo en 18 preguntas, nunca más de {mx} seguidas; cada una suma a su modo")
-    ok(prof['game']['prog'] == cnt['mul'] + cnt['div'] + 3 * cnt['res'], f"Culebrita: {prof['game']['prog']} puntos (1 por × y ÷, 3 por cada una con residuo)")
+    cnt = {k: kinds.count(k) for k in ('mul', 'div', 'res', 'res0')}
+    nd, nr = prof['div']['answered'], prof['res']['answered']
+    ok(cnt['mul'] > 0 and cnt['div'] == 0 and nd > 0 and nr > 0 and prof['answered'] == cnt['mul'] and nd + nr == cnt['res'] + cnt['res0'] and cnt['res0'] >= nd,
+       f"Todo: {cnt['mul']} ×, {nd} ÷ exactas y {nr} con residuo en 18 preguntas; toda división pide cuánto sobra, aunque sea 0; cada una suma a su modo")
+    ok(prof['game']['prog'] == cnt['mul'] + nd + 3 * nr, f"Culebrita: {prof['game']['prog']} puntos (1 por × y ÷ exacta, 3 por cada una con residuo)")
+    fixed = ''
+    for _ in range(40):
+        if page.is_visible('#o-round'): page.tap('#roundGo'); page.wait_for_function(READY_ALL); continue
+        if page.is_visible('#o-medal'): page.tap('#medalOk'); page.wait_for_function(READY_ALL); continue
+        if page.is_visible('#o-gamewin'): page.tap('#gwLater'); page.wait_for_function(READY_ALL); continue
+        x, y = int(page.inner_text('#qa')), int(page.inner_text('#qb'))
+        if page.is_visible('#resRow') and x % y == 0:
+            page.keyboard.type(str(x // y)); page.keyboard.type('1'); page.keyboard.press('Enter'); page.wait_for_timeout(450)
+            fixed = page.inner_text('#fixBox')
+            page.screenshot(path=f'{SHOTS}/a3-exacta.png')
+            page.keyboard.type(str(x // y)); page.keyboard.type('0'); page.wait_for_timeout(300)
+            break
+        if page.is_visible('#resRow'): page.keyboard.type(str(x // y)); page.keyboard.type(str(x % y))
+        elif page.inner_text('#qop') == '÷': page.keyboard.type(str(x // y))
+        else: page.keyboard.type(str(x * y))
+        page.keyboard.press('Enter'); page.wait_for_function(READY_ALL, timeout=8000)
+    ok('y 0 para seguir' in fixed and 'Sobran 0' in fixed, f"Si en una exacta pone que sobra 1: \"{fixed.splitlines()[0] if fixed else ''}\" y le explica que sobran 0")
     page.tap('#btnExit'); page.wait_for_timeout(250)
     page.tap('#btnMap'); page.wait_for_timeout(250)
     vis3 = page.is_visible('#mapOps button[data-op="res"]')

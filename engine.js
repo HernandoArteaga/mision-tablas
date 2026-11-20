@@ -9,6 +9,7 @@
     FAST_MS: 4000,                 // umbral de rapidez por defecto (ms)
     FAST_MS_DIV: 5000,             // en división el recuerdo es más lento al comienzo
     FAST_MS_RES: 8000,             // con residuo hay dos respuestas y más que pensar
+    R_SLOT_MS: 1000,               // en Todo, una división exacta pide también lo que sobra (0): 1 s más para escribirlo
     RES_EXACT: 0.25,               // residuo: 1 de cada 4 preguntas es exacta (residuo 0)
     UNKNOWN_MUL_PENALTY: 2.5,      // división nueva cuya multiplicación aún no sabe: entra más tarde
     TEST_PASS: 1,                  // test definitivo: hay que responderlas todas bien seguidas (64 de 64)
@@ -366,8 +367,11 @@
     const rr = res ? (opts.r || 0) : 0;
     const P = a * b + rr, E = expected(st, a, b, rr), q = p.q;
     // Con residuo, la respuesta es { q, r }: las dos tienen que estar bien.
-    const correct = res ? !!answer && answer.q === b && answer.r === rr : answer === E;
-    const fast = correct && ms <= p.settings.fastMs;
+    // En Todo, una división exacta también llega como { q, r }: cabe tantas veces y sobran 0.
+    const two = !res && div && !!answer && typeof answer === 'object';
+    const correct = res ? !!answer && answer.q === b && answer.r === rr : two ? answer.q === E && answer.r === 0 : answer === E;
+    const msq = two ? Math.max(0, ms - CONFIG.R_SLOT_MS) : ms; // el 0 que sobra no cuenta para la rapidez
+    const fast = correct && msq <= p.settings.fastMs;
     const prev = f.level, first = f.attempts === 0;
     const gap = f.lastSeen < 0 ? Infinity : q - f.lastSeen - 1;
     const assisted = !!opts.assisted;
@@ -410,9 +414,9 @@
     // Estadísticas
     f.attempts++;
     if (correct) f.correct++;
-    f.times.push([Math.round(ms), correct ? 1 : 0]);
+    f.times.push([Math.round(msq), correct ? 1 : 0]);
     if (f.times.length > 5) f.times.shift();
-    if (!correct) { f.wrong.push(res ? `${answer && answer.q} y sobran ${answer && answer.r}` : answer); if (f.wrong.length > 12) f.wrong.shift(); }
+    if (!correct) { f.wrong.push(res || two ? `${answer && answer.q} y sobran ${answer && answer.r}` : answer); if (f.wrong.length > 12) f.wrong.shift(); }
     f.lastSeen = q;
     f.lastAt = now;
     const day = ymd(now);
@@ -468,7 +472,9 @@
       prev: prev, level: level, up: up, mastered: mastered, stars: stars, streak: s.streak,
       assisted: assisted, retryStage: stage, sessionErrors: s.errors[k] || 0,
       newMedals: newMedals, allMastered: allMastered,
-      r: rr, confusion: correct ? null : confusionFor(st, a, b, answer, rr),
+      r: rr, confusion: correct ? null : two
+        ? (answer.q === E ? { type: 'exacta', text: `${a * b} ÷ ${a} es exacta: cabe ${b} veces y no sobra nada. Sobran 0.` } : divConfusion(a, b, answer.q))
+        : confusionFor(st, a, b, answer, rr),
       roundDone: R.answered >= p.settings.roundSize,
       breakDue: s.activeMs >= s.breakAt
     };
@@ -657,10 +663,15 @@
     for (let i = others.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = others[i]; others[i] = others[j]; others[j] = t; }
     let chosen = null;
     for (const o of [op].concat(others)) {
+      // La anterior (por ejemplo 7 × 8) se le muestra al motor de este tipo como si acabara de salir:
+      // así ya no escoge su familia (56 ÷ 8, 56 ÷ 7) salvo que no quede nada más.
+      const sub = subs[o], hist = sub.hist;
+      if (state.last && state.last.op !== o) sub.hist = hist.concat(key(state.last.a, state.last.b));
       for (let i = 0; i < 6 && !chosen; i++) {
-        const pick = pickNext(track(prof, o), subs[o], rng, now);
+        const pick = pickNext(track(prof, o), sub, rng, now);
         if (!state.last || state.last.op === o || !sameFamily(state.last, pick)) chosen = { op: o, pick: pick };
       }
+      sub.hist = hist;
       if (chosen) break;
     }
     if (!chosen) chosen = { op: op, pick: pickNext(track(prof, op), subs[op], rng, now) };

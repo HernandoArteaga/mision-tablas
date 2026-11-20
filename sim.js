@@ -396,6 +396,15 @@ out.push('\n11) Mixto y canciones de racha');
     `900 preguntas en Todo: ${Math.round(100 * share('mul'))} % ×, ${Math.round(100 * share('div'))} % ÷ y ${Math.round(100 * share('res'))} % con residuo; nunca más de ${amax} seguidas del mismo tipo ni una que regale la anterior`);
   check(A.prof.answered + A.prof.div.answered + A.prof.res.answered === 900 && A.prof.res.answered > 250,
     `Cada respuesta suma a su modo: ${A.prof.answered} ×, ${A.prof.div.answered} ÷ y ${A.prof.res.answered} con residuo`);
+  // En Todo, una división exacta también pide lo que sobra (0).
+  const dz = MT.newProfile('J', '🦉'), dsub = MT.newSession(dz.div, 0);
+  const g1 = MT.grade(dz.div, dsub, '4x2', { q: 2, r: 0 }, 5800, 1000, {});
+  const g2 = MT.grade(dz.div, dsub, '7x8', { q: 8, r: 1 }, 3000, 2000, {});
+  const g3 = MT.grade(dz.div, dsub, '6x9', { q: 8, r: 0 }, 3000, 3000, {});
+  const g4 = MT.grade(dz.div, dsub, '3x5', 5, 3000, 4000, {});
+  check(g1.correct && g1.fast && !g2.correct && g2.confusion && /exacta/.test(g2.confusion.text) && !g3.correct && g3.confusion && g4.correct
+    && dz.div.facts['7x8'].wrong[0] === '8 y sobran 1',
+    `División exacta con "sobran": 8 ÷ 4 → 2 y 0 bien (el segundo para escribir el 0 no cuenta para la rapidez); "8 y sobran 1" → "${g2.confusion && g2.confusion.text}"; con una sola casilla sigue igual`);
   const pm = MT.newProfile('J', '🦉'); pm.mode = 'all'; MT.ensure(pm);
   check(pm.mode === 'all', 'El modo Todo se guarda en el perfil');
 }

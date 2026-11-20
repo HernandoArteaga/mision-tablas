@@ -1514,16 +1514,19 @@ body.testing .round-dots { display: none; }
     renderDots(); renderHud();
   }
   function showQuestion(op, T, pick) {
-    const isRes = op === 'res';
-    Q = { pick: pick, typed: '', phase: 'ask', start: performance.now(), hiddenAt: null, res: null, isRes: isRes, ans: { q: '', r: '' }, field: 'q' };
+    // En Todo, las divisiones exactas también preguntan lo que sobra (aunque sea 0), igual que en Residuo.
+    const divR = op === 'div' && !TEST && !!S && S.op === 'all';
+    const isRes = op === 'res' || divR;
+    Q = { pick: pick, typed: '', phase: 'ask', start: performance.now(), hiddenAt: null, res: null, isRes: isRes, divR: divR, ans: { q: '', r: '' }, field: 'q' };
     const card = $('#qCard');
     card.className = 'q-card';
     void card.offsetWidth;
     if (!reduceMotion) card.classList.add('enter');
     $('#qEq').hidden = isRes; $('#slot').hidden = isRes; $('#resRow').hidden = !isRes;
     if (isRes) {
-      $('#qa').textContent = pick.n; $('#qop').textContent = '÷'; $('#qb').textContent = pick.a;
-      $('#qText').setAttribute('aria-label', `¿Cuántas veces cabe ${pick.a} en ${pick.n} y cuánto sobra?`);
+      const n = divR ? pick.a * pick.b : pick.n;
+      $('#qa').textContent = n; $('#qop').textContent = '÷'; $('#qb').textContent = pick.a;
+      $('#qText').setAttribute('aria-label', `¿Cuántas veces cabe ${pick.a} en ${n} y cuánto sobra?`);
     } else if (op === 'div') {
       $('#qa').textContent = pick.a * pick.b; $('#qop').textContent = '÷'; $('#qb').textContent = pick.a;
       $('#qText').setAttribute('aria-label', `¿Cuánto es ${pick.a * pick.b} entre ${pick.a}?`);
@@ -1635,7 +1638,7 @@ body.testing .round-dots { display: none; }
     $('#preHint').hidden = true;
     const msg = res.first && res.fast ? '¡Ya te la sabías!' : res.sessionErrors > 0 ? pickOne(COMEBACK_MSGS) : pickOne(OK_MSGS);
     // Con residuo, siempre la comprobación: así se vuelve costumbre (la usará en la división larga).
-    const check = res.op === 'res' ? `<span class="check">${res.a} × ${res.b} + ${res.r} = ${res.product} ✓</span>` : '';
+    const check = res.op === 'res' || Q.divR ? `<span class="check">${res.a} × ${res.b} + ${res.r} = ${res.product} ✓</span>` : '';
     setFeedback(`<span>✓ ${esc(msg)}${res.fast ? ' <span aria-label="rápida">⚡</span>' : ''}</span><span class="plus">+${res.stars} ⭐${res.op === 'res' && gameOn() ? ` · 🐍 +${MT.gameWorth('res')}` : ''}</span>${check}`, 'good');
     let wait = 1000;
     const tier = MT.streakTier(S.streak);
@@ -1680,8 +1683,9 @@ body.testing .round-dots { display: none; }
       Sound.soft();
       return;
     }
+    if (Q.divR) Q.res.expected = { q: res.expected, r: 0 }; // en Todo, también el 0 que sobra
     $('#fixBox').innerHTML =
-      `<p class="copy-tip">Escribe <b>${res.expected}</b> para seguir.</p>` +
+      `<p class="copy-tip">Escribe <b>${Q.divR ? res.expected.q : res.expected}</b>${Q.divR ? ' y <b>0</b>' : ''} para seguir.</p>` +
       (res.confusion ? `<p class="confusion">${esc(res.confusion.text)}</p>` : '') +
       `<div class="fix-grid"><div class="hint"><p><span aria-hidden="true">💡</span> ${esc(h.full)}</p>${h.swap ? `<p class="swap">${esc(h.swap)}</p>` : ''}</div>` +
       `<figure class="dots">${dotsSvg(res.a, res.b)}<figcaption>${cap}</figcaption></figure></div>`;
